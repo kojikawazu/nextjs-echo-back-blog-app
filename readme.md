@@ -22,6 +22,8 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
         -   GitHub
     -   CI/CD
         -   GitHub Actions
+    -   IaC
+        -   Terraform
 
 ## Tech(Other)
 
@@ -56,3 +58,5 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
 -   [CloudFlare](https://www.cloudflare.com/ja-jp/)
 
 -   [Supabase](https://supabase.com/)
+
+-   [Terraform](https://www.terraform.io/)
