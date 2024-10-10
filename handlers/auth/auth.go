@@ -1,25 +1,15 @@
 package handlers_auth
 
 import (
+	"backend/config"
 	"backend/models"
 	"backend/utils"
-	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
-
-// 環境変数から読み込む
-var JwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
-
-func init() {
-	if len(JwtKey) == 0 {
-		log.Fatal("JWT_SECRET_KEY is not set in the environment")
-	}
-}
 
 // ログインエンドポイント（JWTトークンの発行）
 func (h *AuthHandler) Login(c echo.Context) error {
@@ -82,7 +72,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(JwtKey)
+	tokenString, err := token.SignedString(config.JwtKey)
 	if err != nil {
 		utils.LogError(c, "Could not create JWT token: "+err.Error())
 		return c.JSON(http.StatusInternalServerError, map[string]string{
@@ -91,15 +81,17 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	}
 	utils.LogInfo(c, "JWT token created successfully")
 
-	// HTTP-onlyクッキーにトークンをセット
+	// HTTPS-onlyクッキーにトークンをセット
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
 	cookie.Value = tokenString
 	cookie.Expires = expirationTime
 	cookie.HttpOnly = true
+	cookie.Secure = config.IsProduction
+	cookie.SameSite = http.SameSiteNoneMode
 	c.SetCookie(cookie)
 
-	utils.LogInfo(c, "JWT token set in HTTP-only cookie")
+	utils.LogInfo(c, "JWT token set in HTTPS-only cookie")
 	return c.JSON(http.StatusOK, map[string]string{"message": "Login successful"})
 }
 
@@ -117,7 +109,7 @@ func (h *AuthHandler) CheckAuth(c echo.Context) error {
 
 	claims := &models.Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return JwtKey, nil
+		return config.JwtKey, nil
 	})
 
 	if err != nil {
@@ -150,6 +142,8 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	cookie.Value = ""
 	cookie.Expires = time.Unix(0, 0) // 有効期限を過去に設定して削除
 	cookie.HttpOnly = true
+	cookie.Secure = config.IsProduction
+	cookie.SameSite = http.SameSiteNoneMode
 	c.SetCookie(cookie)
 
 	utils.LogInfo(c, "User logged out and token removed from cookie")
