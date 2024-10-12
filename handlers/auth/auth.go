@@ -3,7 +3,9 @@ package handlers_auth
 import (
 	"backend/config"
 	"backend/models"
+	utils_cookie "backend/utils/cookie"
 	utils "backend/utils/log"
+
 	"net/http"
 	"time"
 
@@ -82,19 +84,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	utils.LogInfo(c, "JWT token created successfully")
 
 	// HTTPS-onlyクッキーにトークンをセット
-	cookie := new(http.Cookie)
-	cookie.Name = "token"
-	cookie.Value = tokenString
-	cookie.Expires = expirationTime
-	cookie.HttpOnly = true
-	if config.IsProduction {
-		cookie.Secure = true
-		cookie.SameSite = http.SameSiteNoneMode
-	} else {
-		cookie.Secure = false
-		cookie.SameSite = http.SameSiteLaxMode
-	}
-	c.SetCookie(cookie)
+	utils_cookie.AddAuthCookie(c, tokenString, expirationTime)
 
 	utils.LogInfo(c, "JWT token set in HTTPS-only cookie")
 	return c.JSON(http.StatusOK, map[string]string{"message": "Login successful"})
@@ -142,19 +132,7 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	utils.LogInfo(c, "Logging out...")
 
 	// クッキーを削除するために、空のトークンと過去の有効期限を設定
-	cookie := new(http.Cookie)
-	cookie.Name = "token"
-	cookie.Value = ""
-	cookie.Expires = time.Unix(0, 0) // 有効期限を過去に設定して削除
-	cookie.HttpOnly = true
-	if config.IsProduction {
-		cookie.Secure = true
-		cookie.SameSite = http.SameSiteNoneMode
-	} else {
-		cookie.Secure = false
-		cookie.SameSite = http.SameSiteLaxMode
-	}
-	c.SetCookie(cookie)
+	utils_cookie.DelAuthCookie(c)
 
 	utils.LogInfo(c, "User logged out and token removed from cookie")
 	return c.JSON(http.StatusOK, map[string]string{"message": "Logout successful"})
