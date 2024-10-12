@@ -19,9 +19,14 @@ func SetupMiddlewares(e *echo.Echo) {
 	// CORSを有効化
 	// AllowCredentialsをtrueに設定すると、クライアント側でwithCredentialsをtrueに設定する必要がある
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins:     strings.Split(allowedOrigins, ","),
-		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
-		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAuthorization},
+		AllowOrigins: strings.Split(allowedOrigins, ","),
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowHeaders: []string{
+			echo.HeaderOrigin,
+			echo.HeaderContentType,
+			echo.HeaderAuthorization,
+			"Access-Control-Allow-Credentials",
+		},
 		AllowCredentials: true,
 	}))
 }
