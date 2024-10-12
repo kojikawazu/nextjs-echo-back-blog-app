@@ -25,8 +25,11 @@ func SetupMiddlewares(e *echo.Echo) {
 			echo.HeaderOrigin,
 			echo.HeaderContentType,
 			echo.HeaderAuthorization,
-			"Access-Control-Allow-Credentials",
+			echo.HeaderAccessControlAllowCredentials,
 		},
+		// ExposeHeaders: []string{
+		// 	echo.HeaderSetCookie,
+		// },
 		AllowCredentials: true,
 	}))
 }

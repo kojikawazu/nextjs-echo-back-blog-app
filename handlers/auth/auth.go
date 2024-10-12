@@ -94,6 +94,26 @@ func (h *AuthHandler) Login(c echo.Context) error {
 func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	utils.LogInfo(c, "Checking authentication...")
 
+	// // リクエストヘッダーの内容をログに出力
+	// for name, values := range c.Request().Header {
+	// 	for _, value := range values {
+	// 		utils.LogInfo(c, "Request header: "+name+" = "+value)
+	// 	}
+	// }
+
+	// // リクエストボディの内容をログに出力（ボディがある場合）
+	// if c.Request().ContentLength > 0 {
+	// 	bodyBytes, err := io.ReadAll(c.Request().Body)
+	// 	if err != nil {
+	// 		utils.LogError(c, "Failed to read request body: "+err.Error())
+	// 		return c.JSON(http.StatusInternalServerError, map[string]string{"message": "Failed to read request body"})
+	// 	}
+	// 	// ボディの読み込み後、再度リクエストボディにセットする
+	// 	c.Request().Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// 	utils.LogInfo(c, "Request body: "+string(bodyBytes))
+	// }
+
 	// クッキーからJWTトークンを取得
 	cookie, err := c.Cookie("token")
 	if err != nil {
