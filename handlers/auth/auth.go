@@ -3,7 +3,7 @@ package handlers_auth
 import (
 	"backend/config"
 	"backend/models"
-	"backend/utils"
+	utils "backend/utils/log"
 	"net/http"
 	"time"
 
@@ -87,8 +87,13 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	cookie.Value = tokenString
 	cookie.Expires = expirationTime
 	cookie.HttpOnly = true
-	cookie.Secure = config.IsProduction
-	cookie.SameSite = http.SameSiteNoneMode
+	if config.IsProduction {
+		cookie.Secure = true
+		cookie.SameSite = http.SameSiteNoneMode
+	} else {
+		cookie.Secure = false
+		cookie.SameSite = http.SameSiteLaxMode
+	}
 	c.SetCookie(cookie)
 
 	utils.LogInfo(c, "JWT token set in HTTPS-only cookie")
@@ -142,8 +147,13 @@ func (h *AuthHandler) Logout(c echo.Context) error {
 	cookie.Value = ""
 	cookie.Expires = time.Unix(0, 0) // 有効期限を過去に設定して削除
 	cookie.HttpOnly = true
-	cookie.Secure = config.IsProduction
-	cookie.SameSite = http.SameSiteNoneMode
+	if config.IsProduction {
+		cookie.Secure = true
+		cookie.SameSite = http.SameSiteNoneMode
+	} else {
+		cookie.Secure = false
+		cookie.SameSite = http.SameSiteLaxMode
+	}
 	c.SetCookie(cookie)
 
 	utils.LogInfo(c, "User logged out and token removed from cookie")

@@ -1,7 +1,7 @@
 package handlers_users
 
 import (
-	"backend/utils"
+	utils "backend/utils/log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
