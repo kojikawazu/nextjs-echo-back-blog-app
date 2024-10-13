@@ -11,7 +11,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	log.Printf("FetchBlogs start...")
 
 	query := `
-        SELECT id, user_id, title, github_url, category, tag, created_at, updated_at
+        SELECT id, user_id, title, description, github_url, category, tag, likes, created_at, updated_at
         FROM blogs
         ORDER BY created_at DESC
     `
@@ -29,22 +29,24 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 
 	// 結果をスキャンしてブログデータをリストに追加
 	for rows.Next() {
-		var user models.BlogData
+		var blog models.BlogData
 		err := rows.Scan(
-			&user.ID,
-			&user.UserId,
-			&user.Title,
-			&user.GithubUrl,
-			&user.Category,
-			&user.Tag,
-			&user.CreatedAt,
-			&user.UpdatedAt,
+			&blog.ID,
+			&blog.UserId,
+			&blog.Title,
+			&blog.Description,
+			&blog.GithubUrl,
+			&blog.Category,
+			&blog.Tag,
+			&blog.Likes,
+			&blog.CreatedAt,
+			&blog.UpdatedAt,
 		)
 		if err != nil {
 			log.Printf("Failed to scan blog: %v", err)
 			return nil, err
 		}
-		blogs = append(blogs, user)
+		blogs = append(blogs, blog)
 	}
 
 	if rows.Err() != nil {
@@ -61,7 +63,7 @@ func (r *BlogRepositoryImpl) FetchBlogByUserId(userId string) (*models.BlogData,
 	log.Printf("FetchBlogByUserId start...")
 
 	query := `
-		SELECT id, user_id, title, github_url, category, tag, created_at, updated_at
+		SELECT id, user_id, title, description, github_url, category, tag, likes, created_at, updated_at
 		FROM blogs
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -77,9 +79,11 @@ func (r *BlogRepositoryImpl) FetchBlogByUserId(userId string) (*models.BlogData,
 		&blog.ID,
 		&blog.UserId,
 		&blog.Title,
+		&blog.Description,
 		&blog.GithubUrl,
 		&blog.Category,
 		&blog.Tag,
+		&blog.Likes,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
