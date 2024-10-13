@@ -18,10 +18,10 @@ func (m *MockBlogRepository) FetchBlogs() ([]models.BlogData, error) {
 	return nil, args.Error(1)
 }
 
-func (m *MockBlogRepository) FetchBlogByUserId(userId string) (*models.BlogData, error) {
+func (m *MockBlogRepository) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
 	args := m.Called(userId)
 	if args.Get(0) != nil {
-		return args.Get(0).(*models.BlogData), args.Error(1)
+		return args.Get(0).([]models.BlogData), args.Error(1)
 	}
 	return nil, args.Error(1)
 }

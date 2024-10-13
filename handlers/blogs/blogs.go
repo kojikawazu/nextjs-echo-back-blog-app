@@ -26,8 +26,8 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 }
 
 // ユーザーIDでブログデータを取得する
-func (h *BlogHandler) FetchBlogByUserId(c echo.Context) error {
-	utils.LogInfo(c, "Fetching blog by userId...")
+func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
+	utils.LogInfo(c, "Fetching blogs by userId...")
 
 	// JSONのリクエストボディからuserIdを取得
 	type RequestBody struct {
@@ -44,7 +44,7 @@ func (h *BlogHandler) FetchBlogByUserId(c echo.Context) error {
 	}
 
 	// サービス層からユーザーIDでブログデータを取得
-	blog, err := h.BlogService.FetchBlogByUserId(reqBody.UserId)
+	blogs, err := h.BlogService.FetchBlogsByUserId(reqBody.UserId)
 	if err != nil {
 		switch err.Error() {
 		case "invalid userId":
@@ -56,13 +56,13 @@ func (h *BlogHandler) FetchBlogByUserId(c echo.Context) error {
 				"error": "Blog not found",
 			})
 		default:
-			utils.LogError(c, "Error fetching blog: "+err.Error())
+			utils.LogError(c, "Error fetching blogs: "+err.Error())
 			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error fetching blog",
+				"error": "Error fetching blogs",
 			})
 		}
 	}
 
-	utils.LogInfo(c, "Fetched blog successfully")
-	return c.JSON(http.StatusOK, blog)
+	utils.LogInfo(c, "Fetched blogs successfully")
+	return c.JSON(http.StatusOK, blogs)
 }

@@ -5,7 +5,7 @@ import "backend/models"
 // BlogRepositoryインターフェース
 type BlogRepository interface {
 	FetchBlogs() ([]models.BlogData, error)
-	FetchBlogByUserId(userId string) (*models.BlogData, error)
+	FetchBlogsByUserId(userId string) ([]models.BlogData, error)
 }
 
 type BlogRepositoryImpl struct{}
