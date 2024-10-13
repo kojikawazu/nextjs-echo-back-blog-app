@@ -48,7 +48,7 @@ func SetupRoutes(e *echo.Echo) {
 		blogs := api.Group("/blogs")
 		{
 			blogs.GET("", BlogHandler.FetchBlogs)
-			blogs.GET("/user", BlogHandler.FetchBlogByUserId)
+			blogs.GET("/user", BlogHandler.FetchBlogsByUserId)
 		}
 	}
 }

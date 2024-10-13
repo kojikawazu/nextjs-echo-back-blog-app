@@ -12,8 +12,8 @@ func (s *BlogServiceImpl) FetchBlogs() ([]models.BlogData, error) {
 }
 
 // 指定されたユーザーIDに一致するブログデータを取得する
-func (s *BlogServiceImpl) FetchBlogByUserId(userId string) (*models.BlogData, error) {
-	log.Printf("FetchBlogByUserId start...")
+func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
+	log.Printf("FetchBlogsByUserId start...")
 
 	// バリデーション
 	if userId == "" {
@@ -23,12 +23,12 @@ func (s *BlogServiceImpl) FetchBlogByUserId(userId string) (*models.BlogData, er
 	log.Println("Valid userId")
 
 	// リポジトリを呼び出してブログデータを取得
-	blog, err := s.BlogRepository.FetchBlogByUserId(userId)
+	blogs, err := s.BlogRepository.FetchBlogsByUserId(userId)
 	if err != nil {
-		log.Printf("Failed to fetch blog: %v", err)
-		return nil, errors.New("blog not found")
+		log.Printf("Failed to fetch blogs: %v", err)
+		return nil, errors.New("blogs not found")
 	}
 
-	log.Printf("Fetched blog successfully: %v", blog)
-	return blog, nil
+	log.Printf("Fetched blogs successfully: %v", blogs)
+	return blogs, nil
 }
