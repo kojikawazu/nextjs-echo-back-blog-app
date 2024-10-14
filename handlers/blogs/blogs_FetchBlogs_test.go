@@ -2,6 +2,7 @@ package handlers_blogs
 
 import (
 	service_blogs "backend/services/blogs"
+	utils_cookie "backend/utils/cookie"
 	"errors"
 	"time"
 
@@ -22,8 +23,9 @@ func TestHandler_FetchBlogs(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
 	mockBlog := []models.BlogData{
@@ -70,8 +72,10 @@ func TestHandler_FetchBlogs_Error(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
+
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// サービス層がエラーを返すように設定
 	mockService.On("FetchBlogs").Return(nil, errors.New("some error occurred"))
@@ -96,8 +100,9 @@ func TestHandler_FetchBlogs_Empty(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// サービス層が空のブログリストを返すように設定
 	mockService.On("FetchBlogs").Return([]models.BlogData{}, nil)

@@ -54,3 +54,75 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	utils.LogInfo(c, "Fetched blogs successfully")
 	return c.JSON(http.StatusOK, blogs)
 }
+
+func (h *BlogHandler) CreateBlog(c echo.Context) error {
+	utils.LogInfo(c, "Creating blog...")
+
+	// クッキーからJWTトークンを取得
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	if err != nil {
+		utils.LogError(c, "Error getting cookie: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting cookie",
+		})
+	}
+
+	// JWTトークンを解析してユーザーIDを取得
+	userId, err := h.CookieUtils.GetUserIdFromToken(c, cookieValue)
+	if err != nil {
+		utils.LogError(c, "Error getting userId from token: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting userId from token",
+		})
+	}
+
+	// リクエストボディから必要な情報を取得
+	title := c.FormValue("title")
+	githubUrl := c.FormValue("githubUrl")
+	category := c.FormValue("category")
+	description := c.FormValue("description")
+	tags := c.FormValue("tags")
+
+	// サービス層からブログデータを作成
+	blog, err := h.BlogService.CreateBlog(userId, title, githubUrl, category, description, tags)
+	if err != nil {
+		switch err.Error() {
+		case "invalid userId":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid userId",
+			})
+		case "invalid title":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid title",
+			})
+		case "invalid githubUrl":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid githubUrl",
+			})
+		case "invalid category":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid category",
+			})
+		case "invalid description":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid description",
+			})
+		case "invalid tags":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid tags",
+			})
+		case "failed to create blog":
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to create blog",
+			})
+		default:
+			utils.LogError(c, "server error: "+err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Server error",
+			})
+		}
+	}
+
+	utils.LogInfo(c, "Created blog successfully")
+	return c.JSON(http.StatusCreated, blog)
+}

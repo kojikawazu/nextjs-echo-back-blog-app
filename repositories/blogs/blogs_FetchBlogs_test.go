@@ -38,5 +38,5 @@ func TestRepository_FetchBlogs(t *testing.T) {
 	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.NotNil(t, blogs)
-	assert.Len(t, blogs, 1)
+	assert.Len(t, blogs, 2)
 }

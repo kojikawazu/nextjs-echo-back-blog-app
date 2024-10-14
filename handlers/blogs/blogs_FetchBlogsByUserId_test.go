@@ -3,6 +3,7 @@ package handlers_blogs
 import (
 	"backend/models"
 	service_blogs "backend/services/blogs"
+	utils_cookie "backend/utils/cookie"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -24,8 +25,9 @@ func TestHandler_FetchBlogsByUserId(t *testing.T) {
 	c.SetParamValues("1")
 
 	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
 	mockBlogs := []models.BlogData{
@@ -76,8 +78,10 @@ func TestHandler_FetchBlogsByUserId_EmptyUserId(t *testing.T) {
 	c.SetParamNames("userId")
 	c.SetParamValues("")
 
+	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックサービスの設定（ブログが見つからない場合）
 	mockService.On("FetchBlogsByUserId", "").Return(nil, errors.New("invalid userId"))
@@ -105,8 +109,10 @@ func TestHandler_FetchBlogsByUserId_BlogNotFound(t *testing.T) {
 	c.SetParamNames("userId")
 	c.SetParamValues("1")
 
+	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックサービスの設定（ブログが見つからない場合）
 	mockService.On("FetchBlogsByUserId", "1").Return(nil, errors.New("blog not found"))
@@ -133,8 +139,10 @@ func TestHandler_FetchBlogsByUserId_ServiceError(t *testing.T) {
 	c.SetParamNames("userId")
 	c.SetParamValues("1")
 
+	// モックサービスをインスタンス化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
+	handler := NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックサービスの設定（一般的なエラーが発生した場合）
 	mockService.On("FetchBlogsByUserId", "1").Return(nil, errors.New("some internal error"))
