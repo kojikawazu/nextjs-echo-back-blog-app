@@ -6,7 +6,6 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,10 +15,13 @@ import (
 
 func TestHandler_FetchBlogsByUserId(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/blog/user", strings.NewReader(`{"user_id": "1"}`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	// パスパラメータとして userId を指定する
+	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	// パスパラメータを設定
+	c.SetParamNames("userId")
+	c.SetParamValues("1")
 
 	// モックサービスをインスタンス化
 	mockService := new(service_blogs.MockBlogService)
@@ -63,38 +65,16 @@ func TestHandler_FetchBlogsByUserId(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// リクエストボディが無効な場合の異常系
-func TestHandler_FetchBlogsByUserId_InvalidRequestBody(t *testing.T) {
-	e := echo.New()
-	// 無効なボディを渡す
-	req := httptest.NewRequest(http.MethodPost, "/api/blog/user", strings.NewReader(`invalid_json_body`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService)
-
-	// ハンドラーを実行
-	err := handler.FetchBlogsByUserId(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid request body")
-
-	// サービス層のメソッドが呼ばれていないことを確認
-	mockService.AssertNotCalled(t, "FetchBlogsByUserId")
-}
-
 // userIdが空の場合の異常系
 func TestHandler_FetchBlogsByUserId_EmptyUserId(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/blog/user", strings.NewReader(`{"user_id": ""}`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	// パスパラメータが空のリクエストを作成
+	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	// パスパラメータを空に設定
+	c.SetParamNames("userId")
+	c.SetParamValues("")
 
 	mockService := new(service_blogs.MockBlogService)
 	handler := NewBlogHandler(mockService)
@@ -117,10 +97,13 @@ func TestHandler_FetchBlogsByUserId_EmptyUserId(t *testing.T) {
 // ブログが見つからない場合の異常系
 func TestHandler_FetchBlogsByUserId_BlogNotFound(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/blog/user", strings.NewReader(`{"user_id": "1"}`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	// パスパラメータとして userId を指定する
+	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	// パスパラメータを設定
+	c.SetParamNames("userId")
+	c.SetParamValues("1")
 
 	mockService := new(service_blogs.MockBlogService)
 	handler := NewBlogHandler(mockService)
@@ -142,10 +125,13 @@ func TestHandler_FetchBlogsByUserId_BlogNotFound(t *testing.T) {
 // サービス層でエラーが発生した場合の異常系
 func TestHandler_FetchBlogsByUserId_ServiceError(t *testing.T) {
 	e := echo.New()
-	req := httptest.NewRequest(http.MethodPost, "/api/blog/user", strings.NewReader(`{"user_id": "1"}`))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	// パスパラメータとして userId を指定する
+	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
+	// パスパラメータを設定
+	c.SetParamNames("userId")
+	c.SetParamValues("1")
 
 	mockService := new(service_blogs.MockBlogService)
 	handler := NewBlogHandler(mockService)
