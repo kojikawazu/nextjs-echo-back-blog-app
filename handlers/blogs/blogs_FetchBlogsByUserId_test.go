@@ -63,7 +63,7 @@ func TestHandler_FetchBlogsByUserId(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "title1")
 	assert.Contains(t, rec.Body.String(), "title2")
 
-	// サービス層のメソッドが呼ばれていないことを確認
+	// サービス層のメソッドが呼ばれたことを確認
 	mockService.AssertExpectations(t)
 }
 
@@ -94,7 +94,7 @@ func TestHandler_FetchBlogsByUserId_EmptyUserId(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Invalid userId")
 
-	// サービス層のメソッドが呼ばれていないことを確認
+	// サービス層のメソッドが呼ばれたことを確認
 	mockService.AssertExpectations(t)
 }
 
@@ -125,6 +125,7 @@ func TestHandler_FetchBlogsByUserId_BlogNotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Blog not found")
 
+	// サービス層のメソッドが呼ばれたことを確認
 	mockService.AssertExpectations(t)
 }
 
@@ -155,5 +156,6 @@ func TestHandler_FetchBlogsByUserId_ServiceError(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Error fetching blog")
 
+	// サービス層のメソッドが呼ばれたことを確認
 	mockService.AssertExpectations(t)
 }

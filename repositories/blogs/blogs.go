@@ -111,6 +111,41 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	return blogs, nil
 }
 
+// 指定されたIDに一致するブログデータを取得する
+func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) {
+	log.Printf("FetchBlogById start...")
+
+	query := `
+		SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
+		FROM blogs
+		WHERE id = $1
+	`
+
+	// Supabaseからクエリを実行し、条件に一致するデータを取得
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, id)
+	var blog models.BlogData
+	err := row.Scan(
+		&blog.ID,
+		&blog.UserId,
+		&blog.Title,
+		&blog.Description,
+		&blog.GithubUrl,
+		&blog.Category,
+		&blog.Tags,
+		&blog.Likes,
+		&blog.CreatedAt,
+		&blog.UpdatedAt,
+	)
+	if err != nil {
+		log.Printf("Failed to fetch blog: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Fetched blog: %v", blog)
+	return &blog, nil
+}
+
+// ブログデータの作成
 func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
 	log.Printf("CreateReservation start...")
 

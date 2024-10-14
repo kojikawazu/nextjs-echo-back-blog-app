@@ -55,6 +55,38 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	return c.JSON(http.StatusOK, blogs)
 }
 
+// ブログIDでブログデータを取得する
+func (h *BlogHandler) FetchBlogById(c echo.Context) error {
+	utils.LogInfo(c, "Fetching blog by id...")
+
+	// パスパラメータからidを取得
+	id := c.Param("id")
+
+	// サービス層からIDでブログデータを取得
+	blog, err := h.BlogService.FetchBlogById(id)
+	if err != nil {
+		switch err.Error() {
+		case "invalid id":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid id",
+			})
+		case "blog not found":
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "Blog not found",
+			})
+		default:
+			utils.LogError(c, "Error fetching blog: "+err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Error fetching blog",
+			})
+		}
+	}
+
+	utils.LogInfo(c, "Fetched blog successfully")
+	return c.JSON(http.StatusOK, blog)
+}
+
+// ブログデータを作成する
 func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog...")
 
