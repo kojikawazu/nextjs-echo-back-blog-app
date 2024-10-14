@@ -19,6 +19,6 @@ type CookieUtils interface {
 
 type CookieUtilsImpl struct{}
 
-func NewBlogService() CookieUtils {
+func NewCookieUtils() CookieUtils {
 	return &CookieUtilsImpl{}
 }

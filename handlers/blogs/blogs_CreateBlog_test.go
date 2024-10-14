@@ -4,10 +4,10 @@ import (
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
+	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"strings"
 	"testing"
 
 	"github.com/labstack/echo/v4"
@@ -17,21 +17,28 @@ import (
 func TestHandler_CreateBlog(t *testing.T) {
 	e := echo.New()
 
-	// フォームデータを設定
-	form := url.Values{}
-	form.Add("title", "Test Title")
-	form.Add("githubUrl", "https://github.com")
-	form.Add("category", "Tech")
-	form.Add("description", "This is a test blog")
-	form.Add("tags", "Go")
+	// JSONデータを作成
+	requestBody := map[string]string{
+		"title":       "Test Title",
+		"githubUrl":   "https://github.com",
+		"category":    "Tech",
+		"description": "This is a test blog",
+		"tags":        "Go",
+	}
+
+	// JSONデータをエンコード
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
 
 	// JWT の署名キーを設定し、正しいトークンを生成
 	token := "mocked-token"
 	validUserId := "valid-user-id"
 
 	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPost, "/blogs/create", strings.NewReader(form.Encode()))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	req := httptest.NewRequest(http.MethodPost, "/blogs/create", bytes.NewReader(jsonData))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	cookie := &http.Cookie{
 		Name:  "token",
 		Value: token,
@@ -54,7 +61,7 @@ func TestHandler_CreateBlog(t *testing.T) {
 	}, nil)
 
 	// テストを実行
-	err := handler.CreateBlog(c)
+	err = handler.CreateBlog(c)
 	assert.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 	assert.Contains(t, rec.Body.String(), "Test Title")
