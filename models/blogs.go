@@ -13,7 +13,7 @@ type BlogData struct {
 	Description string    `json:"description" db:"description"` // 説明
 	GithubUrl   string    `json:"github_url" db:"github_url"`   // GitHubリポジトリのURL
 	Category    string    `json:"category" db:"category"`       // カテゴリ
-	Tag         string    `json:"tag" db:"tag"`                 // タグ
+	Tags        string    `json:"tags" db:"tags"`               // タグ
 	Likes       int8      `json:"likes" db:"likes"`             // いいね数
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`   // タイムスタンプ
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`   // タイムスタンプ
