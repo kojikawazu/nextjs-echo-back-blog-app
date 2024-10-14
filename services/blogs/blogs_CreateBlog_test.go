@@ -119,7 +119,7 @@ func TestService_CreateBlog_InvalidGitHubURL(t *testing.T) {
 
 	// アサーション
 	assert.Error(t, err)
-	assert.Equal(t, "invalid github_url", err.Error())
+	assert.Equal(t, "invalid githubUrl", err.Error())
 	assert.Equal(t, models.BlogData{}, blog)
 
 	// モックの呼び出しがないことを確認

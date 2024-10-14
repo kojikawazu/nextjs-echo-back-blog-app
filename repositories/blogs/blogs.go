@@ -111,7 +111,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	return blogs, nil
 }
 
-func (r *BlogRepositoryImpl) CreateBlog(userId, title, github_url, category, description, tags string) (models.BlogData, error) {
+func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
 	log.Printf("CreateReservation start...")
 
 	query := `
@@ -121,7 +121,7 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, github_url, category, des
 	`
 
 	// Supabaseからクエリを実行し、新しいブログデータを作成
-	row := supabase.Pool.QueryRow(supabase.Ctx, query, userId, title, github_url, category, description, tags)
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, userId, title, githubUrl, category, description, tags)
 	// 結果をスキャンして新しいブログデータを返す
 	var blog models.BlogData
 	err := row.Scan(

@@ -26,8 +26,8 @@ func (m *MockBlogRepository) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	return nil, args.Error(1)
 }
 
-func (m *MockBlogRepository) CreateBlog(userId, title, github_url, category, description, tags string) (models.BlogData, error) {
-	args := m.Called(userId, title, github_url, category, description, tags)
+func (m *MockBlogRepository) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
+	args := m.Called(userId, title, githubUrl, category, description, tags)
 	if args.Get(0) != nil {
 		return args.Get(0).(models.BlogData), args.Error(1)
 	}

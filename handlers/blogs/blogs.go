@@ -76,15 +76,25 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 		})
 	}
 
-	// リクエストボディから必要な情報を取得
-	title := c.FormValue("title")
-	githubUrl := c.FormValue("githubUrl")
-	category := c.FormValue("category")
-	description := c.FormValue("description")
-	tags := c.FormValue("tags")
+	// JSONボディのバインド
+	type CreateBlogRequest struct {
+		Title       string `json:"title"`
+		GitHubURL   string `json:"githubUrl"`
+		Category    string `json:"category"`
+		Description string `json:"description"`
+		Tags        string `json:"tags"`
+	}
+
+	var req CreateBlogRequest
+	if err := c.Bind(&req); err != nil {
+		utils.LogError(c, "Error binding request: "+err.Error())
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
 
 	// サービス層からブログデータを作成
-	blog, err := h.BlogService.CreateBlog(userId, title, githubUrl, category, description, tags)
+	blog, err := h.BlogService.CreateBlog(userId, req.Title, req.GitHubURL, req.Category, req.Description, req.Tags)
 	if err != nil {
 		switch err.Error() {
 		case "invalid userId":

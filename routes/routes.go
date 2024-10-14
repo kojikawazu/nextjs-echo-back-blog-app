@@ -26,7 +26,7 @@ func SetupRoutes(e *echo.Echo) {
 	})
 
 	// RepositoryとServiceとHandlerの初期化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	cookieUtils := utils_cookie.NewCookieUtils()
 
 	userRepository := repositories_users.NewUserRepository()
 	blogRepository := repositories_blogs.NewBlogRepository()
@@ -36,7 +36,7 @@ func SetupRoutes(e *echo.Echo) {
 	blogService := services_blogs.NewBlogService(blogRepository)
 
 	authHandler := handlers_auth.NewAuthHandler(userService, authService)
-	BlogHandler := handlers_blogs.NewBlogHandler(blogService, mockCookieUtils)
+	BlogHandler := handlers_blogs.NewBlogHandler(blogService, cookieUtils)
 
 	// APIエンドポイントの設定
 	api := e.Group("/api")
