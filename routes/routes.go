@@ -1,6 +1,8 @@
 package routes
 
 import (
+	utils_cookie "backend/utils/cookie"
+
 	handlers_auth "backend/handlers/auth"
 	handlers_blogs "backend/handlers/blogs"
 
@@ -24,6 +26,8 @@ func SetupRoutes(e *echo.Echo) {
 	})
 
 	// RepositoryとServiceとHandlerの初期化
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+
 	userRepository := repositories_users.NewUserRepository()
 	blogRepository := repositories_blogs.NewBlogRepository()
 
@@ -32,7 +36,7 @@ func SetupRoutes(e *echo.Echo) {
 	blogService := services_blogs.NewBlogService(blogRepository)
 
 	authHandler := handlers_auth.NewAuthHandler(userService, authService)
-	BlogHandler := handlers_blogs.NewBlogHandler(blogService)
+	BlogHandler := handlers_blogs.NewBlogHandler(blogService, mockCookieUtils)
 
 	// APIエンドポイントの設定
 	api := e.Group("/api")
@@ -49,6 +53,7 @@ func SetupRoutes(e *echo.Echo) {
 		{
 			blogs.GET("", BlogHandler.FetchBlogs)
 			blogs.GET("/user/:userId", BlogHandler.FetchBlogsByUserId)
+			blogs.POST("/create", BlogHandler.CreateBlog)
 		}
 	}
 }

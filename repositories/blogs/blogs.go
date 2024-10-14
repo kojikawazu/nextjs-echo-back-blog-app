@@ -110,3 +110,37 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	log.Printf("Fetched %d blogs", len(blogs))
 	return blogs, nil
 }
+
+func (r *BlogRepositoryImpl) CreateBlog(userId, title, github_url, category, description, tags string) (models.BlogData, error) {
+	log.Printf("CreateReservation start...")
+
+	query := `
+		INSERT INTO blogs (user_id, title, github_url, category, description, tags)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
+	`
+
+	// Supabaseからクエリを実行し、新しいブログデータを作成
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, userId, title, github_url, category, description, tags)
+	// 結果をスキャンして新しいブログデータを返す
+	var blog models.BlogData
+	err := row.Scan(
+		&blog.ID,
+		&blog.UserId,
+		&blog.Title,
+		&blog.Description,
+		&blog.GithubUrl,
+		&blog.Category,
+		&blog.Tags,
+		&blog.Likes,
+		&blog.CreatedAt,
+		&blog.UpdatedAt,
+	)
+	if err != nil {
+		log.Printf("Failed to create blog: %v", err)
+		return models.BlogData{}, err
+	}
+
+	log.Printf("Created blog: %v", blog)
+	return blog, nil
+}

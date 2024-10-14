@@ -32,3 +32,45 @@ func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 	log.Printf("Fetched blogs successfully: %v", blogs)
 	return blogs, nil
 }
+
+// ブログデータを作成する
+func (s *BlogServiceImpl) CreateBlog(userId, title, github_url, category, description, tags string) (models.BlogData, error) {
+	log.Printf("CreateBlog start...")
+
+	// バリデーション
+	if userId == "" {
+		log.Printf("invalid userId: %s", userId)
+		return models.BlogData{}, errors.New("invalid userId")
+	}
+	if title == "" {
+		log.Printf("invalid title: %s", title)
+		return models.BlogData{}, errors.New("invalid title")
+	}
+	if github_url == "" {
+		log.Printf("invalid github_url: %s", github_url)
+		return models.BlogData{}, errors.New("invalid github_url")
+	}
+	if category == "" {
+		log.Printf("invalid category: %s", category)
+		return models.BlogData{}, errors.New("invalid category")
+	}
+	if description == "" {
+		log.Printf("invalid description: %s", description)
+		return models.BlogData{}, errors.New("invalid description")
+	}
+	if tags == "" {
+		log.Printf("invalid tags: %s", tags)
+		return models.BlogData{}, errors.New("invalid tags")
+	}
+	log.Println("Valid input")
+
+	// リポジトリを呼び出してブログデータを作成
+	blog, err := s.BlogRepository.CreateBlog(userId, title, github_url, category, description, tags)
+	if err != nil {
+		log.Printf("Failed to create blog: %v", err)
+		return models.BlogData{}, errors.New("failed to create blog")
+	}
+
+	log.Printf("Created blog successfully: %v", blog)
+	return blog, nil
+}
