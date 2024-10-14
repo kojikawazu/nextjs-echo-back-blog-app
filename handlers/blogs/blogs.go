@@ -2,7 +2,6 @@ package handlers_blogs
 
 import (
 	utils "backend/utils/log"
-	"log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -29,22 +28,11 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs by userId...")
 
-	// JSONのリクエストボディからuserIdを取得
-	type RequestBody struct {
-		UserId string `json:"user_id"`
-	}
-
-	// リクエストボディをバインド
-	var reqBody RequestBody
-	if err := c.Bind(&reqBody); err != nil {
-		log.Printf("Failed to bind request body: %v", err)
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
-	}
+	// パスパラメータからuserIdを取得
+	userId := c.Param("userId")
 
 	// サービス層からユーザーIDでブログデータを取得
-	blogs, err := h.BlogService.FetchBlogsByUserId(reqBody.UserId)
+	blogs, err := h.BlogService.FetchBlogsByUserId(userId)
 	if err != nil {
 		switch err.Error() {
 		case "invalid userId":
