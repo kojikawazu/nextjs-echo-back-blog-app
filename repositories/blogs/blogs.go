@@ -11,7 +11,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	log.Printf("FetchBlogs start...")
 
 	query := `
-        SELECT id, user_id, title, description, github_url, category, tag, likes, created_at, updated_at
+        SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
         FROM blogs
         ORDER BY created_at DESC
     `
@@ -37,7 +37,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 			&blog.Description,
 			&blog.GithubUrl,
 			&blog.Category,
-			&blog.Tag,
+			&blog.Tags,
 			&blog.Likes,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
@@ -63,7 +63,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	log.Printf("FetchBlogsByUserId start...")
 
 	query := `
-		SELECT id, user_id, title, description, github_url, category, tag, likes, created_at, updated_at
+		SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
 		FROM blogs
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -90,7 +90,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 			&blog.Description,
 			&blog.GithubUrl,
 			&blog.Category,
-			&blog.Tag,
+			&blog.Tags,
 			&blog.Likes,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
