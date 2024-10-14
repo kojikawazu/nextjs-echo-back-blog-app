@@ -26,6 +26,14 @@ func (m *MockBlogService) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 	return args.Get(0).([]models.BlogData), args.Error(1)
 }
 
+func (m *MockBlogService) FetchBlogById(id string) (*models.BlogData, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.BlogData), args.Error(1)
+}
+
 func (m *MockBlogService) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
 	args := m.Called(userId, title, githubUrl, category, description, tags)
 	if args.Get(0) == nil {

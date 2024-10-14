@@ -53,6 +53,7 @@ func SetupRoutes(e *echo.Echo) {
 		{
 			blogs.GET("", BlogHandler.FetchBlogs)
 			blogs.GET("/user/:userId", BlogHandler.FetchBlogsByUserId)
+			blogs.GET("/detail/:id", BlogHandler.FetchBlogById)
 			blogs.POST("/create", BlogHandler.CreateBlog)
 		}
 	}

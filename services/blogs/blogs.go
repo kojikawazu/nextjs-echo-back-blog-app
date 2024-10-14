@@ -33,6 +33,28 @@ func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 	return blogs, nil
 }
 
+// 指定されたIDに一致するブログデータを取得する
+func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
+	log.Printf("FetchBlogById start...")
+
+	// バリデーション
+	if id == "" {
+		log.Printf("invalid id: %s", id)
+		return nil, errors.New("invalid id")
+	}
+	log.Println("Valid id")
+
+	// リポジトリを呼び出してブログデータを取得
+	blog, err := s.BlogRepository.FetchBlogById(id)
+	if err != nil {
+		log.Printf("Failed to fetch blog: %v", err)
+		return nil, errors.New("blog not found")
+	}
+
+	log.Printf("Fetched blog successfully: %v", blog)
+	return blog, nil
+}
+
 // ブログデータを作成する
 func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
 	log.Printf("CreateBlog start...")
