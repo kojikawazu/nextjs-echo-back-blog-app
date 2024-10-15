@@ -168,3 +168,102 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Created blog successfully")
 	return c.JSON(http.StatusCreated, blog)
 }
+
+// ブログデータを更新する
+func (h *BlogHandler) UpdateBlog(c echo.Context) error {
+	utils.LogInfo(c, "Updating blog...")
+
+	// パスパラメータからidを取得
+	id := c.Param("id")
+
+	// JSONボディのバインド
+	type UpdateBlogRequest struct {
+		Title       string `json:"title"`
+		GitHubURL   string `json:"githubUrl"`
+		Category    string `json:"category"`
+		Description string `json:"description"`
+		Tags        string `json:"tags"`
+	}
+
+	var req UpdateBlogRequest
+	if err := c.Bind(&req); err != nil {
+		utils.LogError(c, "Error binding request: "+err.Error())
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request body",
+		})
+	}
+
+	// サービス層からブログデータを更新
+	blog, err := h.BlogService.UpdateBlog(id, req.Title, req.GitHubURL, req.Category, req.Description, req.Tags)
+	if err != nil {
+		switch err.Error() {
+		case "invalid id":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid id",
+			})
+		case "invalid title":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid title",
+			})
+		case "invalid githubUrl":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid githubUrl",
+			})
+		case "invalid category":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid category",
+			})
+		case "invalid description":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid description",
+			})
+		case "invalid tags":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid tags",
+			})
+		case "failed to update blog":
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to update blog",
+			})
+		default:
+			utils.LogError(c, "server error: "+err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Server error",
+			})
+		}
+	}
+
+	utils.LogInfo(c, "Updated blog successfully")
+	return c.JSON(http.StatusOK, blog)
+}
+
+// ブログデータを削除する
+func (h *BlogHandler) DeleteBlog(c echo.Context) error {
+	utils.LogInfo(c, "Deleting blog...")
+
+	// パスパラメータからidを取得
+	id := c.Param("id")
+
+	// サービス層からブログデータを削除
+	err := h.BlogService.DeleteBlog(id)
+	if err != nil {
+		switch err.Error() {
+		case "invalid id":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Invalid id",
+			})
+		case "failed to delete blog":
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Failed to delete blog",
+			})
+		default:
+			utils.LogError(c, "server error: "+err.Error())
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": "Server error",
+			})
+		}
+	}
+
+	utils.LogInfo(c, "Deleted blog successfully")
+	return c.NoContent(http.StatusNoContent)
+}
