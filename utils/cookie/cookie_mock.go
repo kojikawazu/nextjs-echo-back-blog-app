@@ -1,6 +1,7 @@
 package utils_cookie
 
 import (
+	"backend/models"
 	"net/http"
 	"time"
 
@@ -39,6 +40,11 @@ func (m *MockCookieUtils) GetAuthCookieValue(c echo.Context) (string, error) {
 func (m *MockCookieUtils) ExistsAuthCookie(c echo.Context) bool {
 	args := m.Called(c)
 	return args.Bool(0)
+}
+
+func (m *MockCookieUtils) VerifyToken(c echo.Context, tokenString string) (*models.Claims, error) {
+	args := m.Called(c, tokenString)
+	return args.Get(0).(*models.Claims), args.Error(1)
 }
 
 func (m *MockCookieUtils) GetUserIdFromToken(c echo.Context, tokenString string) (string, error) {

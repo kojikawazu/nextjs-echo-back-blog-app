@@ -33,18 +33,11 @@ func TestHandler_CreateBlog(t *testing.T) {
 	}
 
 	// JWT の署名キーを設定し、正しいトークンを生成
-	token := "mocked-token"
 	validUserId := "valid-user-id"
 
 	// リクエストを作成
 	req := httptest.NewRequest(http.MethodPost, "/blogs/create", bytes.NewReader(jsonData))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	cookie := &http.Cookie{
-		Name:  "token",
-		Value: token,
-		Path:  "/",
-	}
-	req.AddCookie(cookie)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 
@@ -54,11 +47,12 @@ func TestHandler_CreateBlog(t *testing.T) {
 	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c).Return(token, nil)
-	mockCookieUtils.On("GetUserIdFromToken", c, token).Return(validUserId, nil)
 	mockBlogService.On("CreateBlog", validUserId, "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(models.BlogData{
 		Title: "Test Title",
 	}, nil)
+
+	// モッククッキーを設定
+	SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.CreateBlog(c)
