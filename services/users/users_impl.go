@@ -8,6 +8,8 @@ import (
 // UserServiceインターフェース
 type UserService interface {
 	FetchUserByEmailAndPassword(email, password string) (*models.UserData, error)
+	FetchUserById(id string) (*models.UserData, error)
+	UpdateUser(id, name, email, password string) (*models.UserData, error)
 }
 type UserServiceImpl struct {
 	UserRepository repositories_users.UserRepository

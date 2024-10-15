@@ -2,6 +2,7 @@ package handlers_users
 
 import (
 	services_users "backend/services/users"
+	utils_cookie "backend/utils/cookie"
 
 	"backend/models"
 	"errors"
@@ -24,8 +25,9 @@ func TestHandler_GetUserByEmailAndPassword(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
-	mockService := new(services_users.MockUserService)
-	handler := NewUserHandler(mockService)
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// モックデータの設定
 	mockUser := &models.UserData{
@@ -33,7 +35,7 @@ func TestHandler_GetUserByEmailAndPassword(t *testing.T) {
 		Name:  "John Doe",
 		Email: "john@example.com",
 	}
-	mockService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(mockUser, nil)
+	mockUserService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(mockUser, nil)
 
 	// ハンドラーを実行
 	handler.GetUserByEmailAndPassword(c)
@@ -43,7 +45,7 @@ func TestHandler_GetUserByEmailAndPassword(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "John Doe")
 
 	// モックが期待通りに呼び出されたかを確認
-	mockService.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
 }
 
 func TestHandler_GetUserByEmailAndPassword_ValidationError(t *testing.T) {
@@ -56,11 +58,12 @@ func TestHandler_GetUserByEmailAndPassword_ValidationError(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
-	mockService := new(services_users.MockUserService)
-	handler := NewUserHandler(mockService)
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// モックの挙動を設定（バリデーションエラーを返す）
-	mockService.On("FetchUserByEmailAndPassword", "", "").Return(nil, errors.New("email and password are required"))
+	mockUserService.On("FetchUserByEmailAndPassword", "", "").Return(nil, errors.New("email and password are required"))
 
 	// ハンドラーを実行
 	handler.GetUserByEmailAndPassword(c)
@@ -70,7 +73,7 @@ func TestHandler_GetUserByEmailAndPassword_ValidationError(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Email and password are required")
 
 	// モックが期待通りに呼び出されたかを確認
-	mockService.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
 }
 
 func TestHandler_GetUserByEmailAndPassword_InvalidEmailFormat(t *testing.T) {
@@ -83,11 +86,12 @@ func TestHandler_GetUserByEmailAndPassword_InvalidEmailFormat(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
-	mockService := new(services_users.MockUserService)
-	handler := NewUserHandler(mockService)
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// モックの挙動を設定（無効なメールフォーマットの場合のエラーを返す）
-	mockService.On("FetchUserByEmailAndPassword", "invalid-email", "password123").Return(nil, errors.New("invalid email format"))
+	mockUserService.On("FetchUserByEmailAndPassword", "invalid-email", "password123").Return(nil, errors.New("invalid email format"))
 
 	// ハンドラーを実行
 	handler.GetUserByEmailAndPassword(c)
@@ -97,7 +101,7 @@ func TestHandler_GetUserByEmailAndPassword_InvalidEmailFormat(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Invalid email format")
 
 	// モックが期待通りに呼び出されたかを確認
-	mockService.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
 }
 
 func TestHandler_GetUserByEmailAndPassword_UserNotFound(t *testing.T) {
@@ -110,11 +114,12 @@ func TestHandler_GetUserByEmailAndPassword_UserNotFound(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
-	mockService := new(services_users.MockUserService)
-	handler := NewUserHandler(mockService)
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// サービスがユーザーが見つからないことを返すようにモックの挙動を設定
-	mockService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(nil, errors.New("user not found"))
+	mockUserService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(nil, errors.New("user not found"))
 
 	// ハンドラーを実行
 	handler.GetUserByEmailAndPassword(c)
@@ -124,7 +129,7 @@ func TestHandler_GetUserByEmailAndPassword_UserNotFound(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "User not found")
 
 	// モックが期待通りに呼び出されたかを確認
-	mockService.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
 }
 
 func TestHandler_GetUserByEmailAndPassword_ServiceError(t *testing.T) {
@@ -137,11 +142,12 @@ func TestHandler_GetUserByEmailAndPassword_ServiceError(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// モックサービスをインスタンス化
-	mockService := new(services_users.MockUserService)
-	handler := NewUserHandler(mockService)
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// サービスがエラーを返すようにモックの挙動を設定
-	mockService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(nil, errors.New("error fetching user"))
+	mockUserService.On("FetchUserByEmailAndPassword", "john@example.com", "password123").Return(nil, errors.New("error fetching user"))
 
 	// ハンドラーを実行
 	handler.GetUserByEmailAndPassword(c)
@@ -151,5 +157,5 @@ func TestHandler_GetUserByEmailAndPassword_ServiceError(t *testing.T) {
 	assert.Contains(t, rec.Body.String(), "Failed to fetch user")
 
 	// モックが期待通りに呼び出されたかを確認
-	mockService.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
 }

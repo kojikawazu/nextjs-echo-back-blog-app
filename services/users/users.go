@@ -37,3 +37,69 @@ func (s *UserServiceImpl) FetchUserByEmailAndPassword(email, password string) (*
 
 	return user, nil
 }
+
+// 指定されたIDに一致するユーザーを取得する
+func (s *UserServiceImpl) FetchUserById(id string) (*models.UserData, error) {
+	log.Println("Fetching user by id")
+
+	// バリデーション：IDが空でないことを確認
+	if id == "" {
+		log.Printf("id is required")
+		return nil, errors.New("id is required")
+	}
+
+	log.Println("id is valid")
+
+	user, err := s.UserRepository.FetchUserById(id)
+	if err != nil {
+		log.Printf("Failed to fetch user: %v", err)
+		return nil, errors.New("failed to fetch user")
+	}
+
+	log.Println("Fetched user successfully")
+	return user, nil
+}
+
+// 指定されたIDに一致するユーザーを更新する
+func (s *UserServiceImpl) UpdateUser(id, name, email, password string) (*models.UserData, error) {
+	log.Println("Updating user")
+
+	// バリデーション：IDが空でないことを確認
+	if id == "" {
+		log.Printf("id is required")
+		return nil, errors.New("id is required")
+	}
+	// バリデーション：nameが空でないことを確認
+	if name == "" {
+		log.Printf("Name is required")
+		return nil, errors.New("name is required")
+	}
+	// バリデーション：emailが空でないことを確認
+	if email == "" {
+		log.Printf("Email is required")
+		return nil, errors.New("email is required")
+	}
+	// バリデーション：passwordが空でないことを確認
+	if password == "" {
+		log.Printf("Password is required")
+		return nil, errors.New("password is required")
+	}
+	// バリデーション：emailが有効な形式であることを確認
+	if email != "" {
+		if _, err := mail.ParseAddress(email); err != nil {
+			log.Printf("Invalid email format: %v", err)
+			return nil, errors.New("invalid email format")
+		}
+	}
+
+	log.Println("ID and email are valid")
+
+	user, err := s.UserRepository.UpdateUser(id, name, email, password)
+	if err != nil {
+		log.Printf("Failed to update user: %v", err)
+		return nil, errors.New("failed to update user")
+	}
+
+	log.Println("Updated user successfully")
+	return user, nil
+}

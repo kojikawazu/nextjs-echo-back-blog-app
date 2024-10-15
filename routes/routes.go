@@ -5,6 +5,7 @@ import (
 
 	handlers_auth "backend/handlers/auth"
 	handlers_blogs "backend/handlers/blogs"
+	handlers_users "backend/handlers/users"
 
 	repositories_blogs "backend/repositories/blogs"
 	repositories_users "backend/repositories/users"
@@ -36,6 +37,7 @@ func SetupRoutes(e *echo.Echo) {
 	blogService := services_blogs.NewBlogService(blogRepository)
 
 	authHandler := handlers_auth.NewAuthHandler(userService, authService)
+	UserHandler := handlers_users.NewUserHandler(userService, cookieUtils)
 	BlogHandler := handlers_blogs.NewBlogHandler(blogService, cookieUtils)
 
 	// APIエンドポイントの設定
@@ -47,6 +49,9 @@ func SetupRoutes(e *echo.Echo) {
 			users.POST("/login", authHandler.Login)
 			users.GET("/auth-check", authHandler.CheckAuth)
 			users.POST("/logout", authHandler.Logout)
+
+			users.GET("/detail", UserHandler.FetchUser)
+			users.PUT("/update", UserHandler.UpdateUser)
 		}
 		// ブログ関連のエンドポイント
 		blogs := api.Group("/blogs")
