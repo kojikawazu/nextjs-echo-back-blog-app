@@ -179,3 +179,61 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 	log.Printf("Created blog: %v", blog)
 	return blog, nil
 }
+
+// ブログデータの更新
+func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
+	log.Printf("UpdateBlog start...")
+
+	query := `
+		UPDATE blogs
+		SET title = $2, github_url = $3, category = $4, description = $5, tags = $6
+		WHERE id = $1
+		RETURNING id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
+	`
+
+	// Supabaseからクエリを実行し、指定されたブログデータを更新
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, id, title, githubUrl, category, description, tags)
+
+	// 結果をスキャンして更新されたブログデータを返す
+	var blog models.BlogData
+	err := row.Scan(
+		&blog.ID,
+		&blog.UserId,
+		&blog.Title,
+		&blog.Description,
+		&blog.GithubUrl,
+		&blog.Category,
+		&blog.Tags,
+		&blog.Likes,
+		&blog.CreatedAt,
+		&blog.UpdatedAt,
+	)
+
+	if err != nil {
+		log.Printf("Failed to update blog: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Updated blog: %v", blog)
+	return &blog, nil
+}
+
+// ブログデータの削除
+func (r *BlogRepositoryImpl) DeleteBlog(id string) error {
+	log.Printf("DeleteBlog start...")
+
+	query := `
+		DELETE FROM blogs
+		WHERE id = $1
+	`
+
+	// Supabaseからクエリを実行し、指定されたブログデータを削除
+	_, err := supabase.Pool.Exec(supabase.Ctx, query, id)
+	if err != nil {
+		log.Printf("Failed to delete blog: %v", err)
+		return err
+	}
+
+	log.Println("Deleted blog successfully")
+	return nil
+}
