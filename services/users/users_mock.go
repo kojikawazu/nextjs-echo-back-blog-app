@@ -17,3 +17,19 @@ func (m *MockUserService) FetchUserByEmailAndPassword(email, password string) (*
 	}
 	return args.Get(0).(*models.UserData), args.Error(1)
 }
+
+func (m *MockUserService) FetchUserById(id string) (*models.UserData, error) {
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.UserData), args.Error(1)
+}
+
+func (m *MockUserService) UpdateUser(id, name, email, password string) (*models.UserData, error) {
+	args := m.Called(id, name, email, password)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.UserData), args.Error(1)
+}

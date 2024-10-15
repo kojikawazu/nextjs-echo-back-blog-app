@@ -1,28 +1,11 @@
 package repositories_users
 
 import (
-	"backend/supabase"
-	"log"
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/stretchr/testify/assert"
 )
-
-func setupSupabase() {
-	// 環境変数の読み込み
-	err := godotenv.Load("../../.env.test")
-	if err != nil {
-		log.Println("No ../../.env.test file found")
-	}
-
-	// テストの前にSupabaseクライアントの初期化
-	err = supabase.InitSupabase()
-	if err != nil {
-		log.Fatalf("Supabase initialization failed: %v", err)
-	}
-}
 
 func TestRepository_FetchUserByEmailAndPassword(t *testing.T) {
 	// Supabaseクライアントの初期化
