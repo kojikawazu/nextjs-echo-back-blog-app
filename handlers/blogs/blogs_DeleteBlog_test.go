@@ -31,6 +31,9 @@ func TestHandler_DeleteBlog(t *testing.T) {
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(nil, nil)
 
+	// モッククッキーを設定
+	SetMockBlogCookies(c, req, mockCookieUtils)
+
 	// テストを実行
 	err := handler.DeleteBlog(c)
 	assert.NoError(t, err)
@@ -59,6 +62,9 @@ func TestHandler_DeleteBlog_InvalidId(t *testing.T) {
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "").Return(errors.New("invalid id"))
+
+	// モッククッキーを設定
+	SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)
@@ -89,6 +95,9 @@ func TestHandler_DeleteBlog_NoDelete(t *testing.T) {
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(errors.New("failed to delete blog"))
 
+	// モッククッキーを設定
+	SetMockBlogCookies(c, req, mockCookieUtils)
+
 	// テストを実行
 	err := handler.DeleteBlog(c)
 	assert.NoError(t, err)
@@ -117,6 +126,9 @@ func TestHandler_DeleteBlog_ServerError(t *testing.T) {
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(errors.New("server error"))
+
+	// モッククッキーを設定
+	SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)

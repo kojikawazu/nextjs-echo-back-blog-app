@@ -1,6 +1,7 @@
 package utils_cookie
 
 import (
+	"backend/models"
 	"net/http"
 	"time"
 
@@ -14,6 +15,7 @@ type CookieUtils interface {
 	GetAuthCookie(c echo.Context) (*http.Cookie, error)
 	GetAuthCookieValue(c echo.Context) (string, error)
 	ExistsAuthCookie(c echo.Context) bool
+	VerifyToken(c echo.Context, tokenString string) (*models.Claims, error)
 	GetUserIdFromToken(c echo.Context, tokenString string) (string, error)
 }
 

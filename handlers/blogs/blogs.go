@@ -173,6 +173,24 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Updating blog...")
 
+	// クッキーからJWTトークンを取得
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	if err != nil {
+		utils.LogError(c, "Error getting cookie: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting cookie",
+		})
+	}
+
+	// JWTトークンを解析してユーザーIDを取得
+	_, err = h.CookieUtils.GetUserIdFromToken(c, cookieValue)
+	if err != nil {
+		utils.LogError(c, "Error getting userId from token: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting userId from token",
+		})
+	}
+
 	// パスパラメータからidを取得
 	id := c.Param("id")
 
@@ -241,11 +259,29 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog...")
 
+	// クッキーからJWTトークンを取得
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	if err != nil {
+		utils.LogError(c, "Error getting cookie: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting cookie",
+		})
+	}
+
+	// JWTトークンを解析してユーザーIDを取得
+	_, err = h.CookieUtils.GetUserIdFromToken(c, cookieValue)
+	if err != nil {
+		utils.LogError(c, "Error getting userId from token: "+err.Error())
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Error getting userId from token",
+		})
+	}
+
 	// パスパラメータからidを取得
 	id := c.Param("id")
 
 	// サービス層からブログデータを削除
-	err := h.BlogService.DeleteBlog(id)
+	err = h.BlogService.DeleteBlog(id)
 	if err != nil {
 		switch err.Error() {
 		case "invalid id":

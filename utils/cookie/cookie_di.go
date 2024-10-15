@@ -3,6 +3,7 @@ package utils_cookie
 import (
 	"backend/config"
 	"backend/models"
+	"errors"
 	"net/http"
 	"time"
 
@@ -70,16 +71,31 @@ func (u *CookieUtilsImpl) ExistsAuthCookie(c echo.Context) bool {
 	return err == nil
 }
 
-// GetUserIdFromToken - JWTトークンを解析してユーザーIDを取得
-func (u *CookieUtilsImpl) GetUserIdFromToken(c echo.Context, tokenString string) (string, error) {
+// VerifyToken - JWTトークンを検証
+func (u *CookieUtilsImpl) VerifyToken(c echo.Context, tokenString string) (*models.Claims, error) {
 	claims := &models.Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		return config.JwtKey, nil
 	})
 
-	if err != nil || !token.Valid {
-		return "", err
+	if err != nil {
+		return nil, err
 	}
 
+	// トークンの有効期限をチェック (Unixタイムスタンプとして比較)
+	expirationTime := time.Unix(claims.ExpiresAt, 0)
+	if !token.Valid || expirationTime.Before(time.Now()) {
+		return nil, errors.New("token expired or invalid")
+	}
+
+	return claims, nil
+}
+
+// GetUserIdFromToken - JWTトークンを解析してユーザーIDを取得
+func (u *CookieUtilsImpl) GetUserIdFromToken(c echo.Context, tokenString string) (string, error) {
+	claims, err := u.VerifyToken(c, tokenString)
+	if err != nil {
+		return "", err
+	}
 	return claims.UserID, nil
 }
