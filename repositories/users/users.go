@@ -44,7 +44,7 @@ func (r *UserRepositoryImpl) FetchUserById(id string) (*models.UserData, error) 
 	log.Println("Fetching user from Supabase by ID")
 
 	query := `
-		SELECT id, name, email, created_at, updated_at
+		SELECT id, name, email, password, created_at, updated_at
 		FROM users
 		WHERE id = $1
 		LIMIT 1
@@ -59,6 +59,7 @@ func (r *UserRepositoryImpl) FetchUserById(id string) (*models.UserData, error) 
 		&user.ID,
 		&user.Name,
 		&user.Email,
+		&user.Password,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
