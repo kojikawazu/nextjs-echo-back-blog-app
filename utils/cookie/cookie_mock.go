@@ -13,7 +13,16 @@ type MockCookieUtils struct {
 	mock.Mock
 }
 
+func (m *MockCookieUtils) CreateToken(user *models.UserData) (string, error) {
+	args := m.Called(user)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockCookieUtils) AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
+	m.Called(c, tokenString, expirationTime)
+}
+
+func (m *MockCookieUtils) UpdateAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	m.Called(c, tokenString, expirationTime)
 }
 
@@ -35,6 +44,11 @@ func (m *MockCookieUtils) GetAuthCookie(c echo.Context) (*http.Cookie, error) {
 func (m *MockCookieUtils) GetAuthCookieValue(c echo.Context) (string, error) {
 	args := m.Called(c)
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockCookieUtils) GetAuthCookieExpirationTime() time.Time {
+	args := m.Called()
+	return args.Get(0).(time.Time)
 }
 
 func (m *MockCookieUtils) ExistsAuthCookie(c echo.Context) bool {

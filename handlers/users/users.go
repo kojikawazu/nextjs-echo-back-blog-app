@@ -97,6 +97,9 @@ func (h *UserHandler) FetchUser(c echo.Context) error {
 		}
 	}
 
+	// パスワードだけ抜く
+	user.Password = ""
+
 	utils.LogInfo(c, "Fetched user successfully")
 	return c.JSON(http.StatusOK, user)
 }
@@ -125,9 +128,10 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 
 	// JSONのリクエストボディからname, email, passwordを取得
 	type RequestBody struct {
-		Name     string `json:"name"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
+		Name        string `json:"name"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		NewPassword string `json:"newPassword"`
 	}
 
 	// リクエストボディをバインド
@@ -140,7 +144,7 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 	}
 
 	// サービス層からユーザーデータを更新
-	user, err := h.UserService.UpdateUser(userId, reqBody.Name, reqBody.Email, reqBody.Password)
+	user, err := h.UserService.UpdateUser(userId, reqBody.Name, reqBody.Email, reqBody.Password, reqBody.NewPassword)
 	if err != nil {
 		switch err.Error() {
 		case "id is required":
@@ -159,9 +163,17 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Password is required",
 			})
+		case "new password is required":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "New password is required",
+			})
 		case "invalid email format":
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Invalid email format",
+			})
+		case "user not found":
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "User not found",
 			})
 		default:
 			utils.LogError(c, "Error updating user: "+err.Error())
@@ -170,6 +182,19 @@ func (h *UserHandler) UpdateUser(c echo.Context) error {
 			})
 		}
 	}
+
+	// トークンの有効期限を1時間に設定
+	expirationTime := h.CookieUtils.GetAuthCookieExpirationTime()
+	// トークンの再作成
+	tokenString, err := h.CookieUtils.CreateToken(user)
+	if err != nil {
+		utils.LogError(c, "Error creating token: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to create token",
+		})
+	}
+	// トークンをクッキーに更新
+	h.CookieUtils.UpdateAuthCookie(c, tokenString, expirationTime)
 
 	utils.LogInfo(c, "Updated user successfully")
 	return c.JSON(http.StatusOK, user)

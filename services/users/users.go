@@ -61,7 +61,7 @@ func (s *UserServiceImpl) FetchUserById(id string) (*models.UserData, error) {
 }
 
 // 指定されたIDに一致するユーザーを更新する
-func (s *UserServiceImpl) UpdateUser(id, name, email, password string) (*models.UserData, error) {
+func (s *UserServiceImpl) UpdateUser(id, name, email, password, newPassword string) (*models.UserData, error) {
 	log.Println("Updating user")
 
 	// バリデーション：IDが空でないことを確認
@@ -84,6 +84,11 @@ func (s *UserServiceImpl) UpdateUser(id, name, email, password string) (*models.
 		log.Printf("Password is required")
 		return nil, errors.New("password is required")
 	}
+	// バリデーション：newPasswordが空でないことを確認
+	if newPassword == "" {
+		log.Printf("New password is required")
+		return nil, errors.New("new password is required")
+	}
 	// バリデーション：emailが有効な形式であることを確認
 	if email != "" {
 		if _, err := mail.ParseAddress(email); err != nil {
@@ -91,10 +96,20 @@ func (s *UserServiceImpl) UpdateUser(id, name, email, password string) (*models.
 			return nil, errors.New("invalid email format")
 		}
 	}
+	// バリデーション：email,passwordを取得し、ユーザーと一致することを確認
+	currentUser, err := s.UserRepository.FetchUserById(id)
+	if err != nil {
+		log.Printf("Failed to validate user: %v", err)
+		return nil, errors.New("failed to validate user")
+	}
+	if currentUser.Password != password {
+		log.Printf("Invalid current password")
+		return nil, errors.New("invalid current password")
+	}
 
 	log.Println("ID and email are valid")
 
-	user, err := s.UserRepository.UpdateUser(id, name, email, password)
+	user, err := s.UserRepository.UpdateUser(id, name, email, newPassword)
 	if err != nil {
 		log.Printf("Failed to update user: %v", err)
 		return nil, errors.New("failed to update user")
