@@ -5,13 +5,16 @@ import (
 
 	handlers_auth "backend/handlers/auth"
 	handlers_blogs "backend/handlers/blogs"
+	handlers_comments "backend/handlers/comments"
 	handlers_users "backend/handlers/users"
 
 	repositories_blogs "backend/repositories/blogs"
+	repositories_comments "backend/repositories/comments"
 	repositories_users "backend/repositories/users"
 
 	services_auth "backend/services/auth"
 	services_blogs "backend/services/blogs"
+	services_comments "backend/services/comments"
 	services_users "backend/services/users"
 
 	"net/http"
@@ -31,14 +34,17 @@ func SetupRoutes(e *echo.Echo) {
 
 	userRepository := repositories_users.NewUserRepository()
 	blogRepository := repositories_blogs.NewBlogRepository()
+	commentRepository := repositories_comments.NewCommentRepository()
 
 	authService := services_auth.NewAuthService()
 	userService := services_users.NewUserService(userRepository)
 	blogService := services_blogs.NewBlogService(blogRepository)
+	commentService := services_comments.NewCommentService(commentRepository)
 
 	authHandler := handlers_auth.NewAuthHandler(userService, authService)
 	UserHandler := handlers_users.NewUserHandler(userService, cookieUtils)
 	BlogHandler := handlers_blogs.NewBlogHandler(blogService, cookieUtils)
+	CommentHandler := handlers_comments.NewCommentHandler(commentService)
 
 	// APIエンドポイントの設定
 	api := e.Group("/api")
@@ -62,6 +68,12 @@ func SetupRoutes(e *echo.Echo) {
 			blogs.POST("/create", BlogHandler.CreateBlog)
 			blogs.PUT("/update/:id", BlogHandler.UpdateBlog)
 			blogs.DELETE("/delete/:id", BlogHandler.DeleteBlog)
+		}
+		// コメント関連のエンドポイント
+		comments := api.Group("/comments")
+		{
+			comments.GET("/blog/:blogId", CommentHandler.FetchCommentsByBlogId)
+			comments.POST("/create", CommentHandler.CreateComment)
 		}
 	}
 }
