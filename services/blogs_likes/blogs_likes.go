@@ -6,6 +6,27 @@ import (
 	"log"
 )
 
+// VisitIdに紐づくいいねデータを取得
+func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikeData, error) {
+	log.Println("FetchBlogLikesByVisitId start...")
+
+	// バリデーション
+	if visitId == "" {
+		log.Println("VisitId is empty")
+		return nil, errors.New("visitId is empty")
+	}
+
+	log.Println("validation passed")
+
+	// いいねデータを取得
+	blogLikes, err := s.BlogLikeRepository.FetchBlogLikesByVisitId(visitId)
+	if err != nil {
+		return nil, err
+	}
+
+	return blogLikes, nil
+}
+
 // いいね存在するか確認
 func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")

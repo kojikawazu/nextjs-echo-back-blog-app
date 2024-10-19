@@ -13,7 +13,8 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
         SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
-               COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+               COALESCE(COUNT(bl.id), 0) AS likes,
+			   b.created_at, b.updated_at
         FROM blogs b
         LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
         GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
@@ -44,7 +45,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 			&blog.GithubUrl,
 			&blog.Category,
 			&blog.Tags,
-			&blog.Likes,
+			&likeCount,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
 		)
@@ -214,16 +215,19 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 
 	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
-		UPDATE blogs
-		SET title = $2, github_url = $3, category = $4, description = $5, tags = $6
-		WHERE id = $1
-		RETURNING b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, 
-				COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
-		FROM blogs b
-		LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
-		WHERE b.id = $1
-		GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
-	`
+        WITH updated_blog AS (
+            UPDATE blogs
+            SET title = $2, github_url = $3, category = $4, description = $5, tags = $6
+            WHERE id = $1
+            RETURNING id, user_id, title, description, github_url, category, tags, created_at, updated_at
+        )
+        SELECT ub.id, ub.user_id, ub.title, ub.description, ub.github_url, ub.category, ub.tags, 
+               COALESCE(COUNT(bl.id), 0) AS likes, ub.created_at, ub.updated_at
+        FROM updated_blog ub
+        LEFT JOIN blogs_likes bl ON ub.id = bl.blog_id
+        GROUP BY ub.id, ub.user_id, ub.title, ub.description, ub.github_url, ub.category, ub.tags, ub.created_at, ub.updated_at
+    `
+
 	// Supabaseからクエリを実行し、指定されたブログデータを更新
 	row := supabase.Pool.QueryRow(supabase.Ctx, query, id, title, githubUrl, category, description, tags)
 
