@@ -9,3 +9,9 @@ type Claims struct {
 	Username string `json:"username"`
 	jwt.StandardClaims
 }
+
+// 訪問者IDのペイロード
+type ClaimsVisitId struct {
+	VisitId string `json:"visit_id"`
+	jwt.StandardClaims
+}
