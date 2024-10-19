@@ -7,12 +7,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// setupSupabase はテストの前にSupabaseクライアントを初期化します
-func setupSupabase(t *testing.T) {
+// SetupSupabase はテストの前にSupabaseクライアントを初期化します
+func SetupSupabase(t *testing.T) {
 	// 環境変数の読み込み
-	err := godotenv.Load("../../.env.test")
+	err := godotenv.Load("../../../.env.test")
 	if err != nil {
-		t.Log("No ../../.env.test file found")
+		t.Log("No ../../../.env.test file found")
 	}
 
 	// テストの前にSupabaseクライアントの初期化

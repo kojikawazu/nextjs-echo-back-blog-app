@@ -1,6 +1,7 @@
-package repositories_blogs
+package repositories_blogs_test
 
 import (
+	repositories_blogs "backend/repositories/blogs"
 	"os"
 	"testing"
 
@@ -9,10 +10,10 @@ import (
 
 func TestRepository_FetchBlogsByUserId(t *testing.T) {
 	// Supabaseクライアントの初期化
-	setupSupabase(t)
+	repositories_blogs.SetupSupabase(t)
 
 	// リポジトリのインスタンスを作成
-	repo := NewBlogRepository()
+	repo := repositories_blogs.NewBlogRepository()
 
 	// 環境変数からユーザIDを取得
 	testUserId := os.Getenv("TEST_USER_ID")
@@ -31,10 +32,10 @@ func TestRepository_FetchBlogsByUserId(t *testing.T) {
 
 func TestRepository_FetchBlogsByUserId_ErrorCase(t *testing.T) {
 	// Supabaseクライアントの初期化
-	setupSupabase(t)
+	repositories_blogs.SetupSupabase(t)
 
 	// リポジトリのインスタンスを作成
-	repo := NewBlogRepository()
+	repo := repositories_blogs.NewBlogRepository()
 
 	// メソッドを実行
 	blogs, err := repo.FetchBlogsByUserId("2")
