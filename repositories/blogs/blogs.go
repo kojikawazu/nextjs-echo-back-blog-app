@@ -10,10 +10,14 @@ import (
 func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	log.Printf("FetchBlogs start...")
 
+	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
-        SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
-        FROM blogs
-        ORDER BY created_at DESC
+        SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
+               COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+        FROM blogs b
+        LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+        GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
+        ORDER BY b.created_at DESC
     `
 
 	// Supabaseからクエリを実行し、全データ取得
@@ -30,6 +34,8 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	// 結果をスキャンしてブログデータをリストに追加
 	for rows.Next() {
 		var blog models.BlogData
+		var likeCount int
+
 		err := rows.Scan(
 			&blog.ID,
 			&blog.UserId,
@@ -46,6 +52,10 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 			log.Printf("Failed to scan blog: %v", err)
 			return nil, err
 		}
+
+		// `Likes` フィールドにキャストして代入
+		blog.Likes = int8(likeCount)
+
 		blogs = append(blogs, blog)
 	}
 
@@ -62,11 +72,15 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
 	log.Printf("FetchBlogsByUserId start...")
 
+	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
-		SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
-		FROM blogs
-		WHERE user_id = $1
-		ORDER BY created_at DESC
+		SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, 
+		       COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+		FROM blogs b
+		LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+		WHERE b.user_id = $1
+		GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
+		ORDER BY b.created_at DESC
 	`
 
 	// Supabaseからクエリを実行し、条件に一致するデータを取得
@@ -83,6 +97,8 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	// 結果をスキャンしてブログデータをリストに追加
 	for rows.Next() {
 		var blog models.BlogData
+		var likeCount int
+
 		err := rows.Scan(
 			&blog.ID,
 			&blog.UserId,
@@ -91,7 +107,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 			&blog.GithubUrl,
 			&blog.Category,
 			&blog.Tags,
-			&blog.Likes,
+			&likeCount,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
 		)
@@ -99,6 +115,10 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 			log.Printf("Failed to scan blog: %v", err)
 			return nil, err
 		}
+
+		// `Likes` フィールドにキャストして代入
+		blog.Likes = int8(likeCount)
+
 		blogs = append(blogs, blog)
 	}
 
@@ -115,14 +135,19 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	log.Printf("FetchBlogById start...")
 
+	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
-		SELECT id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
-		FROM blogs
-		WHERE id = $1
-	`
+        SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
+               COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+        FROM blogs b
+        LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+        WHERE b.id = $1
+        GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
+    `
 
 	// Supabaseからクエリを実行し、条件に一致するデータを取得
 	row := supabase.Pool.QueryRow(supabase.Ctx, query, id)
+	var likeCount int
 	var blog models.BlogData
 	err := row.Scan(
 		&blog.ID,
@@ -132,7 +157,7 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 		&blog.GithubUrl,
 		&blog.Category,
 		&blog.Tags,
-		&blog.Likes,
+		&likeCount,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
@@ -140,6 +165,9 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 		log.Printf("Failed to fetch blog: %v", err)
 		return nil, err
 	}
+
+	// `Likes` フィールドにキャストして代入
+	blog.Likes = int8(likeCount)
 
 	log.Printf("Fetched blog: %v", blog)
 	return &blog, nil
@@ -184,17 +212,23 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	log.Printf("UpdateBlog start...")
 
+	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
 		UPDATE blogs
 		SET title = $2, github_url = $3, category = $4, description = $5, tags = $6
 		WHERE id = $1
-		RETURNING id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
+		RETURNING b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, 
+				COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+		FROM blogs b
+		LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+		WHERE b.id = $1
+		GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
 	`
-
 	// Supabaseからクエリを実行し、指定されたブログデータを更新
 	row := supabase.Pool.QueryRow(supabase.Ctx, query, id, title, githubUrl, category, description, tags)
 
 	// 結果をスキャンして更新されたブログデータを返す
+	var likeCount int
 	var blog models.BlogData
 	err := row.Scan(
 		&blog.ID,
@@ -204,10 +238,13 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 		&blog.GithubUrl,
 		&blog.Category,
 		&blog.Tags,
-		&blog.Likes,
+		&likeCount,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
+
+	// `Likes` フィールドにキャストして代入
+	blog.Likes = int8(likeCount)
 
 	if err != nil {
 		log.Printf("Failed to update blog: %v", err)
