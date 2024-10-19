@@ -303,3 +303,20 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleted blog successfully")
 	return c.NoContent(http.StatusNoContent)
 }
+
+// ブログカテゴリーの取得
+func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
+	utils.LogInfo(c, "Fetching categories...")
+
+	// サービス層からカテゴリーを取得
+	categories, err := h.BlogService.FetchBlogCategories()
+	if err != nil {
+		utils.LogError(c, "Error fetching categories: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Error fetching categories",
+		})
+	}
+
+	utils.LogInfo(c, "Fetched categories successfully")
+	return c.JSON(http.StatusOK, categories)
+}
