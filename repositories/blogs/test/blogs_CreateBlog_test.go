@@ -19,5 +19,5 @@ func TestRepository_CreateBlog_Error(t *testing.T) {
 
 	// エラーチェックとデータ確認
 	assert.Error(t, err)
-	assert.Empty(t, blog.ID)
+	assert.Nil(t, blog)
 }

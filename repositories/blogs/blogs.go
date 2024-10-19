@@ -175,7 +175,7 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 }
 
 // ブログデータの作成
-func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
+func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	log.Printf("CreateReservation start...")
 
 	query := `
@@ -202,11 +202,11 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 	)
 	if err != nil {
 		log.Printf("Failed to create blog: %v", err)
-		return models.BlogData{}, err
+		return nil, err
 	}
 
 	log.Printf("Created blog: %v", blog)
-	return blog, nil
+	return &blog, nil
 }
 
 // ブログデータの更新

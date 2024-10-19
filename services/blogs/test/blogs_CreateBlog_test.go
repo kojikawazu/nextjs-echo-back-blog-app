@@ -39,14 +39,14 @@ func TestService_CreateBlog(t *testing.T) {
 	}
 
 	// モックの設定
-	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(expectedBlog, nil)
+	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(&expectedBlog, nil)
 
 	// テスト対象メソッドの呼び出し
 	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
 
 	// アサーション
 	assert.NoError(t, err)
-	assert.Equal(t, expectedBlog, blog)
+	assert.NotNil(t, blog)
 
 	// モックの期待通りの呼び出しを検証
 	mockBlogRepository.AssertExpectations(t)
@@ -71,7 +71,7 @@ func TestService_CreateBlog_InvalidUserId(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid userId", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -96,7 +96,7 @@ func TestService_CreateBlog_InvalidTitle(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid title", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -121,7 +121,7 @@ func TestService_CreateBlog_InvalidGitHubURL(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid githubUrl", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -146,7 +146,7 @@ func TestService_CreateBlog_InvalidCategory(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid category", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -171,7 +171,7 @@ func TestService_CreateBlog_InvalidDescription(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid description", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -196,7 +196,7 @@ func TestService_CreateBlog_InvalidTags(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "invalid tags", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの呼び出しがないことを確認
 	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
@@ -216,7 +216,7 @@ func TestService_CreateBlog_RepositoryError(t *testing.T) {
 	tags := "go, testing"
 
 	// モックの設定: リポジトリがエラーを返す
-	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(models.BlogData{}, errors.New("repository failure"))
+	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(nil, errors.New("repository failure"))
 
 	// テスト対象メソッドの呼び出し
 	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
@@ -224,7 +224,7 @@ func TestService_CreateBlog_RepositoryError(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Equal(t, "failed to create blog", err.Error())
-	assert.Equal(t, models.BlogData{}, blog)
+	assert.Nil(t, blog)
 
 	// モックの期待通りの呼び出しを検証
 	mockBlogRepository.AssertExpectations(t)

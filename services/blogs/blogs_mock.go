@@ -34,12 +34,12 @@ func (m *MockBlogService) FetchBlogById(id string) (*models.BlogData, error) {
 	return args.Get(0).(*models.BlogData), args.Error(1)
 }
 
-func (m *MockBlogService) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
+func (m *MockBlogService) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	args := m.Called(userId, title, githubUrl, category, description, tags)
 	if args.Get(0) == nil {
-		return models.BlogData{}, args.Error(1)
+		return nil, args.Error(1)
 	}
-	return args.Get(0).(models.BlogData), args.Error(1)
+	return args.Get(0).(*models.BlogData), args.Error(1)
 }
 
 func (m *MockBlogService) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
