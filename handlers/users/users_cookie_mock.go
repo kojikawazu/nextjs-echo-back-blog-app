@@ -22,6 +22,6 @@ func SetMockBlogCookies(c echo.Context, req *http.Request, mockCookieUtils *util
 	req.AddCookie(cookie)
 
 	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c).Return(token, nil)
+	mockCookieUtils.On("GetAuthCookieValue", c, "token").Return(token, nil)
 	mockCookieUtils.On("GetUserIdFromToken", c, token).Return(validUserId, nil)
 }

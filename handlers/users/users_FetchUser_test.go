@@ -62,7 +62,7 @@ func TestHandler_FetchUser_NotToken(t *testing.T) {
 	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c).Return("", errors.New("no cookie"))
+	mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("", errors.New("no cookie"))
 
 	// ハンドラーを実行
 	err := handler.FetchUser(c)
@@ -91,7 +91,7 @@ func TestHandler_FetchUser_NotUserId(t *testing.T) {
 	handler := NewUserHandler(mockUserService, mockCookieUtils)
 
 	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c).Return("mocked-token", nil)
+	mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("mocked-token", nil)
 	mockCookieUtils.On("GetUserIdFromToken", c, "mocked-token").Return("", errors.New("no user id"))
 
 	// ハンドラーを実行

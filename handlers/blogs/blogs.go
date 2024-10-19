@@ -91,7 +91,7 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog...")
 
 	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
 		utils.LogError(c, "Error getting cookie: "+err.Error())
 		return c.JSON(http.StatusUnauthorized, map[string]string{
@@ -174,7 +174,7 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Updating blog...")
 
 	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
 		utils.LogError(c, "Error getting cookie: "+err.Error())
 		return c.JSON(http.StatusUnauthorized, map[string]string{
@@ -260,7 +260,7 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog...")
 
 	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c)
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
 		utils.LogError(c, "Error getting cookie: "+err.Error())
 		return c.JSON(http.StatusUnauthorized, map[string]string{

@@ -19,7 +19,7 @@ type BlogServiceImpl struct {
 	BlogRepository repositories_blogs.BlogRepository
 }
 
-// UserServiceインターフェースを実装したUserServiceImplのポインタを返す
+// BlogServiceインターフェースを実装したBlogServiceImplのポインタを返す
 func NewBlogService(
 	blogRepository repositories_blogs.BlogRepository,
 ) BlogService {
