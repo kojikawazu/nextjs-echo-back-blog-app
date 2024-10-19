@@ -1,8 +1,9 @@
-package services_blogs
+package services_blogs_test
 
 import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
+	services_blogs "backend/services/blogs"
 	"errors"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 func TestService_FetchBlogById(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// モックデータ
 	mockBlogData := &models.BlogData{
@@ -44,7 +45,7 @@ func TestService_FetchBlogById(t *testing.T) {
 func TestService_FetchBlogById_InvalidId(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// IDが空の場合
 	blog, err := blogService.FetchBlogById("")
@@ -61,7 +62,7 @@ func TestService_FetchBlogById_InvalidId(t *testing.T) {
 func TestService_FetchBlogById_NotBlog(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// モックを設定
 	mockBlogRepository.On("FetchBlogById", "1").Return(nil, errors.New("blog not found"))

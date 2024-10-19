@@ -1,6 +1,7 @@
-package handlers_blogs
+package handlers_blogs_test
 
 import (
+	handlers_blogs "backend/handlers/blogs"
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
@@ -44,15 +45,22 @@ func TestHandler_CreateBlog(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
+
+	// モックデータの生成
+	mockBlogData := models.BlogData{
+		Title:       "Test Title",
+		GithubUrl:   "https://github.com",
+		Category:    "Tech",
+		Description: "This is a test blog",
+		Tags:        "Go",
+	}
 
 	// モックの振る舞いを設定
-	mockBlogService.On("CreateBlog", validUserId, "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(models.BlogData{
-		Title: "Test Title",
-	}, nil)
+	mockBlogService.On("CreateBlog", validUserId, "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(&mockBlogData, nil)
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.CreateBlog(c)

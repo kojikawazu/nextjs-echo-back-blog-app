@@ -1,6 +1,7 @@
-package handlers_blogs
+package handlers_blogs_test
 
 import (
+	handlers_blogs "backend/handlers/blogs"
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
@@ -45,7 +46,7 @@ func TestHandler_UpdateBlog(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(&models.BlogData{
@@ -53,7 +54,7 @@ func TestHandler_UpdateBlog(t *testing.T) {
 	}, nil)
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -95,13 +96,13 @@ func TestHandler_UpdateBlog_InvalidId(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "", "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(nil, errors.New("invalid id"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -143,13 +144,13 @@ func TestHandler_UpdateBlog_InvalidTitle(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "", "https://github.com", "Tech", "This is a test blog", "Go").Return(nil, errors.New("invalid title"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -191,13 +192,13 @@ func TestHandler_UpdateBlog_InvalidGithubUrl(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "", "Tech", "This is a test blog", "Go").Return(nil, errors.New("invalid githubUrl"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -239,13 +240,13 @@ func TestHandler_UpdateBlog_InvalidCategory(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "", "This is a test blog", "Go").Return(nil, errors.New("invalid category"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -287,13 +288,13 @@ func TestHandler_UpdateBlog_InvalidDescription(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "Tech", "", "Go").Return(nil, errors.New("invalid description"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -335,13 +336,13 @@ func TestHandler_UpdateBlog_InvalidTags(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "Tech", "This is a test blog", "").Return(nil, errors.New("invalid tags"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -383,13 +384,13 @@ func TestHandler_UpdateBlog_NoUpdate(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(nil, errors.New("failed to update blog"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)
@@ -431,13 +432,13 @@ func TestHandler_UpdateBlog_ServerError(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("UpdateBlog", "123", "Test Title", "https://github.com", "Tech", "This is a test blog", "Go").Return(nil, errors.New("server error"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err = handler.UpdateBlog(c)

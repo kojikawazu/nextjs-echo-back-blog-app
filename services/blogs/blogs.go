@@ -56,33 +56,33 @@ func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
 }
 
 // ブログデータを作成する
-func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error) {
+func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	log.Printf("CreateBlog start...")
 
 	// バリデーション
 	if userId == "" {
 		log.Printf("invalid userId: %s", userId)
-		return models.BlogData{}, errors.New("invalid userId")
+		return nil, errors.New("invalid userId")
 	}
 	if title == "" {
 		log.Printf("invalid title: %s", title)
-		return models.BlogData{}, errors.New("invalid title")
+		return nil, errors.New("invalid title")
 	}
 	if githubUrl == "" {
 		log.Printf("invalid githubUrl: %s", githubUrl)
-		return models.BlogData{}, errors.New("invalid githubUrl")
+		return nil, errors.New("invalid githubUrl")
 	}
 	if category == "" {
 		log.Printf("invalid category: %s", category)
-		return models.BlogData{}, errors.New("invalid category")
+		return nil, errors.New("invalid category")
 	}
 	if description == "" {
 		log.Printf("invalid description: %s", description)
-		return models.BlogData{}, errors.New("invalid description")
+		return nil, errors.New("invalid description")
 	}
 	if tags == "" {
 		log.Printf("invalid tags: %s", tags)
-		return models.BlogData{}, errors.New("invalid tags")
+		return nil, errors.New("invalid tags")
 	}
 	log.Println("Valid input")
 
@@ -90,7 +90,7 @@ func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, descrip
 	blog, err := s.BlogRepository.CreateBlog(userId, title, githubUrl, category, description, tags)
 	if err != nil {
 		log.Printf("Failed to create blog: %v", err)
-		return models.BlogData{}, errors.New("failed to create blog")
+		return nil, errors.New("failed to create blog")
 	}
 
 	log.Printf("Created blog successfully: %v", blog)
@@ -159,4 +159,9 @@ func (s *BlogServiceImpl) DeleteBlog(id string) error {
 
 	log.Println("Deleted blog successfully")
 	return nil
+}
+
+// ブログカテゴリを取得する
+func (s *BlogServiceImpl) FetchBlogCategories() ([]string, error) {
+	return s.BlogRepository.FetchBlogCategories()
 }
