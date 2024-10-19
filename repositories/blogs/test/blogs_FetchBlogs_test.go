@@ -1,6 +1,8 @@
-package repositories_blogs
+package repositories_blogs_test
 
 import (
+	repositories_blogs "backend/repositories/blogs"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,10 +10,10 @@ import (
 
 func TestRepository_FetchBlogs(t *testing.T) {
 	// Supabaseクライアントの初期化
-	setupSupabase(t)
+	repositories_blogs.SetupSupabase(t)
 
 	// リポジトリのインスタンスを作成
-	repo := NewBlogRepository()
+	repo := repositories_blogs.NewBlogRepository()
 
 	// メソッドを実行
 	blogs, err := repo.FetchBlogs()
