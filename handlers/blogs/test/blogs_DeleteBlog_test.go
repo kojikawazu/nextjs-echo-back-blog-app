@@ -1,6 +1,7 @@
-package handlers_blogs
+package handlers_blogs_test
 
 import (
+	handlers_blogs "backend/handlers/blogs"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
 	"errors"
@@ -26,13 +27,13 @@ func TestHandler_DeleteBlog(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(nil, nil)
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)
@@ -58,13 +59,13 @@ func TestHandler_DeleteBlog_InvalidId(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "").Return(errors.New("invalid id"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)
@@ -90,13 +91,13 @@ func TestHandler_DeleteBlog_NoDelete(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(errors.New("failed to delete blog"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)
@@ -122,13 +123,13 @@ func TestHandler_DeleteBlog_ServerError(t *testing.T) {
 	// サービスとハンドラーをモックする
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockBlogService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockBlogService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
 	// モックの振る舞いを設定
 	mockBlogService.On("DeleteBlog", "123").Return(errors.New("server error"))
 
 	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
+	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
 
 	// テストを実行
 	err := handler.DeleteBlog(c)

@@ -1,6 +1,7 @@
-package handlers_blogs
+package handlers_blogs_test
 
 import (
+	handlers_blogs "backend/handlers/blogs"
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
@@ -28,7 +29,7 @@ func TestHandler_FetchBlogById(t *testing.T) {
 	// モックサービスをインスタンス化
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
 	mockBlog := &models.BlogData{
@@ -69,7 +70,7 @@ func TestHandler_FetchBlogById_InvalidId(t *testing.T) {
 	// モックサービスをインスタンス化
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
 	mockService.On("FetchBlogById", "").Return(nil, errors.New("invalid id"))
@@ -100,7 +101,7 @@ func TestHandler_FetchBlogById_InvalidNotBlog(t *testing.T) {
 	// モックサービスをインスタンス化
 	mockCookieUtils := new(utils_cookie.MockCookieUtils)
 	mockService := new(service_blogs.MockBlogService)
-	handler := NewBlogHandler(mockService, mockCookieUtils)
+	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
 
