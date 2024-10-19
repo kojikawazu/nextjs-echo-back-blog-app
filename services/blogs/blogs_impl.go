@@ -14,6 +14,8 @@ type BlogService interface {
 	CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error)
 	UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error)
 	DeleteBlog(id string) error
+
+	FetchBlogCategories() ([]string, error)
 }
 
 type BlogServiceImpl struct {

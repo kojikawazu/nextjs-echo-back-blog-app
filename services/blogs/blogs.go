@@ -160,3 +160,8 @@ func (s *BlogServiceImpl) DeleteBlog(id string) error {
 	log.Println("Deleted blog successfully")
 	return nil
 }
+
+// ブログカテゴリを取得する
+func (s *BlogServiceImpl) FetchBlogCategories() ([]string, error) {
+	return s.BlogRepository.FetchBlogCategories()
+}
