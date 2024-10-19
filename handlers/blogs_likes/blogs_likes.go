@@ -7,6 +7,40 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// FetchBlogLikesByVisitId - 訪問IDに紐づくブログいいねデータを取得するハンドラ
+func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
+	utils.LogInfo(c, "Fetching blog likes by visit id...")
+
+	// クッキーからJWTトークンを取得
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	if err != nil {
+		utils.LogError(c, "Error getting visit id token: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to get visit id token",
+		})
+	}
+	// JWTトークンを解析して訪問IDを取得
+	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
+	if err != nil {
+		utils.LogError(c, "Error getting visit id: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to get visit id",
+		})
+	}
+
+	// VisitIDに紐づくいいねデータを取得
+	blogLikesData, err := h.BlogLikeService.FetchBlogLikesByVisitId(visitId)
+	if err != nil {
+		utils.LogError(c, "Error fetching blog likes by visit id: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Error fetching blog likes by visit id",
+		})
+	}
+
+	utils.LogInfo(c, "Blog likes fetched successfully")
+	return c.JSON(http.StatusOK, blogLikesData)
+}
+
 // GenerateVisitorId -　訪問者IDを生成するハンドラ
 func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	utils.LogInfo(c, "Generating visitor id...")

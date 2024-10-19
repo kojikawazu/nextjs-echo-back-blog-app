@@ -4,6 +4,7 @@ import "backend/models"
 
 // BlogLikeRepositoryインターフェース
 type BlogLikeRepository interface {
+	FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikeData, error)
 	IsBlogLiked(blogId, visitId string) (bool, error)
 	CreateBlogLike(blogId, visitId string) (*models.BlogLikeData, error)
 	DeleteBlogLike(blogId, visitId string) error

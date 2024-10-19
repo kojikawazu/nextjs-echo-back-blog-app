@@ -78,6 +78,7 @@ func SetupRoutes(e *echo.Echo) {
 		// ブログいいね関連のエンドポイント
 		blogLikes := api.Group("/blog-likes")
 		{
+			blogLikes.GET("", BlogLikeHandler.FetchBlogLikesByVisitId)
 			blogLikes.GET("/generate-visit-id", BlogLikeHandler.GenerateVisitorId)
 			blogLikes.GET("/is-liked/:blogId", BlogLikeHandler.IsBlogLiked)
 			blogLikes.POST("/create/:blogId", BlogLikeHandler.CreateBlogLike)

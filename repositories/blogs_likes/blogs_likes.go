@@ -6,6 +6,42 @@ import (
 	"log"
 )
 
+// VisitIdによっていいねデータを取得
+func (r *BlogLikeRepositoryImpl) FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikeData, error) {
+	log.Println("FetchBlogLikesByVisitId start...")
+
+	// データベースからいいねデータを取得
+	query := `
+		SELECT id, blog_id, visit_id, created_at, updated_at
+		FROM blogs_likes
+		WHERE visit_id = $1
+	`
+	// クエリを実行し、いいねデータを取得
+	rows, err := supabase.Pool.Query(supabase.Ctx, query, visitId)
+	if err != nil {
+		log.Printf("Failed to fetch blog likes by visit id: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	// いいねデータを格納するスライスを作成
+	var blogLikes []models.BlogLikeData
+
+	// いいねデータをスキャンしてスライスに追加
+	for rows.Next() {
+		var blogLike = models.BlogLikeData{}
+		err := rows.Scan(&blogLike.ID, &blogLike.BlogId, &blogLike.VisitId, &blogLike.CreatedAt, &blogLike.UpdatedAt)
+		if err != nil {
+			log.Printf("Failed to scan blog like: %v", err)
+			return nil, err
+		}
+		blogLikes = append(blogLikes, blogLike)
+	}
+
+	log.Printf("Fetched blog likes by visit id: %v", blogLikes)
+	return blogLikes, nil
+}
+
 // いいね存在するか確認
 func (r *BlogLikeRepositoryImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")
