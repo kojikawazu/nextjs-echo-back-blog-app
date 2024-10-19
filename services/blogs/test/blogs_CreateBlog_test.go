@@ -1,8 +1,9 @@
-package services_blogs
+package services_blogs_test
 
 import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
+	services_blogs "backend/services/blogs"
 	"errors"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 func TestService_CreateBlog(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -54,7 +55,7 @@ func TestService_CreateBlog(t *testing.T) {
 func TestService_CreateBlog_InvalidUserId(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := ""
@@ -79,7 +80,7 @@ func TestService_CreateBlog_InvalidUserId(t *testing.T) {
 func TestService_CreateBlog_InvalidTitle(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -104,7 +105,7 @@ func TestService_CreateBlog_InvalidTitle(t *testing.T) {
 func TestService_CreateBlog_InvalidGitHubURL(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -129,7 +130,7 @@ func TestService_CreateBlog_InvalidGitHubURL(t *testing.T) {
 func TestService_CreateBlog_InvalidCategory(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -154,7 +155,7 @@ func TestService_CreateBlog_InvalidCategory(t *testing.T) {
 func TestService_CreateBlog_InvalidDescription(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -179,7 +180,7 @@ func TestService_CreateBlog_InvalidDescription(t *testing.T) {
 func TestService_CreateBlog_InvalidTags(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"
@@ -204,7 +205,7 @@ func TestService_CreateBlog_InvalidTags(t *testing.T) {
 func TestService_CreateBlog_RepositoryError(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	userId := "user1"

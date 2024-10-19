@@ -1,7 +1,8 @@
-package services_blogs
+package services_blogs_test
 
 import (
 	repositories_blogs "backend/repositories/blogs"
+	services_blogs "backend/services/blogs"
 	"errors"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 func TestService_DeleteBlog(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	id := "123"
@@ -33,7 +34,7 @@ func TestService_DeleteBlog(t *testing.T) {
 func TestService_DeleteBlog_InvalidId(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	id := ""
@@ -56,7 +57,7 @@ func TestService_DeleteBlog_InvalidId(t *testing.T) {
 func TestService_DeleteBlog_NotBlog(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// 入力データ
 	id := "123"

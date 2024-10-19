@@ -1,8 +1,9 @@
-package services_blogs
+package services_blogs_test
 
 import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
+	services_blogs "backend/services/blogs"
 	"testing"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 func TestService_FetchBlogs(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	mockBlogData := []models.BlogData{
 		{
@@ -54,7 +55,7 @@ func TestService_FetchBlogs(t *testing.T) {
 func TestService_FetchUsers_EmptyList(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// ブログが存在しない場合
 	mockBlogRepository.On("FetchBlogs").Return([]models.BlogData{}, nil)

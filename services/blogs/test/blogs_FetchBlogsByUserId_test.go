@@ -1,8 +1,9 @@
-package services_blogs
+package services_blogs_test
 
 import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
+	services_blogs "backend/services/blogs"
 	"errors"
 	"testing"
 	"time"
@@ -13,7 +14,7 @@ import (
 func TestService_FetchBlogsByUserId(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// ブログが存在する場合
 	mockBlogData := []models.BlogData{
@@ -57,7 +58,7 @@ func TestService_FetchBlogsByUserId(t *testing.T) {
 func TestService_FetchBlogsByUserId_InvalidCases(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// サービス層メソッドの実行
 	_, err := blogService.FetchBlogsByUserId("")
@@ -73,7 +74,7 @@ func TestService_FetchBlogsByUserId_InvalidCases(t *testing.T) {
 func TestService_FetchBlogsByUserId_NotUser(t *testing.T) {
 	// モックリポジトリをインスタンス化
 	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := NewBlogService(mockBlogRepository)
+	blogService := services_blogs.NewBlogService(mockBlogRepository)
 
 	// "blog not found" エラーメッセージを返すように設定
 	mockBlogRepository.On("FetchBlogsByUserId", "2").Return(nil, errors.New("blog not found"))
