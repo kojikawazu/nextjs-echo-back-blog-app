@@ -7,9 +7,12 @@ type BlogRepository interface {
 	FetchBlogs() ([]models.BlogData, error)
 	FetchBlogsByUserId(userId string) ([]models.BlogData, error)
 	FetchBlogById(id string) (*models.BlogData, error)
+
 	CreateBlog(userId, title, githubUrl, category, description, tags string) (models.BlogData, error)
 	UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error)
 	DeleteBlog(id string) error
+
+	FetchBlogCategories() ([]string, error)
 }
 
 type BlogRepositoryImpl struct{}

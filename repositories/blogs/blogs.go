@@ -278,3 +278,46 @@ func (r *BlogRepositoryImpl) DeleteBlog(id string) error {
 	log.Println("Deleted blog successfully")
 	return nil
 }
+
+// ブログカテゴリ一覧を取得する
+func (r *BlogRepositoryImpl) FetchBlogCategories() ([]string, error) {
+	log.Printf("FetchBlogCategories start...")
+
+	query := `
+		SELECT DISTINCT category
+		FROM blogs
+		ORDER BY category
+	`
+
+	// Supabaseからクエリを実行し、全カテゴリデータを取得
+	rows, err := supabase.Pool.Query(supabase.Ctx, query)
+	if err != nil {
+		log.Printf("Failed to fetch blog categories: %v", err)
+		return nil, err
+	}
+	log.Println("Fetched blog categories successfully")
+	defer rows.Close()
+
+	var categories []string
+
+	// 結果をスキャンしてカテゴリデータをリストに追加
+	for rows.Next() {
+		var category string
+
+		err := rows.Scan(&category)
+		if err != nil {
+			log.Printf("Failed to scan category: %v", err)
+			return nil, err
+		}
+
+		categories = append(categories, category)
+	}
+
+	if rows.Err() != nil {
+		log.Printf("Failed to fetch blog categories: %v", rows.Err())
+		return nil, rows.Err()
+	}
+
+	log.Printf("Fetched %d blog categories", len(categories))
+	return categories, nil
+}
