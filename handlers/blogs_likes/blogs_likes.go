@@ -38,6 +38,7 @@ func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Blog likes fetched successfully")
+	c.Response().Header().Set("Cache-Control", "no-store")
 	return c.JSON(http.StatusOK, blogLikesData)
 }
 
