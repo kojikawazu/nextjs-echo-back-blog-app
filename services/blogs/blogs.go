@@ -4,6 +4,8 @@ import (
 	"backend/logger"
 	"backend/models"
 	"errors"
+	"sort"
+	"strings"
 )
 
 // 全ブログデータを取得する
@@ -168,7 +170,33 @@ func (s *BlogServiceImpl) FetchBlogCategories() ([]string, error) {
 
 // ブログタグを取得する
 func (s *BlogServiceImpl) FetchBlogTags() ([]string, error) {
-	return s.BlogRepository.FetchBlogTags()
+	tagsList, err := s.BlogRepository.FetchBlogTags()
+	if err != nil {
+		logger.ErrorLog.Printf("Failed to fetch blog tags: %v", err)
+		return nil, err
+	}
+
+	// カンマ区切りのタグを分割し、余分な空白を削除
+	uniqueTags := make(map[string]struct{})
+	for _, tags := range tagsList {
+		splitTags := strings.Split(tags, ",")
+		for _, tag := range splitTags {
+			cleanedTag := strings.TrimSpace(tag)
+			if cleanedTag != "" {
+				uniqueTags[cleanedTag] = struct{}{}
+			}
+		}
+	}
+
+	// ユニークなタグをリスト化し、ソート
+	result := make([]string, 0, len(uniqueTags))
+	for tag := range uniqueTags {
+		result = append(result, tag)
+	}
+	sort.Strings(result)
+
+	// ソートしたタグを返す
+	return result, nil
 }
 
 // 人気のあるブログを取得する
