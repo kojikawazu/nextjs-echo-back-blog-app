@@ -15,6 +15,7 @@ type BlogData struct {
 	Category    string    `json:"category" db:"category"`       // カテゴリ
 	Tags        string    `json:"tags" db:"tags"`               // タグ
 	Likes       int8      `json:"likes" db:"likes"`             // いいね数
+	CommentCnt  int8      `json:"comment_cnt" db:"comment_cnt"` // コメント数
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`   // タイムスタンプ
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`   // タイムスタンプ
 }

@@ -15,13 +15,22 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 
 	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
-        SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
-               COALESCE(COUNT(bl.id), 0) AS likes,
-			   b.created_at, b.updated_at
-        FROM blogs b
-        LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
-        GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
-        ORDER BY b.created_at DESC
+		SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
+				COALESCE(l.like_count, 0) AS likes,
+				COALESCE(c.comment_count, 0) AS comment_cnt,
+				b.created_at, b.updated_at
+		FROM blogs b
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS like_count
+			FROM blogs_likes
+			GROUP BY blog_id
+		) l ON b.id = l.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS comment_count
+			FROM comments
+			GROUP BY blog_id
+		) c ON b.id = c.blog_id 
+		ORDER BY b.created_at DESC
     `
 
 	// Supabaseからクエリを実行し、全データ取得
@@ -39,6 +48,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	for rows.Next() {
 		var blog models.BlogData
 		var likeCount int
+		var commentCnt int
 
 		err := rows.Scan(
 			&blog.ID,
@@ -49,6 +59,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 			&blog.Category,
 			&blog.Tags,
 			&likeCount,
+			&commentCnt,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
 		)
@@ -59,7 +70,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 
 		// `Likes` フィールドにキャストして代入
 		blog.Likes = int8(likeCount)
-
+		blog.CommentCnt = int8(commentCnt)
 		blogs = append(blogs, blog)
 	}
 
@@ -79,11 +90,21 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
 		SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, 
-		       COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+				COALESCE(l.like_count, 0) AS likes,
+				COALESCE(c.comment_count, 0) AS comment_cnt,
+				b.created_at, b.updated_at
 		FROM blogs b
-		LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS like_count
+			FROM blogs_likes
+			GROUP BY blog_id
+		) l ON b.id = l.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS comment_count
+			FROM comments
+			GROUP BY blog_id
+		) c ON b.id = c.blog_id 
 		WHERE b.user_id = $1
-		GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
 		ORDER BY b.created_at DESC
 	`
 
@@ -102,6 +123,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	for rows.Next() {
 		var blog models.BlogData
 		var likeCount int
+		var commentCnt int
 
 		err := rows.Scan(
 			&blog.ID,
@@ -112,6 +134,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 			&blog.Category,
 			&blog.Tags,
 			&likeCount,
+			&commentCnt,
 			&blog.CreatedAt,
 			&blog.UpdatedAt,
 		)
@@ -122,6 +145,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 
 		// `Likes` フィールドにキャストして代入
 		blog.Likes = int8(likeCount)
+		blog.CommentCnt = int8(commentCnt)
 
 		blogs = append(blogs, blog)
 	}
@@ -142,16 +166,28 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 	// ※ blogs と blogs_likes テーブルを結合し、いいね数を集計して取得すること
 	query := `
         SELECT b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags,
-               COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+				COALESCE(l.like_count, 0) AS likes,
+				COALESCE(c.comment_count, 0) AS comment_cnt,
+				b.created_at, b.updated_at
         FROM blogs b
-        LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS like_count
+			FROM blogs_likes
+			GROUP BY blog_id
+		) l ON b.id = l.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS comment_count
+			FROM comments
+			GROUP BY blog_id
+		) c ON b.id = c.blog_id
         WHERE b.id = $1
-        GROUP BY b.id, b.user_id, b.title, b.description, b.github_url, b.category, b.tags, b.created_at, b.updated_at
     `
 
 	// Supabaseからクエリを実行し、条件に一致するデータを取得
 	row := supabase.Pool.QueryRow(supabase.Ctx, query, id)
 	var likeCount int
+	var commentCnt int
+
 	var blog models.BlogData
 	err := row.Scan(
 		&blog.ID,
@@ -162,9 +198,11 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 		&blog.Category,
 		&blog.Tags,
 		&likeCount,
+		&commentCnt,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
+
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to fetch blog: %v", err)
 		return nil, err
@@ -172,6 +210,7 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 
 	// `Likes` フィールドにキャストして代入
 	blog.Likes = int8(likeCount)
+	blog.CommentCnt = int8(commentCnt)
 
 	logger.InfoLog.Printf("Fetched blog: %v", blog)
 	return &blog, nil
@@ -191,7 +230,7 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 	query := `
 		INSERT INTO blogs (user_id, title, github_url, category, description, tags)
 		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, user_id, title, description, github_url, category, tags, likes, created_at, updated_at
+		RETURNING id, user_id, title, description, github_url, category, tags, likes, comment_cnt, created_at, updated_at
 	`
 
 	// Supabaseからクエリを実行し、新しいブログデータを作成
@@ -207,6 +246,7 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 		&blog.Category,
 		&blog.Tags,
 		&blog.Likes,
+		&blog.CommentCnt,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
@@ -232,10 +272,20 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
             RETURNING id, user_id, title, description, github_url, category, tags, created_at, updated_at
         )
         SELECT ub.id, ub.user_id, ub.title, ub.description, ub.github_url, ub.category, ub.tags, 
-               COALESCE(COUNT(bl.id), 0) AS likes, ub.created_at, ub.updated_at
+               COALESCE(l.like_count, 0) AS likes,
+			   COALESCE(c.comment_count, 0) AS comment_cnt,
+			   ub.created_at, ub.updated_at
         FROM updated_blog ub
-        LEFT JOIN blogs_likes bl ON ub.id = bl.blog_id
-        GROUP BY ub.id, ub.user_id, ub.title, ub.description, ub.github_url, ub.category, ub.tags, ub.created_at, ub.updated_at
+        LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS like_count
+			FROM blogs_likes
+			GROUP BY blog_id
+		) l ON ub.id = l.blog_id
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS comment_count
+			FROM comments
+			GROUP BY blog_id
+		) c ON ub.id = c.blog_id
     `
 
 	// Supabaseからクエリを実行し、指定されたブログデータを更新
@@ -243,7 +293,9 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 
 	// 結果をスキャンして更新されたブログデータを返す
 	var likeCount int
+	var commentCnt int
 	var blog models.BlogData
+
 	err := row.Scan(
 		&blog.ID,
 		&blog.UserId,
@@ -253,13 +305,14 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 		&blog.Category,
 		&blog.Tags,
 		&likeCount,
+		&commentCnt,
 		&blog.CreatedAt,
 		&blog.UpdatedAt,
 	)
 
-	// `Likes` フィールドにキャストして代入
+	// キャストして代入
 	blog.Likes = int8(likeCount)
-
+	blog.CommentCnt = int8(commentCnt)
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to update blog: %v", err)
 		return nil, err
@@ -387,10 +440,15 @@ func (r *BlogRepositoryImpl) FetchBlogPopular(count int) ([]models.BlogData, err
 	logger.InfoLog.Printf("FetchBlogPopular start...")
 
 	query := `
-		SELECT b.id, b.user_id, b.title, COALESCE(COUNT(bl.id), 0) AS likes, b.created_at, b.updated_at
+		SELECT b.id, b.user_id, b.title, 
+			   COALESCE(l.like_count, 0) AS likes,
+			   b.created_at, b.updated_at
 		FROM blogs b
-		LEFT JOIN blogs_likes bl ON b.id = bl.blog_id
-		GROUP BY b.id, b.user_id, b.title, b.created_at, b.updated_at
+		LEFT JOIN (
+			SELECT blog_id, COUNT(*) AS like_count
+			FROM blogs_likes
+			GROUP BY blog_id
+		) l ON b.id = l.blog_id
 		ORDER BY likes DESC
 		LIMIT $1
 	`
