@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"backend/logger"
+
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
@@ -22,7 +24,7 @@ var (
 // コネクションの最大数やアイドルタイム、シンプルプロトコルの使用を設定する。
 // 成功時にはnilを返し、接続に失敗した場合はエラーメッセージを返す。
 func InitSupabase() error {
-	log.Println("Initializing Supabase client...")
+	logger.InfoLog.Println("Initializing Supabase client...")
 	supabaseURL := os.Getenv("SUPABASE_URL") + "?sslmode=require"
 
 	config, err := pgxpool.ParseConfig(supabaseURL)
@@ -37,18 +39,18 @@ func InitSupabase() error {
 	// Prepared Statementの競合を防ぐためにSimple Protocolを優先
 	config.ConnConfig.PreferSimpleProtocol = true
 
-	log.Println("Connecting supabase database...")
+	logger.InfoLog.Println("Connecting supabase database...")
 	Pool, err = pgxpool.ConnectConfig(Ctx, config)
 	if err != nil {
-		log.Printf("Unable to connect to Supabase: %v", err)
+		logger.ErrorLog.Printf("Unable to connect to Supabase: %v", err)
 		return fmt.Errorf("unable to connect to Supabase: %v", err)
 	}
 
 	// 接続の確認
-	log.Println("Pinging supabase database...")
+	logger.InfoLog.Println("Pinging supabase database...")
 	err = Pool.Ping(Ctx)
 	if err != nil {
-		log.Printf("Unable to ping Supabase: %v", err)
+		logger.ErrorLog.Printf("Unable to ping Supabase: %v", err)
 		return fmt.Errorf("unable to ping Supabase: %v", err)
 	}
 
@@ -69,26 +71,26 @@ func ClosePool() {
 // クエリ結果として "1" を取得し、それをログに出力する。
 // クエリに失敗した場合、エラーを返する。
 func TestQuery() error {
-	log.Println("Testing query...")
+	logger.InfoLog.Println("Testing query...")
 	query := `SELECT 1`
 	rows, err := Pool.Query(Ctx, query)
 	if err != nil {
-		log.Printf("Failed to test query: %v", err)
+		logger.ErrorLog.Printf("Failed to test query: %v", err)
 		return err
 	}
-	log.Println("Test query successful")
+	logger.InfoLog.Println("Test query successful")
 	defer rows.Close()
 
 	for rows.Next() {
 		var num int
 		err := rows.Scan(&num)
 		if err != nil {
-			log.Printf("Failed to scan test query result: %v", err)
+			logger.ErrorLog.Printf("Failed to scan test query result: %v", err)
 			return err
 		}
-		fmt.Println("Test Query Result:", num)
+		logger.InfoLog.Println("Test Query Result:", num)
 	}
 
-	log.Println("Test query completed")
+	logger.InfoLog.Println("Test query completed")
 	return rows.Err()
 }

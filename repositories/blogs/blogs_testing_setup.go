@@ -1,6 +1,7 @@
 package repositories_blogs
 
 import (
+	"backend/logger"
 	"backend/supabase"
 	"testing"
 
@@ -15,9 +16,13 @@ func SetupSupabase(t *testing.T) {
 		t.Log("No ../../../.env.test file found")
 	}
 
+	// ログ設定の初期化
+	logger.InitLogger()
+
 	// テストの前にSupabaseクライアントの初期化
 	err = supabase.InitSupabase()
 	if err != nil {
 		t.Fatalf("Supabase initialization failed: %v", err)
 	}
+
 }
