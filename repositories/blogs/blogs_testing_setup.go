@@ -8,8 +8,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// SetupSupabase はテストの前にSupabaseクライアントを初期化します
-func SetupSupabase(t *testing.T) {
+// SetupTest はテストの前に環境変数を読み込み、ログ設定を初期化します
+func SetupTest(t *testing.T) {
 	// 環境変数の読み込み
 	err := godotenv.Load("../../../.env.test")
 	if err != nil {

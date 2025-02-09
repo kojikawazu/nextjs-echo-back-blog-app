@@ -9,9 +9,6 @@ import (
 )
 
 func TestRepository_FetchBlogsByUserId(t *testing.T) {
-	// Supabaseクライアントの初期化
-	repositories_blogs.SetupSupabase(t)
-
 	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
@@ -31,9 +28,6 @@ func TestRepository_FetchBlogsByUserId(t *testing.T) {
 }
 
 func TestRepository_FetchBlogsByUserId_ErrorCase(t *testing.T) {
-	// Supabaseクライアントの初期化
-	repositories_blogs.SetupSupabase(t)
-
 	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 

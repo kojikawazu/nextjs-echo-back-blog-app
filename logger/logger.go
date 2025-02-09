@@ -16,5 +16,6 @@ var (
 func InitLogger() {
 	if os.Getenv("TEST_MODE") == "true" {
 		InfoLog.SetOutput(io.Discard)
+		ErrorLog.SetOutput(io.Discard)
 	}
 }

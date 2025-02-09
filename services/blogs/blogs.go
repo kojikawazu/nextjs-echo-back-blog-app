@@ -165,3 +165,29 @@ func (s *BlogServiceImpl) DeleteBlog(id string) error {
 func (s *BlogServiceImpl) FetchBlogCategories() ([]string, error) {
 	return s.BlogRepository.FetchBlogCategories()
 }
+
+// ブログタグを取得する
+func (s *BlogServiceImpl) FetchBlogTags() ([]string, error) {
+	return s.BlogRepository.FetchBlogTags()
+}
+
+// 人気のあるブログを取得する
+func (s *BlogServiceImpl) FetchBlogPopular(count int) ([]models.BlogData, error) {
+
+	// バリデーション
+	if count <= 0 {
+		logger.ErrorLog.Printf("invalid count: %d", count)
+		return nil, errors.New("invalid count")
+	}
+	logger.InfoLog.Println("Valid count")
+
+	// リポジトリを呼び出して人気のあるブログを取得
+	blogs, err := s.BlogRepository.FetchBlogPopular(count)
+	if err != nil {
+		logger.ErrorLog.Printf("Failed to fetch popular blogs: %v", err)
+		return nil, errors.New("failed to fetch popular blogs")
+	}
+
+	logger.InfoLog.Printf("Fetched popular blogs successfully: %v", blogs)
+	return blogs, nil
+}

@@ -8,9 +8,6 @@ import (
 )
 
 func TestRepository_FetchBlogTags(t *testing.T) {
-	// Supabaseクライアントの初期化
-	repositories_blogs.SetupSupabase(t)
-
 	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
