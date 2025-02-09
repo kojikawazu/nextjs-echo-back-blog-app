@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"backend/logger"
 	"log"
 
 	"github.com/labstack/echo/v4"
@@ -13,7 +14,20 @@ func logWithLevel(c echo.Context, level string, message string) {
 	userAgent := c.Request().UserAgent()
 
 	// レベルに応じたログを出力
-	log.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	switch level {
+	case "INFO":
+		logger.InfoLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	case "ERROR":
+		logger.ErrorLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	case "WARN":
+		logger.WarnLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	case "DEBUG":
+		logger.DebugLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	case "TEST":
+		logger.TestLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	default:
+		log.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
+	}
 }
 
 // 情報ログ

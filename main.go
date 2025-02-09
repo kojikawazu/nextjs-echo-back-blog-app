@@ -1,6 +1,7 @@
 package main
 
 import (
+	"backend/logger"
 	"backend/middlewares"
 	"backend/routes"
 	"backend/supabase"
@@ -23,16 +24,20 @@ func firstSetup() {
 		log.Println("No .env file found")
 	}
 
+	// ログ設定の初期化
+	logger.InitLogger()
+
 	// Supabaseクライアントの初期化
 	err = supabase.InitSupabase()
 	if err != nil {
-		log.Fatalf("Supabase initialization failed: %v", err)
+		logger.ErrorLog.Fatalf("Supabase initialization failed: %v", err)
 	}
 	// テストクエリの実行
 	err = supabase.TestQuery()
 	if err != nil {
-		log.Fatalf("Test query failed: %v", err)
+		logger.ErrorLog.Fatalf("Test query failed: %v", err)
 	}
+
 }
 
 // Mainプロセス
@@ -54,11 +59,11 @@ func main() {
 
 	go func() {
 		<-quit
-		log.Println("Shutting down server...")
+		logger.InfoLog.Println("Shutting down server...")
 
 		// Echoサーバーのシャットダウン
 		if err := e.Close(); err != nil {
-			log.Printf("Echo shutdown failed: %v", err)
+			logger.ErrorLog.Printf("Echo shutdown failed: %v", err)
 		}
 
 		// Supabaseコネクションプールのクローズ
@@ -71,6 +76,6 @@ func main() {
 		port = "8080"
 	}
 	if err := e.Start(":" + port); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Echo server failed: %v", err)
+		logger.ErrorLog.Fatalf("Echo server failed: %v", err)
 	}
 }

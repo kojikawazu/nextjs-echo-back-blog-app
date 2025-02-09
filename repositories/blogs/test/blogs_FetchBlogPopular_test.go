@@ -2,36 +2,33 @@ package repositories_blogs_test
 
 import (
 	repositories_blogs "backend/repositories/blogs"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestRepository_FetchBlogById(t *testing.T) {
+func TestRepository_FetchBlogPopular(t *testing.T) {
 	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
-	// 環境変数から取得
-	id := os.Getenv("TEST_BLOG_ID")
-
 	// メソッドを実行
-	blog, err := repo.FetchBlogById(id)
+	blogs, err := repo.FetchBlogPopular(10)
 
 	// エラーチェックとデータ確認
 	assert.NoError(t, err)
-	assert.NotNil(t, blog)
+	assert.NotNil(t, blogs)
+	assert.NotEmpty(t, blogs)
 }
 
-func TestRepository_FetchBlogById_ErrorCase(t *testing.T) {
+func TestRepository_FetchBlogPopular_Empty(t *testing.T) {
 	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
 	// メソッドを実行
-	blog, err := repo.FetchBlogById("2")
+	blogs, err := repo.FetchBlogPopular(0)
 
 	// エラーチェックとデータ確認
-	assert.Error(t, err)
-	assert.Nil(t, blog)
-	assert.Equal(t, "ERROR: invalid input syntax for type uuid: \"2\" (SQLSTATE 22P02)", err.Error())
+	assert.NoError(t, err)
+	assert.Nil(t, blogs)
+	assert.Empty(t, blogs)
 }

@@ -3,6 +3,8 @@ package handlers_blogs
 import (
 	utils "backend/utils/log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -319,4 +321,57 @@ func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 
 	utils.LogInfo(c, "Fetched categories successfully")
 	return c.JSON(http.StatusOK, categories)
+}
+
+// ブログタグの取得
+func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
+	utils.LogInfo(c, "Fetching tags...")
+
+	// サービス層からタグを取得
+	tags, err := h.BlogService.FetchBlogTags()
+	if err != nil {
+		utils.LogError(c, "Error fetching tags: "+err.Error())
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Error fetching tags",
+		})
+	}
+
+	utils.LogInfo(c, "Fetched tags successfully")
+	return c.JSON(http.StatusOK, tags)
+}
+
+// 人気のあるブログの取得
+func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
+	utils.LogInfo(c, "Fetching popular blogs...")
+
+	// パスパラメータからcountを取得
+	count := c.Param("count")
+	countInt, err := strconv.Atoi(count)
+	if err != nil {
+		utils.LogError(c, "Error converting count to int: "+err.Error())
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid count",
+		})
+	}
+
+	// サービス層から人気のあるブログを取得
+	blogs, err := h.BlogService.FetchBlogPopular(countInt)
+	if err != nil {
+		utils.LogError(c, "Error fetching popular blogs: "+err.Error())
+
+		// ✅ `"blog not found"` の場合は `404 Not Found` を返す
+		if strings.Contains(err.Error(), "blog not found") {
+			return c.JSON(http.StatusNotFound, map[string]string{
+				"error": "blog not found",
+			})
+		}
+
+		// ✅ その他のエラーは `500 Internal Server Error`
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Error fetching popular blogs",
+		})
+	}
+
+	utils.LogInfo(c, "Fetched popular blogs successfully")
+	return c.JSON(http.StatusOK, blogs)
 }

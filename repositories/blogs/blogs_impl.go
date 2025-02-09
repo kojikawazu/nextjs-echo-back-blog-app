@@ -13,6 +13,8 @@ type BlogRepository interface {
 	DeleteBlog(id string) error
 
 	FetchBlogCategories() ([]string, error)
+	FetchBlogTags() ([]string, error)
+	FetchBlogPopular(count int) ([]models.BlogData, error)
 }
 
 type BlogRepositoryImpl struct{}
