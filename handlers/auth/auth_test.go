@@ -3,7 +3,7 @@ package handlers_auth
 import (
 	"backend/models"
 	services_auth "backend/services/auth"
-	services_users "backend/services/users"
+	services_users "backend/services/blog_users"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -53,7 +53,7 @@ func TestHandler_Login_Success(t *testing.T) {
 
 	mockAuthService.On("Login", "test@example.com", "password123").Return(nil)
 
-	mockUserService.On("FetchUserByEmailAndPassword", "test@example.com", "password123").Return(&models.UserData{
+	mockUserService.On("FetchUserByEmailAndPassword", "test@example.com", "password123").Return(&models.BlogUsersData{
 		ID:    "user123",
 		Email: "test@example.com",
 		Name:  "Test User",

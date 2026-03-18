@@ -18,7 +18,7 @@ func TestService_FetchBlogs(t *testing.T) {
 	mockBlogData := []models.BlogData{
 		{
 			ID:        "1",
-			UserId:    "1",
+			BlogUserId:    "1",
 			Title:     "title1",
 			GithubUrl: "https://github.com/user/repo1",
 			Category:  "Category1",
@@ -28,7 +28,7 @@ func TestService_FetchBlogs(t *testing.T) {
 		},
 		{
 			ID:        "2",
-			UserId:    "2",
+			BlogUserId:    "2",
 			Title:     "title2",
 			GithubUrl: "https://github.com/user/repo2",
 			Category:  "Category2",

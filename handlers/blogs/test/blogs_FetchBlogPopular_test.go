@@ -36,7 +36,7 @@ func TestHandler_FetchBlogPopular(t *testing.T) {
 	mockBlogs := []models.BlogData{
 		{
 			ID:        "1",
-			UserId:    "1",
+			BlogUserId:    "1",
 			Title:     "title1",
 			GithubUrl: "https://github.com/user/repo1",
 			Category:  "Category1",
@@ -46,7 +46,7 @@ func TestHandler_FetchBlogPopular(t *testing.T) {
 		},
 		{
 			ID:        "2",
-			UserId:    "1",
+			BlogUserId:    "1",
 			Title:     "title2",
 			GithubUrl: "https://github.com/user/repo2",
 			Category:  "Category2",

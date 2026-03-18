@@ -18,7 +18,7 @@ type CookieUtils interface {
 	VerifyToken(c echo.Context, tokenString string) (*models.Claims, error)
 
 	// 認証Token用
-	CreateToken(user *models.UserData) (string, error)
+	CreateToken(user *models.BlogUsersData) (string, error)
 	AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time)
 	UpdateAuthCookie(c echo.Context, tokenString string, expirationTime time.Time)
 	DelAuthCookie(c echo.Context)

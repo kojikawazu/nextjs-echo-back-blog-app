@@ -12,7 +12,7 @@ import (
 )
 
 // CreateToken - JWTトークンを作成
-func (u *CookieUtilsImpl) CreateToken(user *models.UserData) (string, error) {
+func (u *CookieUtilsImpl) CreateToken(user *models.BlogUsersData) (string, error) {
 	// トークンの有効期限を1時間に設定
 	expirationTime := u.GetAuthCookieExpirationTime()
 	// JWTトークンの作成
