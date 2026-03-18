@@ -1,0 +1,234 @@
+package services_blog_users
+
+import (
+	"backend/models"
+	repositories_users "backend/repositories/blog_users"
+	"errors"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestService_UpdateUser(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// モックの挙動を設定
+	mockUser := &models.BlogUsersData{
+		ID:       "1",
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Password: "123",
+	}
+	mockUserRepository.On("FetchBlogUsersById", "1").Return(mockUser, nil)
+	mockUserRepository.On("UpdateBlogUsers", "1", "John Doe", "john@example.com", "1234").Return(mockUser, nil)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("1", "John Doe", "john@example.com", "123", "1234")
+
+	// エラーチェック
+	assert.NoError(t, err)
+
+	// データが期待通りか確認
+	assert.NotNil(t, user)
+	assert.Equal(t, "John Doe", user.Name)
+
+	// モックが期待通りに呼び出されたかを確認
+	mockUserRepository.AssertExpectations(t)
+}
+
+func TestService_UpdateUser_InvalidId(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("", "John Doe", "john@example.com", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "id is required", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "", "John Doe", "john@example.com", "123")
+}
+
+func TestService_UpdateUser_InvalidName(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "", "john@example.com", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "name is required", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "", "john@example.com", "123")
+}
+
+func TestService_UpdateUser_InvalidEmail01(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "John Doe", "", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "email is required", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "", "123")
+}
+
+func TestService_UpdateUser_InvalidEmail02(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "John Doe", "aaa", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "invalid email format", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "aaa", "123")
+}
+
+func TestService_UpdateUser_InvalidPassword(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "John Doe", "john@example.com", "", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "password is required", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "john@example.com", "")
+}
+
+func TestService_UpdateUser_InvalidNewPassword(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "John Doe", "john@example.com", "123", "")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "new password is required", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "john@example.com", "123")
+}
+
+func TestService_UpdateUser_NotUser(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// モックの挙動を設定
+	mockUserRepository.On("FetchBlogUsersById", "1").Return(nil, errors.New("failed to validate user"))
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("1", "John Doe", "john@example.com", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "failed to validate user", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertExpectations(t)
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "john@example.com", "123")
+}
+
+func TestService_UpdateUser_NotComparePassword(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// モックの挙動を設定
+	mockUser := &models.BlogUsersData{
+		ID:       "1",
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Password: "123",
+	}
+	mockUserRepository.On("FetchBlogUsersById", "1").Return(mockUser, nil)
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("1", "John Doe", "john@example.com", "12355", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "invalid current password", err.Error())
+
+	// モックが期待通りに呼び出されていないかを確認
+	mockUserRepository.AssertExpectations(t)
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", "123", "John Doe", "john@example.com", "1234")
+}
+
+func TestService_UpdateUser_NotUpdate(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	// モックの挙動を設定
+	mockUser := &models.BlogUsersData{
+		ID:       "1",
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Password: "123",
+	}
+	mockUserRepository.On("FetchBlogUsersById", "123").Return(mockUser, nil)
+	mockUserRepository.On("UpdateBlogUsers", "123", "John Doe", "john@example.com", "1234").Return(nil, errors.New("failed to update user"))
+
+	// サービス層メソッドの実行
+	user, err := userService.UpdateUser("123", "John Doe", "john@example.com", "123", "1234")
+
+	// エラーチェック
+	assert.Error(t, err)
+
+	// データが期待通りか確認
+	assert.Nil(t, user)
+	assert.Equal(t, "failed to update user", err.Error())
+
+	// モックが期待通りに呼び出されたかを確認
+	mockUserRepository.AssertExpectations(t)
+}

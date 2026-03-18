@@ -28,7 +28,7 @@ func TestService_CreateBlog(t *testing.T) {
 	// 期待されるブログデータ
 	expectedBlog := models.BlogData{
 		ID:          "123",
-		UserId:      userId,
+		BlogUserId:      userId,
 		Title:       title,
 		GithubUrl:   githubURL,
 		Category:    category,

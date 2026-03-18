@@ -34,7 +34,7 @@ func TestHandler_FetchBlogById(t *testing.T) {
 	// モックデータの設定
 	mockBlog := &models.BlogData{
 		ID:        "1",
-		UserId:    "1",
+		BlogUserId:    "1",
 		Title:     "title1",
 		GithubUrl: "",
 		Category:  "Category1",

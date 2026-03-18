@@ -52,7 +52,7 @@ func (m *MockCookieUtils) VerifyToken(c echo.Context, tokenString string) (*mode
 // 認証Token用
 // ----------------------------------------------------------------------------------------------------------
 
-func (m *MockCookieUtils) CreateToken(user *models.UserData) (string, error) {
+func (m *MockCookieUtils) CreateToken(user *models.BlogUsersData) (string, error) {
 	args := m.Called(user)
 	return args.String(0), args.Error(1)
 }

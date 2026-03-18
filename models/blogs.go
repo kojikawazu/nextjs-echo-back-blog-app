@@ -7,15 +7,15 @@ import (
 // ブログの情報を表すデータ構造
 // 各フィールドには、JSONおよびデータベースのタグを指定。
 type BlogData struct {
-	ID          string    `json:"id" db:"id"`                   // UUID型
-	UserId      string    `json:"user_id" db:"user_id"`         // ユーザーID
-	Title       string    `json:"title" db:"title"`             // タイトル
-	Description string    `json:"description" db:"description"` // 説明
-	GithubUrl   string    `json:"github_url" db:"github_url"`   // GitHubリポジトリのURL
-	Category    string    `json:"category" db:"category"`       // カテゴリ
-	Tags        string    `json:"tags" db:"tags"`               // タグ
-	Likes       int8      `json:"likes" db:"likes"`             // いいね数
-	CommentCnt  int8      `json:"comment_cnt" db:"comment_cnt"` // コメント数
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`   // タイムスタンプ
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`   // タイムスタンプ
+	ID          string    `json:"id" db:"id"`                     // UUID型
+	BlogUserId  string    `json:"blog_user_id" db:"blog_user_id"` // ブログユーザーID
+	Title       string    `json:"title" db:"title"`               // タイトル
+	Description string    `json:"description" db:"description"`   // 説明
+	GithubUrl   string    `json:"github_url" db:"github_url"`     // GitHubリポジトリのURL
+	Category    string    `json:"category" db:"category"`         // カテゴリ
+	Tags        string    `json:"tags" db:"tags"`                 // タグ
+	Likes       int8      `json:"likes" db:"likes"`               // いいね数
+	CommentCnt  int8      `json:"comment_cnt" db:"comment_cnt"`   // コメント数
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`     // タイムスタンプ
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`     // タイムスタンプ
 }
