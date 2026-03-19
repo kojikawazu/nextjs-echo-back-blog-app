@@ -1,4 +1,4 @@
-name: Build and Deploy to ECR and App Runner
+name: Build and Deploy to Artifact Registry and Cloud Run
 
 on:
     push:
@@ -11,58 +11,47 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
 
-      - name: Log in to Amazon ECR
-        env:
-            AWS_REGION: ${{ secrets.AWS_REGION }}
-            AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      - name: Authenticate Docker with GCR
         run: |
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+            gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev
 
-      - name: Build, tag, and push Docker image to ECR
-        env:
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+            project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Build and push Docker image
         run: |
-          # Gitのコミットハッシュをタグに使う
-          IMAGE_TAG=$(git rev-parse --short HEAD)
+            IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.REPO_NAME }}/${{ secrets.APP_NAME }}"
+            docker build -t ${IMAGE}:${{ github.sha }}  .
+            docker push ${IMAGE}:${{ github.sha }} 
 
-          # Docker イメージをビルドし、`latest` タグとユニークなタグを付ける
-          docker build -t $ECR_REPOSITORY:latest -t $ECR_REPOSITORY:$IMAGE_TAG .
-
-          # `latest` タグを ECR にプッシュ
-          docker tag $ECR_REPOSITORY:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:latest
-
-          # ユニークなタグ（Gitのコミットハッシュ）を ECR にプッシュ
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
-
-
-      - name: Update App Runner service
-        env:
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          SERVICE_NAME: ${{ secrets.APP_RUNNER_SERVICE }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+      - name: Deploy to Cloud Run
         run: |
-          # IMAGE_TAG を取得
-          IMAGE_TAG=$(git rev-parse --short HEAD)
-          IMAGE_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
+            gcloud run deploy ${{ secrets.GCP_CLOUD_RUN_SERVICE_NAME }} \
+              --image ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.REPO_NAME }}/${{ secrets.APP_NAME }}:${{ github.sha }}  \
+              --region ${{ secrets.GCP_REGION }} \
+              --platform managed \
+              --allow-unauthenticated
 
-          # App Runner サービスを更新して新しいイメージをデプロイ
-          aws apprunner update-service \
-            --service-arn arn:aws:apprunner:$AWS_REGION:$AWS_ACCOUNT_ID:service/$SERVICE_NAME \
-            --source-configuration "{\"ImageRepository\":{\"ImageIdentifier\":\"$IMAGE_URI\",\"ImageRepositoryType\":\"ECR\"}}"
+      - name: Cleanup old images
+        run: |
+            IMAGE_NAME="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.REPO_NAME }}/${{ secrets.APP_NAME }}"
+            
+            # 古いイメージの削除（参照されていないもののみ）
+            echo "Cleaning up old images..."
+            gcloud artifacts docker images list ${IMAGE_NAME} --format="value(DIGEST)" --sort-by="~UPDATE_TIME" | tail -n +6 | while read -r DIGEST; do
+                if [[ ! -z "${DIGEST}" ]]; then
+                    echo "Attempting to delete old image: ${IMAGE_NAME}@${DIGEST}"
+                    gcloud artifacts docker images delete "$IMAGE_NAME@$DIGEST" --quiet || echo "Failed to delete $IMAGE_NAME@$DIGEST (likely referenced by other manifests)"
+                fi
+            done
+            
+            echo "Cleanup completed (some images may remain if referenced by other manifests)"
