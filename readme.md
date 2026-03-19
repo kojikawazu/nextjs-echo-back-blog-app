@@ -13,7 +13,7 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
     -   Framework
         -   Echo(Go言語)
     -   Cloud
-        -   Cloud Rune
+        -   Cloud Run
     -   Platform
         -   CloudFlare
     -   BaaS
