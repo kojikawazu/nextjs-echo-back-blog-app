@@ -1,39 +1,28 @@
 # ---------------------------------------------
 # Variables
 # ---------------------------------------------
-variable "project" {
+variable "gcp_project_id" {
+  type = string
+  sensitive = true 
+}
+
+variable "gcp_region" {
   type = string
 }
 
-variable "environment" {
+variable "repository_id" {
   type = string
 }
 
-variable "region" {
+variable "invoker_role" {
   type = string
 }
 
-variable "vpc_address" {
+variable "invoker_member" {
   type = string
 }
 
-variable "default_route" {
-  type = string
-}
-
-variable "public_1a_address" {
-  type = string
-}
-
-variable "public_1c_address" {
-  type = string
-}
-
-variable "private_1a_address" {
-  type = string
-}
-
-variable "private_1c_address" {
+variable "service_name" {
   type = string
 }
 
@@ -41,18 +30,27 @@ variable "api_port" {
   type = number
 }
 
-variable "cors_address" {
+variable "allowed_origins" {
   type = string
-}
-
-variable "supabase_url" {
-  type = string
-}
-
-variable "jwt_secret_key" {
-  type = string
+  sensitive = true 
 }
 
 variable "env_word" {
   type = string
+  sensitive = true 
+}
+
+variable "jwt_secret_key" {
+  type = string
+  sensitive = true 
+}
+
+variable "supabase_url" {
+  type = string
+  sensitive = true 
+}
+
+variable "tmp_allowed_origins" {
+  type = string
+  sensitive = true 
 }
