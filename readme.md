@@ -13,7 +13,7 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
     -   Framework
         -   Echo(Go言語)
     -   Cloud
-        -   AWS App Runner
+        -   Cloud Rune
     -   Platform
         -   CloudFlare
     -   BaaS
@@ -53,7 +53,7 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
 
 -   [GitHub](https://github.com/)
 
--   [AWS](https://aws.amazon.com/jp/console/)
+-   [Google Cloud](https://console.cloud.google.com/)
 
 -   [CloudFlare](https://www.cloudflare.com/ja-jp/)
 
