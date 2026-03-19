@@ -32,8 +32,8 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
         -   Next.js(TypeScript)
     -   API Route
         -   Hono(TypeScript)
-    -   Web Hosting Service
-        -   Vercel
+    -   Cloud
+        -   Cloud Run
     -   Code Manager
         -   GitHub
     -   FrontAI
@@ -43,7 +43,7 @@ Zennの記事やQiitaの記事も溜まっており、GitHubに管理してい�
 
 フロント側のリポジトリは以下になります。
 
-[Frontend](https://github.com/kojikawazu/nextjs-echo-front-blog-app)
+[Frontend](https://github.com/kojikawazu/nextjs-echo-blog-front-app-renew)
 
 # URL
 
