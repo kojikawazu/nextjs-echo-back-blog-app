@@ -29,7 +29,7 @@ type Claims struct {
 
 ### 1.3 認証フロー
 
-#### ログイン（`POST /api/blog-users/login`）
+#### ログイン（`POST /api/users/login`）
 
 1. リクエストボディから `email` と `password` を取得する。
 2. Service層でバリデーションを実施する（空チェック、メールフォーマット検証）。
@@ -38,13 +38,13 @@ type Claims struct {
 5. HTTP-only Cookieにトークンをセットする。
 6. `{"message": "Login successful"}` を返却する。
 
-#### 認証確認（`GET /api/blog-users/auth-check`）
+#### 認証確認（`GET /api/users/auth-check`）
 
 1. `token` Cookieからトークン文字列を取得する。
 2. `jwt.ParseWithClaims` でトークンを検証する（署名・有効期限）。
 3. 検証成功時に `user_id`, `username`, `email` を返却する。
 
-#### ログアウト（`POST /api/blog-users/logout`）
+#### ログアウト（`POST /api/users/logout`）
 
 1. `token` Cookieの値を空文字列に設定し、有効期限を過去（`time.Unix(0, 0)`）に設定する。
 2. `{"message": "Logout successful"}` を返却する。
@@ -65,8 +65,8 @@ type Claims struct {
 | `/api/blogs/create` | POST | 必要 |
 | `/api/blogs/update/:id` | PUT | 必要 |
 | `/api/blogs/delete/:id` | DELETE | 必要 |
-| `/api/blog-users/detail` | GET | 必要 |
-| `/api/blog-users/update` | PUT | 必要 |
+| `/api/users/detail` | GET | 必要 |
+| `/api/users/update` | PUT | 必要 |
 
 認証チェックの処理フロー:
 
@@ -87,9 +87,9 @@ type Claims struct {
 | `/api/blogs/categories` | GET | カテゴリ一覧取得 |
 | `/api/blogs/tags` | GET | タグ一覧取得 |
 | `/api/blogs/popular/:count` | GET | 人気ブログ取得 |
-| `/api/blog-users/login` | POST | ログイン |
-| `/api/blog-users/auth-check` | GET | 認証確認 |
-| `/api/blog-users/logout` | POST | ログアウト |
+| `/api/users/login` | POST | ログイン |
+| `/api/users/auth-check` | GET | 認証確認 |
+| `/api/users/logout` | POST | ログアウト |
 | `/api/blog-likes/*` | GET/POST/DELETE | いいね関連（visit-id認証） |
 | `/api/comments/*` | GET/POST | コメント関連 |
 

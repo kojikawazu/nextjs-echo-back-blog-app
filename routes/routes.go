@@ -56,7 +56,7 @@ func SetupRoutes(e *echo.Echo) {
 	api := e.Group("/api")
 	{
 		// ユーザー関連のエンドポイント
-		blogUsers := api.Group("/blog-users")
+		blogUsers := api.Group("/users")
 		{
 			blogUsers.POST("/login", authHandler.Login)
 			blogUsers.GET("/auth-check", authHandler.CheckAuth)
