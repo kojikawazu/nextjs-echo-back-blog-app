@@ -11,7 +11,7 @@
 ```
 [フロントエンド]
     |
-    | POST /api/blog-users/login (email, password)
+    | POST /api/users/login (email, password)
     v
 [AuthHandler.Login]
     |
@@ -22,7 +22,7 @@
     v
 [レスポンス: 200 OK + Set-Cookie: token]
     |
-    | GET /api/blog-users/auth-check (Cookie: token)
+    | GET /api/users/auth-check (Cookie: token)
     v
 [AuthHandler.CheckAuth]
     |
@@ -30,7 +30,7 @@
     v
 [レスポンス: 200 OK + user_id, username, email]
     |
-    | POST /api/blog-users/logout
+    | POST /api/users/logout
     v
 [AuthHandler.Logout]
     |
@@ -506,7 +506,7 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 ```
 [ブログオーナー（フロントエンド）]
     |
-    | GET /api/blog-users/detail
+    | GET /api/users/detail
     | Cookie: token
     v
 [BlogUsersHandler.FetchBlogUsers]
@@ -526,7 +526,7 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 ```
 [ブログオーナー（フロントエンド）]
     |
-    | PUT /api/blog-users/update
+    | PUT /api/users/update
     | Cookie: token
     | Body: { name, email, password, newPassword }
     v
@@ -582,11 +582,11 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 | メソッド | パス | 機能 | 認証 |
 |----------|------|------|------|
 | GET | `/` | ヘルスチェック | 不要 |
-| POST | `/api/blog-users/login` | ログイン | 不要 |
-| GET | `/api/blog-users/auth-check` | 認証確認 | 要（token） |
-| POST | `/api/blog-users/logout` | ログアウト | 不要 |
-| GET | `/api/blog-users/detail` | プロフィール取得 | 要（token） |
-| PUT | `/api/blog-users/update` | プロフィール更新 | 要（token） |
+| POST | `/api/users/login` | ログイン | 不要 |
+| GET | `/api/users/auth-check` | 認証確認 | 要（token） |
+| POST | `/api/users/logout` | ログアウト | 不要 |
+| GET | `/api/users/detail` | プロフィール取得 | 要（token） |
+| PUT | `/api/users/update` | プロフィール更新 | 要（token） |
 | GET | `/api/blogs` | 全ブログ取得 | 不要 |
 | GET | `/api/blogs/user/:userId` | ユーザー別ブログ取得 | 不要 |
 | GET | `/api/blogs/detail/:id` | ブログ詳細取得 | 不要 |

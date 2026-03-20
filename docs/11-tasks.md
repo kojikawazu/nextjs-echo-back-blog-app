@@ -18,8 +18,8 @@
   - 削除（`DELETE /api/blogs/delete/:id`）
 
 - [x] **ブログユーザーエンドポイント実装**
-  - ユーザー情報取得（`GET /api/blog-users/detail`）
-  - ユーザー情報更新（`PUT /api/blog-users/update`）
+  - ユーザー情報取得（`GET /api/users/detail`）
+  - ユーザー情報更新（`PUT /api/users/update`）
 
 - [x] **いいね機能エンドポイント実装**
   - 訪問者ID別いいね一覧取得（`GET /api/blog-likes`）
@@ -38,9 +38,9 @@
 ### 認証システム
 
 - [x] **JWT認証システム実装**
-  - ログイン（`POST /api/blog-users/login`）: メール・パスワードによる認証、JWTトークン発行
-  - 認証確認（`GET /api/blog-users/auth-check`）: クッキー内JWTトークンの検証
-  - ログアウト（`POST /api/blog-users/logout`）: クッキー削除によるトークン無効化
+  - ログイン（`POST /api/users/login`）: メール・パスワードによる認証、JWTトークン発行
+  - 認証確認（`GET /api/users/auth-check`）: クッキー内JWTトークンの検証
+  - ログアウト（`POST /api/users/logout`）: クッキー削除によるトークン無効化
   - JWTクレーム: ユーザーID、メール、ユーザー名を含む
   - 有効期限: 1時間
   - 署名アルゴリズム: HS256

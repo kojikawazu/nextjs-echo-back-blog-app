@@ -28,9 +28,9 @@
 
 | 機能 | エンドポイント | メソッド | 認証要否 |
 |------|---------------|----------|----------|
-| ログイン | `/api/blog-users/login` | POST | 不要 |
-| 認証確認 | `/api/blog-users/auth-check` | GET | 要（Cookie） |
-| ログアウト | `/api/blog-users/logout` | POST | 不要 |
+| ログイン | `/api/users/login` | POST | 不要 |
+| 認証確認 | `/api/users/auth-check` | GET | 要（Cookie） |
+| ログアウト | `/api/users/logout` | POST | 不要 |
 
 ### 2.3 受入条件
 
@@ -401,8 +401,8 @@
 
 | 機能 | エンドポイント | メソッド | 認証要否 |
 |------|---------------|----------|----------|
-| プロフィール取得 | `/api/blog-users/detail` | GET | 要（JWT Cookie） |
-| プロフィール更新 | `/api/blog-users/update` | PUT | 要（JWT Cookie） |
+| プロフィール取得 | `/api/users/detail` | GET | 要（JWT Cookie） |
+| プロフィール更新 | `/api/users/update` | PUT | 要（JWT Cookie） |
 
 ### 8.3 受入条件
 

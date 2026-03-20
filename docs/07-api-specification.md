@@ -57,7 +57,7 @@ Service is running
 
 ## 2. 認証（Auth）
 
-### POST /api/blog-users/login
+### POST /api/users/login
 
 メールアドレスとパスワードでログインし、JWTトークンをCookieに設定する。
 
@@ -107,7 +107,7 @@ Service is running
 
 ---
 
-### GET /api/blog-users/auth-check
+### GET /api/users/auth-check
 
 Cookieに含まれるJWTトークンの有効性を検証する。
 
@@ -142,7 +142,7 @@ Cookieに含まれるJWTトークンの有効性を検証する。
 
 ---
 
-### POST /api/blog-users/logout
+### POST /api/users/logout
 
 JWTトークンのCookieを削除してログアウトする。
 
@@ -171,7 +171,7 @@ JWTトークンのCookieを削除してログアウトする。
 
 ## 3. ブログユーザー（Blog Users）
 
-### GET /api/blog-users/detail
+### GET /api/users/detail
 
 JWTトークンからユーザーIDを取得し、そのユーザーの詳細情報を返す。パスワードフィールドは空文字に置換される。
 
@@ -212,7 +212,7 @@ JWTトークンからユーザーIDを取得し、そのユーザーの詳細情
 
 ---
 
-### PUT /api/blog-users/update
+### PUT /api/users/update
 
 JWTトークンで認証されたユーザーの情報を更新する。更新後、新しいJWTトークンを再発行する。
 
