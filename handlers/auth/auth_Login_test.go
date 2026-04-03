@@ -70,15 +70,15 @@ func TestHandler_Login(t *testing.T) {
 			expectedBody:   `{"error":"Invalid email format"}`,
 		},
 		{
-			name:        "準正常系_存在しないユーザーの場合404を返す",
+			name:        "準正常系_認証失敗時に401を返す（ユーザー列挙対策）",
 			requestBody: map[string]string{"email": "notexist@example.com", "password": "password123"},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
 				mockAuth.On("Login", "notexist@example.com", "password123").Return(nil)
 				mockUser.On("FetchUserByEmailAndPassword", "notexist@example.com", "password123").Return(nil, errors.New("user not found"))
 			},
-			expectedStatus: http.StatusNotFound,
-			expectedBody:   `{"error":"User not found"}`,
+			expectedStatus: http.StatusUnauthorized,
+			expectedBody:   `{"error":"Invalid credentials"}`,
 		},
 		{
 			name:        "異常系_AuthServiceが予期しないエラーを返す場合500を返す",
