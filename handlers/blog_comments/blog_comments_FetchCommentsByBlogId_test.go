@@ -14,107 +14,98 @@ import (
 )
 
 func TestHandler_FetchCommentsByBlogId(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-	// パスパラメータとして blogId を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/comments/blog/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("blogId")
-	c.SetParamValues("1")
+	now := time.Now()
 
-	// モックサービスの生成
-	mockCommentService := new(services_comments.MockCommentService)
-	handler := NewCommentHandler(mockCommentService)
-
-	// モックデータの設定
-	mockComment := []models.BlogCommentsData{
+	tests := []struct {
+		name           string
+		blogId         string
+		setupMock      func(mockService *services_comments.MockCommentService)
+		expectedStatus int
+		checkBody      func(t *testing.T, body string)
+	}{
 		{
-			ID:        "1",
-			BlogId:    "1",
-			GuestUser: "guestUser1",
-			Comment:   "comment1",
-			CreatedAt: time.Now(),
+			name:   "正常系_ブログIDに紐づくコメント一覧を取得成功",
+			blogId: "1",
+			setupMock: func(mockService *services_comments.MockCommentService) {
+				mockService.On("FetchCommentsByBlogId", "1").Return([]models.BlogCommentsData{
+					{ID: "1", BlogId: "1", GuestUser: "guestUser1", Comment: "comment1", CreatedAt: now},
+					{ID: "2", BlogId: "1", GuestUser: "guestUser2", Comment: "comment2", CreatedAt: now},
+				}, nil)
+			},
+			expectedStatus: http.StatusOK,
+			checkBody: func(t *testing.T, body string) {
+				assert.Contains(t, body, "guestUser1")
+				assert.Contains(t, body, "guestUser2")
+				assert.Contains(t, body, "comment1")
+			},
 		},
 		{
-			ID:        "2",
-			BlogId:    "1",
-			GuestUser: "guestUser2",
-			Comment:   "comment2",
-			CreatedAt: time.Now(),
+			name:   "正常系_コメントが0件の場合空配列を返す",
+			blogId: "1",
+			setupMock: func(mockService *services_comments.MockCommentService) {
+				mockService.On("FetchCommentsByBlogId", "1").Return([]models.BlogCommentsData{}, nil)
+			},
+			expectedStatus: http.StatusOK,
+			checkBody: func(t *testing.T, body string) {
+				assert.JSONEq(t, `[]`, body)
+			},
+		},
+		{
+			name:   "準正常系_blogIdが不正の場合400を返す",
+			blogId: "1",
+			setupMock: func(mockService *services_comments.MockCommentService) {
+				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("invalid blogId"))
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkBody: func(t *testing.T, body string) {
+				assert.JSONEq(t, `{"error":"Invalid blogId"}`, body)
+			},
+		},
+		{
+			name:   "準正常系_コメントが見つからない場合404を返す",
+			blogId: "1",
+			setupMock: func(mockService *services_comments.MockCommentService) {
+				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("comments not found"))
+			},
+			expectedStatus: http.StatusNotFound,
+			checkBody: func(t *testing.T, body string) {
+				assert.JSONEq(t, `{"error":"Comments not found"}`, body)
+			},
+		},
+		{
+			name:   "異常系_Serviceが予期しないエラーを返す場合500を返す",
+			blogId: "1",
+			setupMock: func(mockService *services_comments.MockCommentService) {
+				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("db connection error"))
+			},
+			expectedStatus: http.StatusInternalServerError,
+			checkBody: func(t *testing.T, body string) {
+				assert.JSONEq(t, `{"error":"Error fetching comments"}`, body)
+			},
 		},
 	}
-	mockCommentService.On("FetchCommentsByBlogId", "1").Return(mockComment, nil)
 
-	// ハンドラーを実行
-	err := handler.FetchCommentsByBlogId(c)
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/api/comments/blog/"+tt.blogId, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("blogId")
+			c.SetParamValues(tt.blogId)
 
-	// ステータスコードとレスポンス内容の確認
-	assert.Equal(t, http.StatusOK, rec.Code)
-	assert.Contains(t, rec.Body.String(), "guestUser1")
+			mockCommentService := new(services_comments.MockCommentService)
+			handler := NewCommentHandler(mockCommentService)
 
-	// モックが期待通りに呼び出されたかを確認
-	mockCommentService.AssertExpectations(t)
-}
+			tt.setupMock(mockCommentService)
 
-func TestHandler_FetchCommentsByBlogId_InvalidBlogId(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-	// パスパラメータとして blogId を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/comments/blog/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("blogId")
-	c.SetParamValues("1")
+			err := handler.FetchCommentsByBlogId(c)
+			assert.NoError(t, err)
 
-	// モックサービスの生成
-	mockCommentService := new(services_comments.MockCommentService)
-	handler := NewCommentHandler(mockCommentService)
+			assert.Equal(t, tt.expectedStatus, rec.Code)
+			tt.checkBody(t, rec.Body.String())
 
-	// モックの設定
-	mockCommentService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("invalid blogId"))
-
-	// ハンドラーを実行
-	err := handler.FetchCommentsByBlogId(c)
-	assert.NoError(t, err)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid blogId")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCommentService.AssertExpectations(t)
-}
-
-func TestHandler_FetchCommentsByBlogId_NotComment(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-	// パスパラメータとして blogId を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/comments/blog/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("blogId")
-	c.SetParamValues("1")
-
-	// モックサービスの生成
-	mockCommentService := new(services_comments.MockCommentService)
-	handler := NewCommentHandler(mockCommentService)
-
-	// モックの設定
-	mockCommentService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("comments not found"))
-
-	// ハンドラーを実行
-	err := handler.FetchCommentsByBlogId(c)
-	assert.NoError(t, err)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.Equal(t, http.StatusNotFound, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Comments not found")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCommentService.AssertExpectations(t)
+			mockCommentService.AssertExpectations(t)
+		})
+	}
 }

@@ -55,8 +55,8 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	user, err := h.UserService.FetchUserByEmailAndPassword(reqBody.Email, reqBody.Password)
 	if err != nil {
 		utils.LogError(c, "Error fetching user: "+err.Error())
-		return c.JSON(http.StatusNotFound, map[string]string{
-			"error": "User not found",
+		return c.JSON(http.StatusUnauthorized, map[string]string{
+			"error": "Invalid credentials",
 		})
 	}
 
