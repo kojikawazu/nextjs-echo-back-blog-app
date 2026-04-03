@@ -1,6 +1,7 @@
 package repositories_blog_comments
 
 import (
+	"backend/supabase"
 	"os"
 	"testing"
 
@@ -22,6 +23,13 @@ func TestRepository_CreateComment(t *testing.T) {
 	assert.Equal(t, "guest_user", comment.GuestUser)
 	assert.Equal(t, "test comment", comment.Comment)
 	assert.NotEmpty(t, comment.ID)
+
+	// テスト後にDBから作成したコメントを削除してテストデータを残さない
+	if comment.ID != "" {
+		t.Cleanup(func() {
+			_, _ = supabase.Pool.Exec(supabase.Ctx, "DELETE FROM blog_comments WHERE id = $1", comment.ID)
+		})
+	}
 }
 
 func TestRepository_CreateComment_InvalidBlogId(t *testing.T) {

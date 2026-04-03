@@ -16,8 +16,6 @@ import (
 
 // TestHandler_AuthPipeline は Login → CheckAuth → Logout の一連フローを検証する統合テスト
 func TestHandler_AuthPipeline(t *testing.T) {
-	SetupTest(t)
-
 	mockUser := &models.BlogUsersData{
 		ID:        "user123",
 		Name:      "Test User",
