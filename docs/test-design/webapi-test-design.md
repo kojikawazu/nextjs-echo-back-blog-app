@@ -528,28 +528,28 @@ go test ./handlers/blog_likes/... -v
 
 ### Handler層（新規）
 
-- [ ] handlers/auth/auth_CheckAuth_test.go
-- [ ] handlers/auth/auth_Logout_test.go
-- [ ] handlers/auth/auth_pipeline_test.go
-- [ ] handlers/blog_likes/blog_likes_GenerateVisitId_test.go
-- [ ] handlers/blog_likes/blog_likes_IsBlogLiked_test.go
-- [ ] handlers/blog_likes/blog_likes_CreateBlogLike_test.go
-- [ ] handlers/blog_likes/blog_likes_DeleteBlogLike_test.go
+- [x] handlers/auth/auth_CheckAuth_test.go
+- [x] handlers/auth/auth_Logout_test.go
+- [x] handlers/auth/auth_pipeline_test.go
+- [x] handlers/blog_likes/blog_likes_GenerateVisitId_test.go
+- [x] handlers/blog_likes/blog_likes_IsBlogLiked_test.go
+- [x] handlers/blog_likes/blog_likes_CreateBlogLike_test.go
+- [x] handlers/blog_likes/blog_likes_DeleteBlogLike_test.go
 
 ### Handler層（リファクタリング）
 
-- [ ] handlers/auth/auth_test.go（Login失敗ケース・不正ボディ追加）
-- [ ] handlers/blogs/test/blogs_FetchBlogs_test.go（テーブルドリブン化）
-- [ ] handlers/blogs/test/blogs_CreateBlog_test.go（準正常系・異常系追加）
-- [ ] handlers/blog_likes/blog_likes_FetchBlogLikesByVisitId_test.go（テーブルドリブン化）
-- [ ] handlers/blog_comments/blog_comments_CreateComment_test.go（テーブルドリブン化）
+- [x] handlers/auth/auth_test.go（Login失敗ケース・不正ボディ追加）
+- [x] handlers/blogs/test/blogs_FetchBlogs_test.go（テーブルドリブン化）
+- [x] handlers/blogs/test/blogs_CreateBlog_test.go（準正常系・異常系追加）
+- [x] handlers/blog_likes/blog_likes_FetchBlogLikesByVisitId_test.go（テーブルドリブン化）
+- [x] handlers/blog_comments/blog_comments_CreateComment_test.go（テーブルドリブン化）
 
 ### Service層（リファクタリング）
 
-- [ ] services/blogs/test/blogs_CreateBlog_test.go（テーブルドリブン化）
-- [ ] services/blogs/test/blogs_FetchBlogs_test.go（テーブルドリブン化）
+- [x] services/blogs/test/blogs_CreateBlog_test.go（テーブルドリブン化）
+- [x] services/blogs/test/blogs_FetchBlogs_test.go（テーブルドリブン化）
 
 ### Repository層（新規）
 
-- [ ] repositories/blog_users/blog_users_UpdateBlogUsers_test.go
-- [ ] repositories/blog_comments/blog_comments_CreateComment_test.go
+- [x] repositories/blog_users/blog_users_UpdateBlogUsers_test.go
+- [x] repositories/blog_comments/blog_comments_CreateComment_test.go
