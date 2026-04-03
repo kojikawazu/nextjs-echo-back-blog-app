@@ -13,219 +13,167 @@ import (
 )
 
 func TestService_CreateBlog(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
+	validInput := struct {
+		userId, title, githubURL, category, description, tags string
+	}{
+		userId: "user1", title: "Test Blog", githubURL: "https://github.com/user/repo",
+		category: "Tech", description: "This is a test blog.", tags: "go, testing",
+	}
 
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// 期待されるブログデータ
 	expectedBlog := models.BlogData{
 		ID:          "123",
-		BlogUserId:      userId,
-		Title:       title,
-		GithubUrl:   githubURL,
-		Category:    category,
-		Description: description,
-		Tags:        tags,
+		BlogUserId:  validInput.userId,
+		Title:       validInput.title,
+		GithubUrl:   validInput.githubURL,
+		Category:    validInput.category,
+		Description: validInput.description,
+		Tags:        validInput.tags,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
 
-	// モックの設定
-	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(&expectedBlog, nil)
+	tests := []struct {
+		name              string
+		userId            string
+		title             string
+		githubURL         string
+		category          string
+		description       string
+		tags              string
+		setupMock         func(m *repositories_blogs.MockBlogRepository)
+		wantErr           bool
+		wantErrMsg        string
+		expectRepoNotCall bool // バリデーションでリポジトリが呼ばれないケース
+	}{
+		{
+			name:        "正常系_全フィールド正常値でブログ作成成功",
+			userId:      validInput.userId,
+			title:       validInput.title,
+			githubURL:   validInput.githubURL,
+			category:    validInput.category,
+			description: validInput.description,
+			tags:        validInput.tags,
+			setupMock: func(m *repositories_blogs.MockBlogRepository) {
+				m.On("CreateBlog", validInput.userId, validInput.title, validInput.githubURL, validInput.category, validInput.description, validInput.tags).Return(&expectedBlog, nil)
+			},
+			wantErr: false,
+		},
+		{
+			name:              "準正常系_userIdが空文字の場合エラーを返す",
+			userId:            "",
+			title:             validInput.title,
+			githubURL:         validInput.githubURL,
+			category:          validInput.category,
+			description:       validInput.description,
+			tags:              validInput.tags,
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid userId",
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_titleが空文字の場合エラーを返す",
+			userId:            validInput.userId,
+			title:             "",
+			githubURL:         validInput.githubURL,
+			category:          validInput.category,
+			description:       validInput.description,
+			tags:              validInput.tags,
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid title",
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_githubUrlが空文字の場合エラーを返す",
+			userId:            validInput.userId,
+			title:             validInput.title,
+			githubURL:         "",
+			category:          validInput.category,
+			description:       validInput.description,
+			tags:              validInput.tags,
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid githubUrl",
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_categoryが空文字の場合エラーを返す",
+			userId:            validInput.userId,
+			title:             validInput.title,
+			githubURL:         validInput.githubURL,
+			category:          "",
+			description:       validInput.description,
+			tags:              validInput.tags,
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid category",
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_descriptionが空文字の場合エラーを返す",
+			userId:            validInput.userId,
+			title:             validInput.title,
+			githubURL:         validInput.githubURL,
+			category:          validInput.category,
+			description:       "",
+			tags:              validInput.tags,
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid description",
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_tagsが空文字の場合エラーを返す",
+			userId:            validInput.userId,
+			title:             validInput.title,
+			githubURL:         validInput.githubURL,
+			category:          validInput.category,
+			description:       validInput.description,
+			tags:              "",
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           true,
+			wantErrMsg:        "invalid tags",
+			expectRepoNotCall: true,
+		},
+		{
+			name:        "異常系_Repositoryがエラーを返す場合エラーを返す",
+			userId:      validInput.userId,
+			title:       validInput.title,
+			githubURL:   validInput.githubURL,
+			category:    validInput.category,
+			description: validInput.description,
+			tags:        validInput.tags,
+			setupMock: func(m *repositories_blogs.MockBlogRepository) {
+				m.On("CreateBlog", validInput.userId, validInput.title, validInput.githubURL, validInput.category, validInput.description, validInput.tags).Return(nil, errors.New("repository failure"))
+			},
+			wantErr:    true,
+			wantErrMsg: "failed to create blog",
+		},
+	}
 
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(repositories_blogs.MockBlogRepository)
+			blogService := services_blogs.NewBlogService(mockRepo)
 
-	// アサーション
-	assert.NoError(t, err)
-	assert.NotNil(t, blog)
+			tt.setupMock(mockRepo)
 
-	// モックの期待通りの呼び出しを検証
-	mockBlogRepository.AssertExpectations(t)
-}
+			blog, err := blogService.CreateBlog(tt.userId, tt.title, tt.githubURL, tt.category, tt.description, tt.tags)
 
-func TestService_CreateBlog_InvalidUserId(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Equal(t, tt.wantErrMsg, err.Error())
+				assert.Nil(t, blog)
+				if tt.expectRepoNotCall {
+					mockRepo.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, blog)
+			}
 
-	// 入力データ
-	userId := ""
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid userId", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_InvalidTitle(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := ""
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid title", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_InvalidGitHubURL(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := ""
-	category := "Tech"
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid githubUrl", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_InvalidCategory(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := ""
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid category", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_InvalidDescription(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := ""
-	tags := "go, testing"
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid description", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_InvalidTags(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := "This is a test blog."
-	tags := ""
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid tags", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの呼び出しがないことを確認
-	mockBlogRepository.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestService_CreateBlog_RepositoryError(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// 入力データ
-	userId := "user1"
-	title := "Test Blog"
-	githubURL := "https://github.com/user/repo"
-	category := "Tech"
-	description := "This is a test blog."
-	tags := "go, testing"
-
-	// モックの設定: リポジトリがエラーを返す
-	mockBlogRepository.On("CreateBlog", userId, title, githubURL, category, description, tags).Return(nil, errors.New("repository failure"))
-
-	// テスト対象メソッドの呼び出し
-	blog, err := blogService.CreateBlog(userId, title, githubURL, category, description, tags)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "failed to create blog", err.Error())
-	assert.Nil(t, blog)
-
-	// モックの期待通りの呼び出しを検証
-	mockBlogRepository.AssertExpectations(t)
+			mockRepo.AssertExpectations(t)
+		})
+	}
 }

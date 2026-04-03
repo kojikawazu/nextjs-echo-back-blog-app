@@ -11,22 +11,14 @@ import (
 	"os"
 	"testing"
 
-	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
-	// .envファイルの読み込み
-	err := godotenv.Load("../../.env.test")
-	if err != nil {
-		panic("Error loading ../../.env.test file")
-	}
+	SetupTest(nil)
 
-	// テストを実行
 	code := m.Run()
-
-	// テスト終了後に終了コードで終了
 	os.Exit(code)
 }
 
