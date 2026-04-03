@@ -41,7 +41,7 @@ func TestHandler_IsBlogLiked(t *testing.T) {
 			expectedBody:   `{"isLiked":false}`,
 		},
 		{
-			name:   "正常系_Serviceがエラーを返してもisLiked:falseを返す（実装の挙動に合わせる）",
+			name:   "準正常系_Serviceがエラーを返してもisLiked:falseを返す（実装の挙動に合わせる）",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				SetMockBlogCookies(c, req, mockCookie)
