@@ -33,7 +33,7 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 				}, nil)
 			},
 			expectedStatus: http.StatusOK,
-			expectedBody:   `{"id":"like-1","blog_id":"blog-1","visit_id":"valid-visit-id","created_at":"0001-01-01T00:00:00Z"}`,
+			expectedBody:   `{"id":"like-1","blog_id":"blog-1","visit_id":"valid-visit-id","created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z"}`,
 		},
 		{
 			name:   "準正常系_BlogIdまたはVisitIdが空の場合400を返す",
@@ -107,9 +107,7 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 			assert.NoError(t, err)
 
 			assert.Equal(t, tt.expectedStatus, rec.Code)
-			if tt.expectedStatus != http.StatusOK {
-				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
-			}
+			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
 
 			mockCookieUtils.AssertExpectations(t)
 			mockService.AssertExpectations(t)
