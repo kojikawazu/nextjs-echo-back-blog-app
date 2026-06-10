@@ -379,7 +379,9 @@ terraform/
 
 - `main` ブランチへの `push` 時に自動実行
 - ただし `paths` フィルタにより、`**/*.go` / `go.mod` / `go.sum` / `Dockerfile` / `.github/workflows/**` のいずれかが変更された場合のみ実行
-- `paths-ignore` で `**/*_test.go` を除外（テストファイルのみの変更ではデプロイされない）
+- `_test.go` は `paths` 内の否定パターン `'!**/*_test.go'` で除外（テストファイルのみの変更ではデプロイされない）
+
+> 注意: GitHub Actions は同一イベントで `paths` と `paths-ignore` を併用できない（併用するとワークフローが startup failure になる）。テスト除外は `paths-ignore` ではなく `paths` 内の否定パターンで表現している。
 
 #### パイプラインフロー
 
