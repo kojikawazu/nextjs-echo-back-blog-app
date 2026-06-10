@@ -6,12 +6,11 @@ on:
         - main
       paths:
         - '**/*.go'
+        - '!**/*_test.go'
         - 'go.mod'
         - 'go.sum'
         - 'Dockerfile'
         - '.github/workflows/**'
-      paths-ignore:
-        - '**/*_test.go'
 
 jobs:
   build-and-deploy:

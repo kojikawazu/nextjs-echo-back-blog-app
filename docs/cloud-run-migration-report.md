@@ -1,5 +1,18 @@
 # AWS App Runner → Google Cloud Run 移行レポート
 
+## 目次
+
+- [概要](#概要)
+- [移行日](#移行日)
+- [移行前後の構成](#移行前後の構成)
+- [コスト効果](#コスト効果)
+- [変更対象](#変更対象)
+  - [1. Terraform](#1-terraform)
+  - [2. GitHub Actions](#2-github-actions)
+- [移行によるアプリケーションへの影響](#移行によるアプリケーションへの影響)
+
+---
+
 ## 概要
 
 バックエンドのホスティング基盤を AWS App Runner から Google Cloud Run へ移行した。
