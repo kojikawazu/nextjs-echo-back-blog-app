@@ -2,6 +2,46 @@
 
 本ドキュメントは、ブログWebアプリケーションバックエンドにおけるセキュリティ関連の実装仕様を、ソースコードから逆引きして整理したものである。
 
+## 目次
+
+- [1. 認証（Authentication）](#1-認証authentication)
+  - [1.1 JWT認証方式](#11-jwt認証方式)
+  - [1.2 認証トークンのペイロード](#12-認証トークンのペイロード)
+  - [1.3 認証フロー](#13-認証フロー)
+  - [1.4 JWT鍵の管理](#14-jwt鍵の管理)
+- [2. 認可（Authorization）](#2-認可authorization)
+  - [2.1 Cookie認証チェックによる書き込み操作の保護](#21-cookie認証チェックによる書き込み操作の保護)
+  - [2.2 認証不要のエンドポイント](#22-認証不要のエンドポイント)
+  - [2.3 認可の制限事項](#23-認可の制限事項)
+- [3. Cookie セキュリティ](#3-cookie-セキュリティ)
+  - [3.1 認証Cookie（`token`）](#31-認証cookietoken)
+  - [3.2 訪問者ID Cookie（`visit-id-token`）](#32-訪問者id-cookievisit-id-token)
+  - [3.3 環境判定](#33-環境判定)
+  - [3.4 Cookie削除方式](#34-cookie削除方式)
+- [4. CORS（Cross-Origin Resource Sharing）](#4-corscross-origin-resource-sharing)
+  - [4.1 CORS設定](#41-cors設定)
+  - [4.2 CORS設定の留意事項](#42-cors設定の留意事項)
+- [5. 訪問者追跡（Visitor Tracking）](#5-訪問者追跡visitor-tracking)
+  - [5.1 概要](#51-概要)
+  - [5.2 訪問者ID生成フロー](#52-訪問者id生成フロー)
+  - [5.3 訪問者IDの使用](#53-訪問者idの使用)
+- [6. インフラストラクチャセキュリティ](#6-インフラストラクチャセキュリティ)
+  - [6.1 Secret Manager](#61-secret-manager)
+  - [6.2 Distrolessベースイメージ](#62-distrolessベースイメージ)
+  - [6.3 IAMロール](#63-iamロール)
+  - [6.4 Artifact Registry](#64-artifact-registry)
+  - [6.5 SSL/TLS](#65-ssltls)
+- [7. SQLインジェクション対策](#7-sqlインジェクション対策)
+- [8. 既知のセキュリティ課題](#8-既知のセキュリティ課題)
+  - [8.1 パスワードの平文保存（重大）](#81-パスワードの平文保存重大)
+  - [8.2 レート制限の欠如](#82-レート制限の欠如)
+  - [8.3 CSRF保護の欠如](#83-csrf保護の欠如)
+  - [8.4 認可の不足（所有権チェック）](#84-認可の不足所有権チェック)
+  - [8.5 入力長の制限なし](#85-入力長の制限なし)
+  - [8.6 エラーメッセージの文字列ベース判定](#86-エラーメッセージの文字列ベース判定)
+
+---
+
 ## 1. 認証（Authentication）
 
 ### 1.1 JWT認証方式
@@ -14,7 +54,7 @@
 | 署名鍵 | 環境変数 `JWT_SECRET_KEY` から取得 |
 | トークン有効期限 | 1時間（`time.Now().Add(1 * time.Hour)`） |
 | トークン格納先 | HTTP-only Cookie（Cookie名: `token`） |
-| JWTライブラリ | `github.com/golang-jwt/jwt v3.2.2` |
+| JWTライブラリ | `github.com/golang-jwt/jwt v3.2.2+incompatible` |
 
 ### 1.2 認証トークンのペイロード
 

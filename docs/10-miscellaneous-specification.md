@@ -2,6 +2,34 @@
 
 本ドキュメントは、ブログバックエンドAPIプロジェクト（Go + Echo）に関する用語集、外部参照、設計判断の根拠、既知の制限事項、移行履歴、フロントエンド連携に関する補足仕様をまとめたものである。
 
+## 目次
+
+- [用語集](#用語集)
+- [外部参照・URL](#外部参照url)
+- [設計判断と根拠](#設計判断と根拠)
+  - [JWT をHTTP-onlyクッキーに格納](#jwt-をhttp-onlyクッキーに格納)
+  - [匿名訪問者のUUIDトラッキング](#匿名訪問者のuuidトラッキング)
+  - [ゲストコメント（認証不要）](#ゲストコメント認証不要)
+  - [ブログコンテンツのGitHub URL参照](#ブログコンテンツのgithub-url参照)
+  - [タグのカンマ区切り文字列](#タグのカンマ区切り文字列)
+  - [いいね数・コメント数の非正規化](#いいね数コメント数の非正規化)
+  - [インターフェースベースの依存性注入（DI）](#インターフェースベースの依存性注入di)
+- [既知の制限事項と技術的負債](#既知の制限事項と技術的負債)
+  - [セキュリティ](#セキュリティ)
+  - [データ型の制約](#データ型の制約)
+  - [ビルド・バージョン](#ビルドバージョン)
+  - [機能面](#機能面)
+- [移行履歴](#移行履歴)
+  - [AWS App Runner → Google Cloud Run（2026年3月）](#aws-app-runner--google-cloud-run2026年3月)
+  - [Supabase プロジェクト移行](#supabase-プロジェクト移行)
+- [フロントエンド連携](#フロントエンド連携)
+  - [フロントエンドアプリケーション](#フロントエンドアプリケーション)
+  - [CORS設定](#cors設定)
+  - [クッキー連携](#クッキー連携)
+  - [環境変数一覧](#環境変数一覧)
+
+---
+
 ## 用語集
 
 | 用語 | 説明 |
@@ -16,7 +44,7 @@
 | **pgx** | Go言語用のPostgreSQLドライバー。本プロジェクトではv4を使用し、`pgxpool`によるコネクションプーリングを行う。Simple Protocolを優先設定し、Prepared Statementの競合を防止している。 |
 | **Terraform** | HashiCorp製のIaC（Infrastructure as Code）ツール。GCPリソース（Cloud Run、Artifact Registry、Secret Manager、IAM）をコードで定義・管理する。 |
 | **Distroless** | Google提供の最小限コンテナイメージ。シェルやパッケージマネージャを含まず、アプリケーションバイナリの実行に必要な最小限のランタイムのみを含む。セキュリティとイメージサイズの最適化に寄与する。 |
-| **Workload Identity Federation** | GCPの認証方式。GitHub ActionsからGCPリソースへのアクセスにサービスアカウントキーを使用する。 |
+| **サービスアカウントキー認証** | GitHub ActionsからGCPリソースへアクセスする際の認証方式。`google-github-actions/auth@v1` に GitHub Secrets の `GCP_SERVICE_ACCOUNT_KEY`（サービスアカウントキーJSON）を `credentials_json` として渡して認証する（Workload Identity Federation は未使用）。 |
 | **CORS** | Cross-Origin Resource Sharing。フロントエンド（Next.js）からのクロスオリジンリクエストを許可するために設定。`ALLOWED_ORIGINS`環境変数で許可オリジンをカンマ区切りで指定する。 |
 | **Clean Architecture** | 本プロジェクトで採用しているアーキテクチャパターン。Handler（プレゼンテーション層）、Service（ビジネスロジック層）、Repository（データアクセス層）の3層に分離する。 |
 

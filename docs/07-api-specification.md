@@ -2,6 +2,51 @@
 
 本ドキュメントは、ブログWebアプリケーションバックエンド（Go + Echo）の全APIエンドポイントを定義するAPI仕様書です。コードベースのリバースエンジニアリングに基づいて作成しています。
 
+## 目次
+
+- [共通仕様](#共通仕様)
+  - [ベースURL](#ベースurl)
+  - [認証方式](#認証方式)
+  - [共通エラーレスポンス形式](#共通エラーレスポンス形式)
+  - [共通レスポンスヘッダー](#共通レスポンスヘッダー)
+- [1. ヘルスチェック](#1-ヘルスチェック)
+  - [GET /](#get-)
+- [2. 認証（Auth）](#2-認証auth)
+  - [POST /api/users/login](#post-apiuserslogin)
+  - [GET /api/users/auth-check](#get-apiusersauth-check)
+  - [POST /api/users/logout](#post-apiuserslogout)
+- [3. ブログユーザー（Blog Users）](#3-ブログユーザーblog-users)
+  - [GET /api/users/detail](#get-apiusersdetail)
+  - [PUT /api/users/update](#put-apiusersupdate)
+- [4. ブログ（Blogs）](#4-ブログblogs)
+  - [GET /api/blogs](#get-apiblogs)
+  - [GET /api/blogs/user/:userId](#get-apiblogsuseruserid)
+  - [GET /api/blogs/detail/:id](#get-apiblogsdetailid)
+  - [GET /api/blogs/categories](#get-apiblogscategories)
+  - [GET /api/blogs/tags](#get-apiblogstags)
+  - [GET /api/blogs/popular/:count](#get-apiblogspopularcount)
+  - [POST /api/blogs/create](#post-apiblogscreate)
+  - [PUT /api/blogs/update/:id](#put-apiblogsupdateid)
+  - [DELETE /api/blogs/delete/:id](#delete-apiblogsdeleteid)
+- [5. ブログいいね（Blog Likes）](#5-ブログいいねblog-likes)
+  - [GET /api/blog-likes](#get-apiblog-likes)
+  - [GET /api/blog-likes/generate-visit-id](#get-apiblog-likesgenerate-visit-id)
+  - [GET /api/blog-likes/is-liked/:blogId](#get-apiblog-likesis-likedblogid)
+  - [POST /api/blog-likes/create/:blogId](#post-apiblog-likescreateblogid)
+  - [DELETE /api/blog-likes/delete/:blogId](#delete-apiblog-likesdeleteblogid)
+- [6. コメント（Comments）](#6-コメントcomments)
+  - [GET /api/comments/blog/:blogId](#get-apicommentsblogblogid)
+  - [POST /api/comments/create](#post-apicommentscreate)
+- [7. データモデル](#7-データモデル)
+  - [BlogData](#blogdata)
+  - [BlogUsersData](#blogusersdata)
+  - [BlogLikesData](#bloglikesdata)
+  - [BlogCommentsData](#blogcommentsdata)
+  - [Claims（JWTペイロード）](#claimsjwtペイロード)
+  - [ClaimsVisitId（訪問者JWTペイロード）](#claimsvisitid訪問者jwtペイロード)
+
+---
+
 ## 共通仕様
 
 ### ベースURL
@@ -99,11 +144,11 @@ Service is running
 | 400 Bad Request | `Invalid request body` | リクエストボディのパースに失敗 |
 | 400 Bad Request | `Email and password are required` | email または password が空 |
 | 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
-| 404 Not Found | `User not found` | Service層からのエラー（ユーザー未存在、DB取得失敗を含む全てのエラー） |
+| 401 Unauthorized | `Invalid credentials` | `FetchUserByEmailAndPassword` がエラーを返した場合（ユーザー未存在、DB取得失敗を含む全てのエラー） |
 | 500 Internal Server Error | `An error occurred` | AuthService.Loginバリデーションで未定義のエラーが発生（現行実装では到達しない） |
 | 500 Internal Server Error | `Could not create token` | JWTトークン生成に失敗 |
 
-> **注意**: Handler層は `FetchUserByEmailAndPassword` からのエラーを原因に関わらず一律404 `User not found` として返す。Service層は `sql.ErrNoRows`（ユーザー未存在）を `"user not found"` に変換するが、それ以外のDB接続エラー等もそのまま返すため、DB障害時にも404が返される。
+> **注意**: Handler層（`handlers/auth/auth_impl.go` の `Login`）は `FetchUserByEmailAndPassword` からのエラーを原因に関わらず一律401 `Invalid credentials` として返す。ユーザー未存在もDB接続エラーも区別せず認証失敗（401）に丸める実装のため、DB障害時にも401が返される。
 
 ---
 
@@ -506,7 +551,8 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | ステータス | エラーメッセージ | 条件 |
 |-----------|----------------|------|
 | 400 Bad Request | `Invalid count` | count がint変換不可（非数値文字列） |
-| 500 Internal Server Error | `Error fetching popular blogs` | DB取得エラー、またはcount<=0（Service層が `"invalid count"` を返すが、Handlerのdefault分岐で500となる） |
+| 404 Not Found | `blog not found` | Service層が `"blog not found"` を含むエラーを返した場合（Handlerが `strings.Contains` で判定） |
+| 500 Internal Server Error | `Error fetching popular blogs` | 上記以外のDB取得エラー、またはcount<=0（Service層が `"invalid count"` を返すが "blog not found" を含まないためdefault分岐で500となる） |
 
 > **注意**: 該当ブログが0件の場合、エラーではなく `200 OK` で空配列 `[]` が返される。count<=0のバリデーションエラーはService層で検出されるが、Handler層にこのケース用の400分岐がないため500として返される。
 
@@ -798,6 +844,8 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 |-----------|----------------|------|
 | 500 Internal Server Error | `Failed to get visit id token` | visit-id-token Cookieの取得に失敗 |
 | 500 Internal Server Error | `Failed to get visit id` | 訪問者IDの取得に失敗 |
+
+> **注意**: いいね判定（`IsBlogLiked`）でService層がエラーを返した場合も、500にはならず `200 OK` で `{"isLiked": false}` を返す（いいね未登録を正常系として扱う実装のため、DB障害も同様に握り潰される）。500はvisit-id-token Cookieの取得・トークン解析に失敗した場合のみ。
 
 ---
 

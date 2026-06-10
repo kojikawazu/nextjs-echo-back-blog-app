@@ -2,6 +2,38 @@
 
 本ドキュメントは、ブログWebアプリケーションバックエンド（Go + Echo）のテスト戦略、テスト構成、およびテスト実行方法を定義するテスト仕様書です。コードベースのリバースエンジニアリングに基づいて作成しています。
 
+## 目次
+
+- [1. テスト戦略概要](#1-テスト戦略概要)
+  - [テストピラミッド](#テストピラミッド)
+- [2. テストツール・ライブラリ](#2-テストツールライブラリ)
+- [3. テストファイル構成](#3-テストファイル構成)
+  - [3.1 テストファイル一覧（全63ファイル）](#31-テストファイル一覧全63ファイル)
+- [4. テストインフラストラクチャ](#4-テストインフラストラクチャ)
+  - [4.1 TestMain パターン](#41-testmain-パターン)
+  - [4.2 セットアップ関数](#42-セットアップ関数)
+  - [4.3 ログ制御](#43-ログ制御)
+- [5. モックパターン](#5-モックパターン)
+  - [5.1 Repository モック](#51-repository-モック)
+  - [5.2 Service モック](#52-service-モック)
+  - [5.3 Cookie モック](#53-cookie-モック)
+- [6. テストカテゴリ別詳細](#6-テストカテゴリ別詳細)
+  - [6.1 Repository テスト（結合テスト）](#61-repository-テスト結合テスト)
+  - [6.2 Service テスト（単体テスト）](#62-service-テスト単体テスト)
+  - [6.3 Handler テスト（単体テスト）](#63-handler-テスト単体テスト)
+- [7. テスト実行方法](#7-テスト実行方法)
+  - [全テスト実行](#全テスト実行)
+  - [特定パッケージのテスト実行](#特定パッケージのテスト実行)
+  - [特定テスト関数の実行](#特定テスト関数の実行)
+  - [テストカバレッジの計測](#テストカバレッジの計測)
+- [8. カバレッジ目標](#8-カバレッジ目標)
+  - [ドメイン別テストカバレッジ](#ドメイン別テストカバレッジ)
+- [9. テスト環境構成](#9-テスト環境構成)
+  - [環境変数ファイル](#環境変数ファイル)
+  - [注意事項](#注意事項)
+
+---
+
 ## 1. テスト戦略概要
 
 本プロジェクトでは、クリーンアーキテクチャの各層に対応した3レベルのテスト戦略を採用している。
@@ -37,7 +69,7 @@
 
 ## 3. テストファイル構成
 
-### 3.1 テストファイル一覧（全52ファイル）
+### 3.1 テストファイル一覧（全63ファイル）
 
 #### Repository層テスト（結合テスト）
 
@@ -56,7 +88,9 @@
 | `repositories/blogs/test/blogs_pipeline_test.go` | ブログCRUDパイプライン |
 | `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 |
 | `repositories/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 |
+| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 |
 | `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 |
+| `repositories/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 |
 | `repositories/blog_likes/blog_likes_pipeline_test.go` | いいねCRUDパイプライン |
 
 #### Service層テスト（単体テスト）
@@ -104,7 +138,15 @@
 | `handlers/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | コメント取得ハンドラ |
 | `handlers/blog_comments/blog_comments_CreateComment_test.go` | コメント作成ハンドラ |
 | `handlers/blog_likes/blog_likes_FetchBlogLikesByVisitId_test.go` | いいね取得ハンドラ |
+| `handlers/blog_likes/blog_likes_IsBlogLiked_test.go` | いいね存在確認ハンドラ |
+| `handlers/blog_likes/blog_likes_CreateBlogLike_test.go` | いいね作成ハンドラ |
+| `handlers/blog_likes/blog_likes_DeleteBlogLike_test.go` | いいね削除ハンドラ |
+| `handlers/blog_likes/blog_likes_GenerateVisitorId_test.go` | 訪問者ID生成ハンドラ |
 | `handlers/auth/auth_test.go` | 認証ハンドラ |
+| `handlers/auth/auth_Login_test.go` | ログインハンドラ |
+| `handlers/auth/auth_CheckAuth_test.go` | 認証確認ハンドラ |
+| `handlers/auth/auth_Logout_test.go` | ログアウトハンドラ |
+| `handlers/auth/auth_pipeline_test.go` | 認証フローパイプライン |
 
 #### その他
 
@@ -443,10 +485,10 @@ go tool cover -html=coverage.out
 | ドメイン | Repository | Service | Handler |
 |---------|-----------|---------|---------|
 | Blogs | 11ファイル | 10ファイル | 10ファイル |
-| Blog Users | 2ファイル | 3ファイル | 3ファイル |
-| Blog Likes | 1ファイル | 4ファイル | 1ファイル |
-| Blog Comments | 1ファイル | 2ファイル | 2ファイル |
-| Auth | - | 1ファイル | 1ファイル |
+| Blog Users | 3ファイル | 3ファイル | 3ファイル |
+| Blog Likes | 1ファイル | 4ファイル | 5ファイル |
+| Blog Comments | 2ファイル | 2ファイル | 2ファイル |
+| Auth | - | 1ファイル | 5ファイル |
 
 ---
 

@@ -2,6 +2,45 @@
 
 本ドキュメントは、ブログWebアプリケーションバックエンド（Go + Echo）のシステムアーキテクチャ、レイヤー構成、インフラストラクチャ、CI/CDパイプラインを定義するアーキテクチャ仕様書です。コードベースのリバースエンジニアリングに基づいて作成しています。
 
+## 目次
+
+- [1. システムアーキテクチャ概要](#1-システムアーキテクチャ概要)
+- [2. レイヤーアーキテクチャ](#2-レイヤーアーキテクチャ)
+  - [2.1 レイヤー構成図](#21-レイヤー構成図)
+  - [2.2 データフロー](#22-データフロー)
+- [3. DIパターン（依存性注入）](#3-diパターン依存性注入)
+  - [3.1 インターフェース設計](#31-インターフェース設計)
+  - [3.2 ドメイン別インターフェース](#32-ドメイン別インターフェース)
+  - [3.3 依存関係の組み立て](#33-依存関係の組み立て)
+- [4. 技術スタック](#4-技術スタック)
+  - [4.1 アプリケーション](#41-アプリケーション)
+  - [4.2 インフラストラクチャ](#42-インフラストラクチャ)
+  - [4.3 ミドルウェア構成](#43-ミドルウェア構成)
+- [5. インフラストラクチャ](#5-インフラストラクチャ)
+  - [5.1 GCPリソース構成](#51-gcpリソース構成)
+  - [5.2 Terraform構成](#52-terraform構成)
+- [6. CI/CDパイプライン](#6-cicdパイプライン)
+  - [6.1 GitHub Actions ワークフロー](#61-github-actions-ワークフロー)
+- [7. デプロイメント](#7-デプロイメント)
+  - [7.1 Dockerイメージ構成](#71-dockerイメージ構成)
+  - [7.2 環境変数](#72-環境変数)
+  - [7.3 サーバー起動フロー](#73-サーバー起動フロー)
+- [8. ディレクトリ構成](#8-ディレクトリ構成)
+- [9. セキュリティ設計](#9-セキュリティ設計)
+  - [9.1 認証・認可](#91-認証認可)
+  - [9.2 環境識別](#92-環境識別)
+  - [9.3 シークレット管理](#93-シークレット管理)
+  - [9.4 コンテナセキュリティ](#94-コンテナセキュリティ)
+- [10. ローカル開発セットアップ](#10-ローカル開発セットアップ)
+  - [10.1 前提ツール](#101-前提ツール)
+  - [10.2 セットアップ手順](#102-セットアップ手順)
+  - [10.3 環境変数](#103-環境変数)
+  - [10.4 テスト実行](#104-テスト実行)
+  - [10.5 Docker での起動](#105-docker-での起動)
+  - [10.6 よくあるつまずき](#106-よくあるつまずき)
+
+---
+
 ## 1. システムアーキテクチャ概要
 
 ```
@@ -234,7 +273,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 | 環境変数 | godotenv | v1.5.1 | .env ファイル読み込み |
 | UUID | google/uuid | v1.6.0 | UUID生成・バリデーション |
 | テスト | testify | v1.9.0 | アサーション・モック |
-| 暗号化 | golang.org/x/crypto | v0.22.0 | パスワード関連 |
+| 暗号化 | golang.org/x/crypto | v0.22.0（indirect） | go.mod 上は間接依存。現状コードからの直接利用はなく、将来のパスワードハッシュ化（bcrypt）導入時の利用を想定 |
 
 ### 4.2 インフラストラクチャ
 
@@ -339,19 +378,21 @@ terraform/
 #### トリガー
 
 - `main` ブランチへの `push` 時に自動実行
+- ただし `paths` フィルタにより、`**/*.go` / `go.mod` / `go.sum` / `Dockerfile` / `.github/workflows/**` のいずれかが変更された場合のみ実行
+- `paths-ignore` で `**/*_test.go` を除外（テストファイルのみの変更ではデプロイされない）
 
 #### パイプラインフロー
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  Checkout    │───>│  GCP認証     │───>│  Docker認証  │───>│  Build &     │───>│  Deploy to   │
-│  code        │    │              │    │  (GCR)       │    │  Push Image  │    │  Cloud Run   │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────┬───────┘
-                                                                                      │
-                                                                               ┌──────┴───────┐
-                                                                               │  Cleanup old │
-                                                                               │  images      │
-                                                                               └──────────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Checkout    │───>│  Setup Go &  │───>│  GCP認証     │───>│  Docker認証  │───>│  Build &     │───>│  Deploy to   │
+│  code        │    │  Unit Test   │    │              │    │  (GCR)       │    │  Push Image  │    │  Cloud Run   │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────┬───────┘
+                                                                                                          │
+                                                                                                   ┌──────┴───────┐
+                                                                                                   │  Cleanup old │
+                                                                                                   │  images      │
+                                                                                                   └──────────────┘
 ```
 
 #### ステップ詳細
@@ -359,12 +400,14 @@ terraform/
 | ステップ | Action/コマンド | 説明 |
 |---------|----------------|------|
 | 1. Checkout | `actions/checkout@v3` | ソースコードの取得 |
-| 2. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキーで認証 |
-| 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
-| 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
-| 5. ビルド・プッシュ | `docker build` + `docker push` | イメージビルドとプッシュ（タグ: コミットSHA） |
-| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
-| 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
+| 2. Go セットアップ | `actions/setup-go@v5`（`go-version-file: go.mod`） | go.mod のバージョンで Go をセットアップ |
+| 3. ユニットテスト | `go test ./handlers/... ./services/...` | Handler/Service 層のテストを実行（`JWT_SECRET_KEY` を env で注入） |
+| 4. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキー（`credentials_json`）で認証 |
+| 5. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
+| 6. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
+| 7. ビルド・プッシュ | `docker build` + `docker push` | イメージビルドとプッシュ（タグ: コミットSHA） |
+| 8. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
+| 9. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
 #### 使用するGitHub Secrets
 
@@ -481,7 +524,12 @@ nextjs-echo-back-blog-app/
 │   ├── auth/
 │   │   ├── auth.go                  # AuthHandler 構造体・コンストラクタ
 │   │   ├── auth_impl.go            # Login, CheckAuth, Logout 実装
-│   │   └── auth_test.go            # Handler テスト
+│   │   ├── auth_testing_setup.go   # テストセットアップ
+│   │   ├── auth_test.go            # Handler テスト
+│   │   ├── auth_Login_test.go
+│   │   ├── auth_CheckAuth_test.go
+│   │   ├── auth_Logout_test.go
+│   │   └── auth_pipeline_test.go
 │   ├── blog_users/
 │   │   ├── blog_users.go           # BlogUsersHandler 構造体
 │   │   ├── blog_users_impl.go      # FetchBlogUsers, UpdateBlogUsers 等
@@ -509,7 +557,11 @@ nextjs-echo-back-blog-app/
 │   │   ├── blog_likes.go           # BlogLikeHandler 構造体
 │   │   ├── blog_likes_impl.go      # FetchBlogLikesByVisitId 等
 │   │   ├── blog_likes_cookie_mock.go
-│   │   └── blog_likes_FetchBlogLikesByVisitId_test.go
+│   │   ├── blog_likes_FetchBlogLikesByVisitId_test.go
+│   │   ├── blog_likes_IsBlogLiked_test.go
+│   │   ├── blog_likes_CreateBlogLike_test.go
+│   │   ├── blog_likes_DeleteBlogLike_test.go
+│   │   └── blog_likes_GenerateVisitorId_test.go
 │   └── blog_comments/
 │       ├── blog_comments.go        # CommentHandler 構造体
 │       ├── blog_comments_impl.go   # FetchCommentsByBlogId, CreateComment
@@ -570,7 +622,8 @@ nextjs-echo-back-blog-app/
 │   │   ├── blog_users_mock.go      # モック
 │   │   ├── blog_users_testing_setup.go
 │   │   ├── blog_users_FetchUserById_test.go
-│   │   └── blog_users_FetchUserByEmailAndPassword_test.go
+│   │   ├── blog_users_FetchUserByEmailAndPassword_test.go
+│   │   └── blog_users_UpdateBlogUsers_test.go
 │   ├── blogs/
 │   │   ├── blogs.go                # BlogRepository インターフェース
 │   │   ├── blogs_impl.go           # SQL実装（JOIN、集計クエリ含む）
@@ -602,7 +655,7 @@ nextjs-echo-back-blog-app/
 │       └── blog_comments_FetchCommentsByBlogId_test.go
 │
 ├── supabase/                        # Supabase接続管理
-│   └── supabase.go                 # 接続プール初期化・テストクエリ・クローズ
+│   └── client.go                   # 接続プール初期化・テストクエリ・クローズ
 │
 ├── utils/                           # ユーティリティ
 │   ├── cookie/
@@ -667,3 +720,81 @@ var IsProduction = os.Getenv("ENV") == "production"
 - Distrolessベースイメージにより攻撃対象を最小化
 - シェルアクセス不可
 - 不要なOSパッケージを含まない
+
+---
+
+## 10. ローカル開発セットアップ
+
+ゼロから動かすための手順。コマンドの正準はリポジトリ直下の [`README.md`](../README.md) にも記載しており、本節はその背景・補足を含む詳細版である。
+
+### 10.1 前提ツール
+
+| ツール | バージョン | 用途 |
+|--------|-----------|------|
+| Go | 1.20 以上（`go.mod` は `go 1.20`） | アプリケーションのビルド・実行 |
+| Supabase / PostgreSQL | - | 稼働中の接続先（無料枠で可）。起動時に接続テスト `SELECT 1` を実行する |
+| Docker | 任意 | コンテナで起動する場合のみ |
+
+> 注意: `Dockerfile` のビルドステージは現状 `golang:1.19` で、`go.mod` の `go 1.20` と不一致（[`11-tasks.md`](11-tasks.md) の改善タスク参照）。ローカルでは 1.20 以上を使用すること。
+
+### 10.2 セットアップ手順
+
+```bash
+git clone https://github.com/kojikawazu/nextjs-echo-back-blog-app.git
+cd nextjs-echo-back-blog-app
+
+# 環境変数テンプレートをコピーして値を設定
+cp .env.example .env
+
+# 依存解決して起動
+go mod download
+go run main.go
+```
+
+起動フローは [§7.3 サーバー起動フロー](#73-サーバー起動フロー) を参照。`http://localhost:8080/` が `Service is running` を返せば成功。
+
+### 10.3 環境変数
+
+アプリ起動時に `godotenv` がリポジトリ直下の `.env` を読み込む（`main.go` の `firstSetup`）。テンプレートは [`.env.example`](../.env.example)。
+
+| 変数名 | 必須 | 説明 | 参照コード |
+|--------|------|------|-----------|
+| `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `config/config.go:9,12-15` |
+| `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=require` はコードが自動付与 | `supabase/client.go:28` |
+| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `middlewares/middlewares.go:17` |
+| `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `config/config.go:10` |
+| `PORT` | - | リッスンポート（既定 8080） | `main.go:74-77` |
+| `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `logger/logger.go` |
+
+### 10.4 テスト実行
+
+```bash
+# 単体テスト（DB 不要・モック使用）。CI と同じ範囲
+go test ./handlers/... ./services/...
+
+# 全テスト（Repository 層は実 DB へ接続）
+cp .env.test.example .env.test   # SUPABASE_URL / JWT_SECRET_KEY を設定
+go test ./...
+```
+
+- Repository 層テストは `repositories/**/.._testing_setup.go` の `godotenv.Load("../../../.env.test")` で `.env.test` を読み、実 DB に接続する。
+- Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
+- CI（`.github/workflows/deploy.yml`）は DB 不要の `handlers` / `services` のみ実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
+
+### 10.5 Docker での起動
+
+```bash
+docker build -t echo-blog-back .
+docker run --env-file .env -p 8080:8080 echo-blog-back
+```
+
+イメージ構成（マルチステージ / Distroless）は [§7.1 Dockerイメージ構成](#71-dockerイメージ構成) を参照。
+
+### 10.6 よくあるつまずき
+
+| 症状 | 原因 | 対処 |
+|------|------|------|
+| 起動直後に `JWT_SECRET_KEY is not set` で落ちる | `.env` 未作成 or `JWT_SECRET_KEY` 空 | `.env` に値を設定する |
+| `unable to connect to Supabase` で `log.Fatal` | `SUPABASE_URL` 不正 / DB 未到達 | 接続URL・ネットワーク・DB稼働を確認 |
+| ブラウザから CORS エラー | `ALLOWED_ORIGINS` にフロントの URL が無い | フロントのオリジンをカンマ区切りで追加 |
+| Cookie が保存されない（本番） | `ENV=production` 時は HTTPS 必須（Secure=true） | HTTPS 経由でアクセスする |
