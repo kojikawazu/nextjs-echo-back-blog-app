@@ -438,6 +438,8 @@ func TestHandler_FetchBlogs(t *testing.T) {
 
 ## 7. テスト実行方法
 
+> Go アプリは `backend/` 配下に集約されている（モノレポ構成）。以下の `go` コマンドはすべて `backend/` ディレクトリ内で実行する（例: `cd backend`）。
+
 ### 全テスト実行
 
 ```bash

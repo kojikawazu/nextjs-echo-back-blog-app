@@ -537,6 +537,8 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 
 ### テストの実行
 
+> `go` コマンドは `backend/` ディレクトリ内で実行する（Go アプリは `backend/` 配下に集約。例: `cd backend`）。
+
 ```bash
 # 全テスト実行
 go test ./... -v

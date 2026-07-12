@@ -378,8 +378,8 @@ terraform/
 #### トリガー
 
 - `main` ブランチへの `push` 時に自動実行
-- ただし `paths` フィルタにより、`**/*.go` / `go.mod` / `go.sum` / `Dockerfile` / `.github/workflows/**` のいずれかが変更された場合のみ実行
-- `_test.go` は `paths` 内の否定パターン `'!**/*_test.go'` で除外（テストファイルのみの変更ではデプロイされない）
+- ただし `paths` フィルタにより、`backend/**/*.go` / `backend/go.mod` / `backend/go.sum` / `backend/Dockerfile` / `.github/workflows/**` のいずれかが変更された場合のみ実行（Go アプリは `backend/` 配下に集約されているため `backend/` プレフィックスで限定）
+- `_test.go` は `paths` 内の否定パターン `'!backend/**/*_test.go'` で除外（テストファイルのみの変更ではデプロイされない）
 
 > 注意: GitHub Actions は同一イベントで `paths` と `paths-ignore` を併用できない（併用するとワークフローが startup failure になる）。テスト除外は `paths-ignore` ではなく `paths` 内の否定パターンで表現している。
 
@@ -402,12 +402,12 @@ terraform/
 | ステップ | Action/コマンド | 説明 |
 |---------|----------------|------|
 | 1. Checkout | `actions/checkout@v3` | ソースコードの取得 |
-| 2. Go セットアップ | `actions/setup-go@v5`（`go-version-file: go.mod`） | go.mod のバージョンで Go をセットアップ |
-| 3. ユニットテスト | `go test ./handlers/... ./services/...` | Handler/Service 層のテストを実行（`JWT_SECRET_KEY` を env で注入） |
+| 2. Go セットアップ | `actions/setup-go@v5`（`go-version-file: backend/go.mod`） | go.mod のバージョンで Go をセットアップ |
+| 3. ユニットテスト | `go test ./handlers/... ./services/...`（`working-directory: backend`） | Handler/Service 層のテストを実行（`JWT_SECRET_KEY` を env で注入） |
 | 4. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキー（`credentials_json`）で認証 |
 | 5. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
 | 6. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
-| 7. ビルド・プッシュ | `docker build` + `docker push` | イメージビルドとプッシュ（タグ: コミットSHA） |
+| 7. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
 | 8. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
 | 9. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
@@ -428,9 +428,9 @@ terraform/
 
 ### 7.1 Dockerイメージ構成
 
-マルチステージビルドを採用し、最終イメージサイズを最小化している。
+マルチステージビルドを採用し、最終イメージサイズを最小化している。`Dockerfile` は `backend/Dockerfile` に配置し、ビルドコンテキストは `backend/` を指定する（CI の `docker build ./backend`）。`COPY . .` はこのコンテキスト（＝`backend/` の中身）をコピーする。
 
-#### Dockerfile
+#### Dockerfile（backend/Dockerfile）
 
 ```dockerfile
 # ビルドステージ
@@ -495,13 +495,32 @@ main()
 
 ## 8. ディレクトリ構成
 
+本プロジェクトはモノレポ構成を採用しており、Go アプリケーション一式は `backend/` 配下に集約している。CI（`.github/`）・インフラ（`terraform/`）・ドキュメント（`docs/`）はリポジトリルートで全体共通として管理する。
+
+**リポジトリ全体**
+
 ```
-nextjs-echo-back-blog-app/
+nextjs-echo-back-blog-app/           # リポジトリルート（モノレポ）
+├── backend/                         # Go + Echo アプリ一式（module backend）。詳細は下記
+├── terraform/                       # インフラ構成管理（Terraform）
+├── docs/                            # 仕様・設計ドキュメント
+├── .github/                         # CI/CD（GitHub Actions）
+├── manuals/                         # マニュアル
+├── backup/                          # 旧 AWS App Runner 構成のバックアップ
+├── work/                            # 作業用（gitignore）
+├── readme.md                        # プロジェクトREADME
+├── CLAUDE.md                        # 開発ルール索引
+└── LICENSE
+```
+
+**`backend/` 配下の詳細**
+
+```
+backend/
 ├── main.go                          # エントリポイント
-├── go.mod                           # Go modules 設定
+├── go.mod                           # Go modules 設定（module backend）
 ├── go.sum                           # 依存関係ロックファイル
 ├── Dockerfile                       # マルチステージDockerビルド
-├── readme.md                        # プロジェクトREADME
 │
 ├── config/
 │   └── config.go                    # JWT鍵・環境判定の設定
@@ -670,23 +689,20 @@ nextjs-echo-back-blog-app/
 │   └── log/
 │       ├── utils_log.go            # ログユーティリティ
 │       └── utils_log_test.go       # ログユーティリティテスト
-│
-├── terraform/                       # インフラ構成管理（Terraform）
-│   ├── main.tf                     # Provider設定
-│   ├── variables.tf                # 変数定義
-│   ├── cloud-run.tf                # Cloud Runサービス定義
-│   ├── cloud-run-iam.tf            # IAMロール設定
-│   ├── artifact-registry.tf        # Artifact Registry定義
-│   └── secrets.tf                  # Secret Manager定義
-│
-├── .github/
-│   └── workflows/
-│       └── deploy.yml              # CI/CDパイプライン
-│
-├── docs/                            # ドキュメント
-├── manuals/                         # マニュアル
-├── backup/                          # バックアップ
-└── work/                            # 作業用
+```
+
+> `terraform/` ・ `.github/` ・ `docs/` ・ `manuals/` ・ `backup/` ・ `work/` はリポジトリルート直下（`backend/` と同階層）。構成は上記「リポジトリ全体」ツリーを参照。
+
+#### インフラ（terraform/）の構成
+
+```
+terraform/
+├── main.tf                     # Provider設定
+├── variables.tf                # 変数定義
+├── cloud-run.tf                # Cloud Runサービス定義
+├── cloud-run-iam.tf            # IAMロール設定
+├── artifact-registry.tf        # Artifact Registry定義
+└── secrets.tf                  # Secret Manager定義
 ```
 
 ---
@@ -741,9 +757,11 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 ### 10.2 セットアップ手順
 
+Go アプリは `backend/` 配下に集約されている（モノレポ構成）。以降の `go` コマンド・`.env` は `backend/` ディレクトリ内で扱う。
+
 ```bash
 git clone https://github.com/kojikawazu/nextjs-echo-back-blog-app.git
-cd nextjs-echo-back-blog-app
+cd nextjs-echo-back-blog-app/backend
 
 # 環境変数テンプレートをコピーして値を設定
 cp .env.example .env
@@ -757,20 +775,24 @@ go run main.go
 
 ### 10.3 環境変数
 
-アプリ起動時に `godotenv` がリポジトリ直下の `.env` を読み込む（`main.go` の `firstSetup`）。テンプレートは [`.env.example`](../.env.example)。
+アプリ起動時に `godotenv` が `backend/.env` を読み込む（`backend/main.go` の `firstSetup`）。テンプレートは [`../backend/.env.example`](../backend/.env.example)。参照コードのパスはいずれも `backend/` 配下。
 
 | 変数名 | 必須 | 説明 | 参照コード |
 |--------|------|------|-----------|
-| `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `config/config.go:9,12-15` |
-| `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=require` はコードが自動付与 | `supabase/client.go:28` |
-| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `middlewares/middlewares.go:17` |
-| `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `config/config.go:10` |
-| `PORT` | - | リッスンポート（既定 8080） | `main.go:74-77` |
-| `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `logger/logger.go` |
+| `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `backend/config/config.go:9,12-15` |
+| `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=require` はコードが自動付与 | `backend/supabase/client.go:28` |
+| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:17` |
+| `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `backend/config/config.go:10` |
+| `PORT` | - | リッスンポート（既定 8080） | `backend/main.go:74-77` |
+| `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `backend/logger/logger.go` |
 
 ### 10.4 テスト実行
 
+`go` コマンドは `backend/` 内で実行する。
+
 ```bash
+cd backend
+
 # 単体テスト（DB 不要・モック使用）。CI と同じ範囲
 go test ./handlers/... ./services/...
 
@@ -779,15 +801,17 @@ cp .env.test.example .env.test   # SUPABASE_URL / JWT_SECRET_KEY を設定
 go test ./...
 ```
 
-- Repository 層テストは `repositories/**/.._testing_setup.go` の `godotenv.Load("../../../.env.test")` で `.env.test` を読み、実 DB に接続する。
+- Repository 層テストは `backend/repositories/**/.._testing_setup.go` の `godotenv.Load("../../../.env.test")` で `backend/.env.test` を読み、実 DB に接続する（相対階層は移動後も保存されるため参照先は `backend/.env.test`）。
 - Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
-- CI（`.github/workflows/deploy.yml`）は DB 不要の `handlers` / `services` のみ実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
+- CI（`.github/workflows/deploy.yml`）は DB 不要の `handlers` / `services` のみ `working-directory: backend` で実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
 
 ### 10.5 Docker での起動
 
+ビルドコンテキストは `backend/` を指定する。
+
 ```bash
-docker build -t echo-blog-back .
-docker run --env-file .env -p 8080:8080 echo-blog-back
+docker build -t echo-blog-back ./backend
+docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 ```
 
 イメージ構成（マルチステージ / Distroless）は [§7.1 Dockerイメージ構成](#71-dockerイメージ構成) を参照。
