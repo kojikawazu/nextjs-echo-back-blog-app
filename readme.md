@@ -35,13 +35,28 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 | IaC | Terraform | >= 1.6 |
 | CI/CD | GitHub Actions | - |
 
+## リポジトリ構成
+
+モノレポ構成を採用しており、Go アプリケーション一式は [`backend/`](backend/) 配下に集約している。CI（`.github/`）・インフラ（`terraform/`）・ドキュメント（`docs/`）はリポジトリルートで全体共通として管理する。
+
+```
+.
+├── backend/     # Go + Echo アプリ（main.go / go.mod / Dockerfile 含む）
+├── terraform/   # インフラ構成（Terraform）
+├── docs/        # 仕様・設計ドキュメント
+├── .github/     # CI/CD（GitHub Actions）
+└── README.md
+```
+
+> Go のモジュールパスは `module backend`。以降の `go` コマンドは `backend/` ディレクトリ内で実行する。
+
 ## セットアップ（ローカル起動）
 
 前提: Go 1.20 以上、稼働中の Supabase(PostgreSQL) への接続情報。
 
 ```bash
 git clone https://github.com/kojikawazu/nextjs-echo-back-blog-app.git
-cd nextjs-echo-back-blog-app
+cd nextjs-echo-back-blog-app/backend
 
 # 環境変数を用意（値は各自で設定）
 cp .env.example .env
@@ -58,14 +73,20 @@ go run main.go
 
 ### Docker で起動する場合
 
+ビルドコンテキストは `backend/` を指定する（リポジトリルートから実行する場合）。
+
 ```bash
-docker build -t echo-blog-back .
-docker run --env-file .env -p 8080:8080 echo-blog-back
+docker build -t echo-blog-back ./backend
+docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 ```
 
 ## テスト
 
+`go` コマンドは `backend/` 内で実行する。
+
 ```bash
+cd backend
+
 # 単体テスト（DB 不要・モック使用）。CI と同じ範囲
 go test ./handlers/... ./services/...
 

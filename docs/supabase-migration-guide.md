@@ -127,9 +127,10 @@ SELECT 'blog_comments', COUNT(*) FROM blog_comments;
 SUPABASE_URL=postgresql://postgres.[移行先プロジェクトRef]:[パスワード]@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
 ```
 
-アプリケーションを再起動して接続を確認する。
+アプリケーションを再起動して接続を確認する（Go アプリは `backend/` 配下。`backend/` 内で実行する）。
 
 ```bash
+cd backend
 go run main.go
 ```
 

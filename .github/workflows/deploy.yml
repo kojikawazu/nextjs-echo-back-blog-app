@@ -5,11 +5,11 @@ on:
       branches:
         - main
       paths:
-        - '**/*.go'
-        - '!**/*_test.go'
-        - 'go.mod'
-        - 'go.sum'
-        - 'Dockerfile'
+        - 'backend/**/*.go'
+        - '!backend/**/*_test.go'
+        - 'backend/go.mod'
+        - 'backend/go.sum'
+        - 'backend/Dockerfile'
         - '.github/workflows/**'
 
 jobs:
@@ -23,9 +23,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: backend/go.mod
 
       - name: Run unit tests (handlers & services)
+        working-directory: backend
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: go test ./handlers/... ./services/...
@@ -47,8 +48,8 @@ jobs:
       - name: Build and push Docker image
         run: |
             IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.REPO_NAME }}/${{ secrets.APP_NAME }}"
-            docker build -t ${IMAGE}:${{ github.sha }}  .
-            docker push ${IMAGE}:${{ github.sha }} 
+            docker build -t ${IMAGE}:${{ github.sha }}  ./backend
+            docker push ${IMAGE}:${{ github.sha }}
 
       - name: Deploy to Cloud Run
         run: |
