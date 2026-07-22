@@ -15,10 +15,10 @@ func TestService_FetchBlogs(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name      string
-		setupMock func(m *repositories_blogs.MockBlogRepository)
-		wantLen   int
-		wantErr   bool
+		name       string
+		setupMock  func(m *repositories_blogs.MockBlogRepository)
+		wantLen    int
+		wantErr    bool
 		wantErrMsg string
 	}{
 		{

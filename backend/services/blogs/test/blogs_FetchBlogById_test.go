@@ -18,14 +18,14 @@ func TestService_FetchBlogById(t *testing.T) {
 
 	// モックデータ
 	mockBlogData := &models.BlogData{
-		ID:        "1",
-		BlogUserId:    "1",
-		Title:     "title1",
-		GithubUrl: "https://github.com/user/repo1",
-		Category:  "Category1",
-		Tags:      "Tag1",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:         "1",
+		BlogUserId: "1",
+		Title:      "title1",
+		GithubUrl:  "https://github.com/user/repo1",
+		Category:   "Category1",
+		Tags:       "Tag1",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
 	}
 
 	// ブログが存在する場合
