@@ -9,6 +9,9 @@ import (
 )
 
 // SetupMiddlewares は Echo にロガー・リカバリー・CORS の各ミドルウェアを設定する。
+//
+// 引数:
+//   - e: ミドルウェアを設定する対象の Echo インスタンス
 func SetupMiddlewares(e *echo.Echo) {
 	// ロガーとリカバリーミドルウェアを使用
 	e.Use(middleware.Logger())

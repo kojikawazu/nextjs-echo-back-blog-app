@@ -8,6 +8,12 @@ import (
 )
 
 // FetchCommentsByBlogId はブログ ID でコメントデータを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ blogId を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。不正な blogId は 400、コメント不在は 404、その他は 500 で返す
 func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching comments by blogId...")
 
@@ -39,6 +45,12 @@ func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 }
 
 // CreateComment はコメントデータを新規作成するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（blogId/guestUser/comment を含む JSON ボディ）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。バインド失敗や不正な入力は 400、作成失敗は 500、成功時は 201 で返す
 func (h *CommentHandler) CreateComment(c echo.Context) error {
 	utils.LogInfo(c, "Creating comment...")
 

@@ -8,6 +8,12 @@ type CommentHandler struct {
 }
 
 // NewCommentHandler は CommentHandler を生成する。
+//
+// 引数:
+//   - commentService: コメントデータの取得/作成に用いるコメントサービス
+//
+// 戻り値:
+//   - *CommentHandler: 生成したコメントハンドラ
 func NewCommentHandler(commentService services_comments.CommentService) *CommentHandler {
 	return &CommentHandler{
 		CommentService: commentService,

@@ -12,6 +12,13 @@ type AuthHandler struct {
 }
 
 // NewAuthHandler は AuthHandler を生成する。
+//
+// 引数:
+//   - userService: ユーザーデータ取得に用いるユーザーサービス
+//   - authService: 認証処理に用いる認証サービス
+//
+// 戻り値:
+//   - *AuthHandler: 生成した認証ハンドラ
 func NewAuthHandler(userService services_users.UserService, authService services_auth.AuthService) *AuthHandler {
 	return &AuthHandler{
 		UserService: userService,

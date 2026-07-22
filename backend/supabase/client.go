@@ -23,6 +23,9 @@ var (
 // 接続URLを環境変数から取得し、コネクションプールを設定する。
 // コネクションの最大数やアイドルタイム、シンプルプロトコルの使用を設定する。
 // 成功時にはnilを返し、接続に失敗した場合はエラーメッセージを返す。
+//
+// 戻り値:
+//   - error: 初期化に成功した場合は nil、接続に失敗した場合のエラー
 func InitSupabase() error {
 	logger.InfoLog.Println("Initializing Supabase client...")
 	supabaseURL := os.Getenv("SUPABASE_URL") + "?sslmode=require"
@@ -70,6 +73,9 @@ func ClosePool() {
 // TestQuery は Supabase に対してシンプルなクエリを実行し、接続が正しく動作しているかを確認する。
 // クエリ結果として "1" を取得し、それをログに出力する。
 // クエリに失敗した場合、エラーを返す。
+//
+// 戻り値:
+//   - error: クエリ実行に成功した場合は nil、失敗した場合のエラー
 func TestQuery() error {
 	logger.InfoLog.Println("Testing query...")
 	query := `SELECT 1`

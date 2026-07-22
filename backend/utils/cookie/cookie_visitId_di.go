@@ -14,6 +14,10 @@ import (
 )
 
 // CreateVisitIdToken - visitId用JWTトークンを作成
+//
+// 戻り値:
+//   - string: 生成したvisitId用JWTトークン文字列
+//   - error: トークンの署名に失敗した場合のエラー
 func (u *CookieUtilsImpl) CreateVisitIdToken() (string, error) {
 	// 一意の訪問者IDを生成
 	visitorID := uuid.New().String()
@@ -42,6 +46,11 @@ func (u *CookieUtilsImpl) CreateVisitIdToken() (string, error) {
 }
 
 // AddVisitIdCoookie - 訪問者IDを生成
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: Cookieに保存するvisitId用JWTトークン文字列
+//   - expirationTime: Cookieの有効期限
 func (u *CookieUtilsImpl) AddVisitIdCoookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	cookie := new(http.Cookie)
 	cookie.Name = "visit-id-token"
@@ -60,6 +69,14 @@ func (u *CookieUtilsImpl) AddVisitIdCoookie(c echo.Context, tokenString string, 
 }
 
 // GetVisitIdFromToken - 訪問者IDを取得
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: 解析対象のvisitId用JWTトークン文字列
+//
+// 戻り値:
+//   - string: トークンから取得した訪問者ID
+//   - error: トークンが無効または有効期限切れの場合のエラー
 func (u *CookieUtilsImpl) GetVisitIdFromToken(c echo.Context, tokenString string) (string, error) {
 	claims := &models.ClaimsVisitId{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {

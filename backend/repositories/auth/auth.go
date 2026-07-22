@@ -7,6 +7,9 @@ type AuthRepository interface{}
 type AuthRepositoryImpl struct{}
 
 // NewAuthRepository は AuthRepository を実装した AuthRepositoryImpl のポインタを生成する。
+//
+// 戻り値:
+//   - AuthRepository: 生成したリポジトリ実装
 func NewAuthRepository() AuthRepository {
 	return &AuthRepositoryImpl{}
 }

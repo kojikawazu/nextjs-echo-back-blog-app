@@ -7,6 +7,13 @@ import (
 )
 
 // Login はメール/パスワードを検証してログイン処理を行う。
+//
+// 引数:
+//   - email: 検証対象のメールアドレス
+//   - password: 検証対象のパスワード
+//
+// 戻り値:
+//   - error: バリデーションに失敗した場合のエラー
 func (r *AuthServiceImpl) Login(email, password string) error {
 	log.Println("Logging in...")
 
