@@ -1,0 +1,20 @@
+# golangci-lint 設定（v2 系）。CI とローカルで同一メジャーバージョンを使うこと。
+#   ローカル実行例: golangci-lint run   （backend/ 内で実行）
+version: "2"
+
+linters:
+  # v2 のデフォルト（errcheck, govet, ineffassign, staticcheck, unused）に
+  # タイポ検出を追加する。gofmt/goimports は formatters 側で管理する。
+  enable:
+    - misspell
+  exclusions:
+    rules:
+      # テストコードでは戻り値 error の未チェックを許容（表明の妨げになるため）
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

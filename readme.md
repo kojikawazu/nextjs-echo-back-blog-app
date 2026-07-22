@@ -97,6 +97,24 @@ go test ./...
 
 > CI（`main` への push 時）は DB 不要の `handlers` / `services` のみ実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
 
+## Lint / 静的解析
+
+`go` コマンド・`golangci-lint` は `backend/` 内で実行する。CI（`ci.yml`）は PR・`main` への push で同じチェックを実行する。
+
+```bash
+cd backend
+
+# フォーマット確認（差分があるファイルを列挙。整形は gofmt -w .）
+gofmt -l .
+
+# 標準の静的解析
+go vet ./...
+
+# 統合リンタ（設定は backend/.golangci.yml。v2 系を使用）
+#   未導入の場合: https://golangci-lint.run/welcome/install/
+golangci-lint run
+```
+
 ## ドキュメント
 
 仕様書・設計書は [`docs/`](docs/) に集約。索引は [`docs/README.md`](docs/README.md)。
