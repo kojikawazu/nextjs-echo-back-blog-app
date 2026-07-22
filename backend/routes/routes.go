@@ -25,7 +25,10 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ルーティングを設定する関数
+// SetupRoutes は依存を初期化し、API エンドポイントのルーティングを設定する。
+//
+// 引数:
+//   - e: ルーティングを設定する対象の Echo インスタンス
 func SetupRoutes(e *echo.Echo) {
 	// ヘルスチェックエンドポイントの追加
 	e.GET("/", func(c echo.Context) error {

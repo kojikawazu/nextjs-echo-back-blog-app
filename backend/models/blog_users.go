@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// ブログユーザーの情報を表すデータ構造
+// BlogUsersData はブログユーザーの情報を表すデータ構造。
 // 各フィールドには、JSONおよびデータベースのタグを指定。
 type BlogUsersData struct {
 	ID        string    `json:"id" db:"id"`                 // UUID型

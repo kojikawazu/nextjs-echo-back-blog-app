@@ -9,7 +9,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 全ブログデータを取得する
+// FetchBlogs は全ブログデータを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs...")
 
@@ -26,7 +32,13 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, blogs)
 }
 
-// ユーザーIDでブログデータを取得する
+// FetchBlogsByUserId はユーザー ID でブログデータを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ userId を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。不正な userId は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs by userId...")
 
@@ -57,7 +69,13 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	return c.JSON(http.StatusOK, blogs)
 }
 
-// ブログIDでブログデータを取得する
+// FetchBlogById はブログ ID でブログデータを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ id を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。不正な id は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog by id...")
 
@@ -88,7 +106,13 @@ func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	return c.JSON(http.StatusOK, blog)
 }
 
-// ブログデータを作成する
+// CreateBlog はブログデータを作成するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーと title/githubUrl/category/description/tags を含む JSON ボディ）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正入力は 400、作成失敗は 500、成功時は 201 で返す
 func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog...")
 
@@ -171,7 +195,13 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	return c.JSON(http.StatusCreated, blog)
 }
 
-// ブログデータを更新する
+// UpdateBlog はブログデータを更新するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキー、パスパラメータ id、更新内容を含む JSON ボディ）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正入力は 400、更新失敗は 500、成功時は 200 で返す
 func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Updating blog...")
 
@@ -257,7 +287,13 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	return c.JSON(http.StatusOK, blog)
 }
 
-// ブログデータを削除する
+// DeleteBlog はブログデータを削除するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーとパスパラメータ id を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正な id は 400、削除失敗は 500、成功時は 204 で返す
 func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog...")
 
@@ -306,7 +342,13 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// ブログカテゴリーの取得
+// FetchBlogCategories はブログカテゴリーを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 	utils.LogInfo(c, "Fetching categories...")
 
@@ -323,7 +365,13 @@ func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 	return c.JSON(http.StatusOK, categories)
 }
 
-// ブログタグの取得
+// FetchBlogTags はブログタグを取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 	utils.LogInfo(c, "Fetching tags...")
 
@@ -340,7 +388,13 @@ func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 	return c.JSON(http.StatusOK, tags)
 }
 
-// 人気のあるブログの取得
+// FetchBlogPopular は人気のあるブログを指定件数取得するエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ count を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。count が数値変換できない場合は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
 func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
 	utils.LogInfo(c, "Fetching popular blogs...")
 

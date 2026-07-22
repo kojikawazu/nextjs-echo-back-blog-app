@@ -15,7 +15,7 @@ var (
 	TestLog  = log.New(os.Stdout, "TEST: ", log.Ldate|log.Ltime|log.Lshortfile)
 )
 
-// ログ設定の初期化
+// InitLogger はログ設定を初期化する。TEST_MODE 時は出力を破棄する。
 func InitLogger() {
 	if os.Getenv("TEST_MODE") == "true" {
 		InfoLog.SetOutput(io.Discard)

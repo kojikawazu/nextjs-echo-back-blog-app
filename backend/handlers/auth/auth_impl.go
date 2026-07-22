@@ -13,7 +13,13 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ログインエンドポイント（JWTトークンの発行）
+// Login はメール/パスワードで認証し JWT トークンを発行するログインエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（email/password を含む JSON ボディ）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。バインド/バリデーション失敗は 400、認証失敗は 401、トークン生成失敗等は 500 で返す
 func (h *AuthHandler) Login(c echo.Context) error {
 	utils.LogInfo(c, "Logging in...")
 
@@ -90,7 +96,13 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Login successful"})
 }
 
-// 認証確認エンドポイント
+// CheckAuth はクッキーの JWT トークンを検証する認証確認エンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーを含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン不在/解析失敗/無効時は 401、成功時はユーザー情報を 200 で返す
 func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	utils.LogInfo(c, "Checking authentication...")
 
@@ -147,7 +159,13 @@ func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	})
 }
 
-// ログアウトエンドポイント
+// Logout は認証クッキーを削除するログアウトエンドポイント。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。成功時は 200 を返す
 func (h *AuthHandler) Logout(c echo.Context) error {
 	utils.LogInfo(c, "Logging out...")
 

@@ -6,7 +6,14 @@ import (
 	"log"
 )
 
-// VisitIdに紐づくいいねデータを取得
+// FetchBlogLikesByVisitId は VisitId に紐づくいいねデータを取得する。
+//
+// 引数:
+//   - visitId: 取得対象の訪問者ID
+//
+// 戻り値:
+//   - []models.BlogLikesData: 取得したいいねデータの一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikesData, error) {
 	log.Println("FetchBlogLikesByVisitId start...")
 
@@ -27,7 +34,15 @@ func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.
 	return blogLikes, nil
 }
 
-// いいね存在するか確認
+// IsBlogLiked はいいねが存在するかを確認する。
+//
+// 引数:
+//   - blogId: 確認対象のブログID
+//   - visitId: 確認対象の訪問者ID
+//
+// 戻り値:
+//   - bool: いいねが存在する場合は true
+//   - error: 確認に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")
 
@@ -47,7 +62,15 @@ func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) 
 	return isLiked, nil
 }
 
-// いいねデータの作成
+// CreateBlogLike はいいねデータを作成する。
+//
+// 引数:
+//   - blogId: いいね対象のブログID
+//   - visitId: いいねする訪問者ID
+//
+// 戻り値:
+//   - *models.BlogLikesData: 作成されたいいねデータ
+//   - error: 作成に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.BlogLikesData, error) {
 	log.Println("CreateBlogLike start...")
 
@@ -74,7 +97,14 @@ func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.Bl
 	return blogLike, nil
 }
 
-// いいねデータの削除
+// DeleteBlogLike はいいねデータを削除する。
+//
+// 引数:
+//   - blogId: 削除対象のブログID
+//   - visitId: 削除対象の訪問者ID
+//
+// 戻り値:
+//   - error: 削除に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) DeleteBlogLike(blogId, visitId string) error {
 	log.Println("DeleteBlogLike start...")
 

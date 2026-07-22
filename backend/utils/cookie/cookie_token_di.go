@@ -12,6 +12,13 @@ import (
 )
 
 // CreateToken - JWTトークンを作成
+//
+// 引数:
+//   - user: トークンに埋め込むユーザー情報
+//
+// 戻り値:
+//   - string: 生成したJWTトークン文字列
+//   - error: トークンの署名に失敗した場合のエラー
 func (u *CookieUtilsImpl) CreateToken(user *models.BlogUsersData) (string, error) {
 	// トークンの有効期限を1時間に設定
 	expirationTime := u.GetAuthCookieExpirationTime()
@@ -39,6 +46,11 @@ func (u *CookieUtilsImpl) CreateToken(user *models.BlogUsersData) (string, error
 }
 
 // AddAuthCookie - 認証用のCookieを追加
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: Cookieに保存するJWTトークン文字列
+//   - expirationTime: Cookieの有効期限
 func (u *CookieUtilsImpl) AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
@@ -57,6 +69,11 @@ func (u *CookieUtilsImpl) AddAuthCookie(c echo.Context, tokenString string, expi
 }
 
 // UpdateAuthCookie - 認証用のCookieを更新
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: Cookieに保存する更新後のJWTトークン文字列
+//   - expirationTime: Cookieの有効期限
 func (u *CookieUtilsImpl) UpdateAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
@@ -75,6 +92,9 @@ func (u *CookieUtilsImpl) UpdateAuthCookie(c echo.Context, tokenString string, e
 }
 
 // DelAuthCookie - 認証用のCookieを削除
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
 func (u *CookieUtilsImpl) DelAuthCookie(c echo.Context) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
@@ -93,6 +113,14 @@ func (u *CookieUtilsImpl) DelAuthCookie(c echo.Context) {
 }
 
 // GetUserIdFromToken - JWTトークンを解析してユーザーIDを取得
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: 解析対象のJWTトークン文字列
+//
+// 戻り値:
+//   - string: トークンから取得したユーザーID
+//   - error: トークンが無効または有効期限切れの場合のエラー
 func (u *CookieUtilsImpl) GetUserIdFromToken(c echo.Context, tokenString string) (string, error) {
 	claims, err := u.VerifyToken(c, tokenString)
 	if err != nil {

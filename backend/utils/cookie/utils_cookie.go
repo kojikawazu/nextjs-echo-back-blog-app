@@ -8,7 +8,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 認証用のCookieを追加
+// AddAuthCookie は認証用のCookieを追加する。
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
+//   - tokenString: Cookieに保存するJWTトークン文字列
+//   - expirationTime: Cookieの有効期限
 func AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
@@ -26,7 +31,10 @@ func AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time)
 	c.SetCookie(cookie)
 }
 
-// 認証用のCookieを削除
+// DelAuthCookie は認証用のCookieを削除する。
+//
+// 引数:
+//   - c: Echoのリクエストコンテキスト
 func DelAuthCookie(c echo.Context) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"

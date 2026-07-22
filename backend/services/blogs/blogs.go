@@ -8,12 +8,23 @@ import (
 	"strings"
 )
 
-// 全ブログデータを取得する
+// FetchBlogs は全ブログデータを取得する。
+//
+// 戻り値:
+//   - []models.BlogData: 取得した全ブログデータの一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogs() ([]models.BlogData, error) {
 	return s.BlogRepository.FetchBlogs()
 }
 
-// 指定されたユーザーIDに一致するブログデータを取得する
+// FetchBlogsByUserId は指定されたユーザーIDに一致するブログデータを取得する。
+//
+// 引数:
+//   - userId: 取得対象のユーザーID
+//
+// 戻り値:
+//   - []models.BlogData: 取得したブログデータの一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogsByUserId start...")
 
@@ -35,7 +46,14 @@ func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 	return blogs, nil
 }
 
-// 指定されたIDに一致するブログデータを取得する
+// FetchBlogById は指定されたIDに一致するブログデータを取得する。
+//
+// 引数:
+//   - id: 取得対象のブログID
+//
+// 戻り値:
+//   - *models.BlogData: 見つかったブログデータ
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogById start...")
 
@@ -57,7 +75,19 @@ func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	return blog, nil
 }
 
-// ブログデータを作成する
+// CreateBlog はブログデータを作成する。
+//
+// 引数:
+//   - userId: 投稿者のユーザーID
+//   - title: ブログのタイトル
+//   - githubUrl: 関連する GitHub の URL
+//   - category: ブログのカテゴリ
+//   - description: ブログの本文・説明
+//   - tags: カンマ区切りのタグ文字列
+//
+// 戻り値:
+//   - *models.BlogData: 作成されたブログデータ
+//   - error: 作成に失敗した場合のエラー
 func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("CreateBlog start...")
 
@@ -99,7 +129,19 @@ func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, descrip
 	return blog, nil
 }
 
-// 指定されたIDに一致するブログデータを更新する
+// UpdateBlog は指定されたIDに一致するブログデータを更新する。
+//
+// 引数:
+//   - id: 更新対象のブログID
+//   - title: 更新後のタイトル
+//   - githubUrl: 更新後の GitHub の URL
+//   - category: 更新後のカテゴリ
+//   - description: 更新後の本文・説明
+//   - tags: 更新後のカンマ区切りのタグ文字列
+//
+// 戻り値:
+//   - *models.BlogData: 更新後のブログデータ
+//   - error: 更新に失敗した場合のエラー
 func (s *BlogServiceImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("UpdateBlog start...")
 
@@ -141,7 +183,13 @@ func (s *BlogServiceImpl) UpdateBlog(id, title, githubUrl, category, description
 	return blog, nil
 }
 
-// 指定されたIDに一致するブログデータを削除する
+// DeleteBlog は指定されたIDに一致するブログデータを削除する。
+//
+// 引数:
+//   - id: 削除対象のブログID
+//
+// 戻り値:
+//   - error: 削除に失敗した場合のエラー
 func (s *BlogServiceImpl) DeleteBlog(id string) error {
 	logger.InfoLog.Printf("DeleteBlog start...")
 
@@ -163,12 +211,20 @@ func (s *BlogServiceImpl) DeleteBlog(id string) error {
 	return nil
 }
 
-// ブログカテゴリを取得する
+// FetchBlogCategories はブログカテゴリを取得する。
+//
+// 戻り値:
+//   - []string: 取得したカテゴリ名の一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogCategories() ([]string, error) {
 	return s.BlogRepository.FetchBlogCategories()
 }
 
-// ブログタグを取得する
+// FetchBlogTags はブログタグを取得する。
+//
+// 戻り値:
+//   - []string: 重複排除・ソート済みのタグ名一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogTags() ([]string, error) {
 	tagsList, err := s.BlogRepository.FetchBlogTags()
 	if err != nil {
@@ -199,7 +255,14 @@ func (s *BlogServiceImpl) FetchBlogTags() ([]string, error) {
 	return result, nil
 }
 
-// 人気のあるブログを取得する
+// FetchBlogPopular は人気のあるブログを取得する。
+//
+// 引数:
+//   - count: 取得する件数
+//
+// 戻り値:
+//   - []models.BlogData: 取得した人気ブログデータの一覧
+//   - error: 取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogPopular(count int) ([]models.BlogData, error) {
 
 	// バリデーション

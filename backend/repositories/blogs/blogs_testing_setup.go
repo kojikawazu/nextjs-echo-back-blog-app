@@ -9,6 +9,9 @@ import (
 )
 
 // SetupTest はテストの前に環境変数を読み込み、ログ設定を初期化します
+//
+// 引数:
+//   - t: テストコンテキスト（初期化失敗時に t.Fatalf で停止する）
 func SetupTest(t *testing.T) {
 	// 環境変数の読み込み
 	err := godotenv.Load("../../../.env.test")

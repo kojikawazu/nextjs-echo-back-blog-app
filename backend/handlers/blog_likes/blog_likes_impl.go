@@ -8,6 +8,12 @@ import (
 )
 
 // FetchBlogLikesByVisitId - 訪問IDに紐づくブログいいねデータを取得するハンドラ
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーを含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン取得/解析やデータ取得失敗時は 500、成功時は 200 で返す
 func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog likes by visit id...")
 
@@ -43,6 +49,12 @@ func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 }
 
 // GenerateVisitorId -　訪問者IDを生成するハンドラ
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（既存の visit-id-token クッキーがあれば利用）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン生成失敗時は 500、生成成功または既存時は 200 で返す
 func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	utils.LogInfo(c, "Generating visitor id...")
 
@@ -79,7 +91,13 @@ func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	})
 }
 
-// ブログいいねの取得ハンドラ
+// IsBlogLiked は対象ブログにいいね済みかを確認するハンドラ。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン取得/解析失敗時は 500、それ以外は isLiked を 200 で返す
 func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	utils.LogInfo(c, "Checking if blog is liked...")
 
@@ -118,7 +136,13 @@ func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	})
 }
 
-// ブログいいねの追加ハンドラ
+// CreateBlogLike はブログいいねを追加するハンドラ。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン取得/解析失敗は 500、空値やいいね済みは 400、成功時は 200 で返す
 func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog like...")
 
@@ -166,7 +190,13 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	return c.JSON(http.StatusOK, createdBlogLikeData)
 }
 
-// ブログいいねの削除ハンドラ
+// DeleteBlogLike はブログいいねを削除するハンドラ。
+//
+// 引数:
+//   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
+//
+// 戻り値:
+//   - error: レスポンス書き込みエラー。トークン取得/解析や削除失敗時は 500、成功時は 200 で返す
 func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog like...")
 
