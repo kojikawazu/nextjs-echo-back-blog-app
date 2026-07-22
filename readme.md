@@ -95,7 +95,7 @@ cp .env.test.example .env.test   # SUPABASE_URL / JWT_SECRET_KEY を設定
 go test ./...
 ```
 
-> CI（`main` への push 時）は DB 不要の `handlers` / `services` のみ実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
+> CI（`ci.yml` の `test` ジョブ / PR・`main` への push）は DB 不要の `handlers` / `services` のみ実行する。実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
 
 ## Lint / 静的解析
 

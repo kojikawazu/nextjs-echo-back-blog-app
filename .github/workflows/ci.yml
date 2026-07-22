@@ -44,3 +44,22 @@ jobs:
         with:
           version: v2.12.2
           working-directory: backend
+
+  # ユニットテスト。全 mock の handlers / services のみ実行し、DB を必要としない。
+  # 実 DB 接続が必要な repositories 層（IT）は CI では実行しない。
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: go test (handlers & services / all mock, no DB)
+        working-directory: backend
+        env:
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        run: go test ./handlers/... ./services/...
