@@ -6,10 +6,12 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+// MockUserRepository は BlogUsersRepository のテスト用モック。
 type MockUserRepository struct {
 	mock.Mock
 }
 
+// FetchBlogUsersByEmailAndPassword は BlogUsersRepository.FetchBlogUsersByEmailAndPassword のモック実装。
 func (m *MockUserRepository) FetchBlogUsersByEmailAndPassword(email, password string) (*models.BlogUsersData, error) {
 	args := m.Called(email, password)
 	if args.Get(0) != nil {
@@ -18,6 +20,7 @@ func (m *MockUserRepository) FetchBlogUsersByEmailAndPassword(email, password st
 	return nil, args.Error(1)
 }
 
+// FetchBlogUsersById は BlogUsersRepository.FetchBlogUsersById のモック実装。
 func (m *MockUserRepository) FetchBlogUsersById(id string) (*models.BlogUsersData, error) {
 	args := m.Called(id)
 	if args.Get(0) != nil {
@@ -26,6 +29,7 @@ func (m *MockUserRepository) FetchBlogUsersById(id string) (*models.BlogUsersDat
 	return nil, args.Error(1)
 }
 
+// UpdateBlogUsers は BlogUsersRepository.UpdateBlogUsers のモック実装。
 func (m *MockUserRepository) UpdateBlogUsers(id, name, email, password string) (*models.BlogUsersData, error) {
 	args := m.Called(id, name, email, password)
 	if args.Get(0) != nil {

@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-// 指定されたメールアドレスとパスワードでユーザーを取得する。
+// FetchBlogUsersByEmailAndPassword は指定されたメールアドレスとパスワードでユーザーを取得する。
 // ユーザーが見つからない場合、エラーを返す。
 func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, password string) (*models.BlogUsersData, error) {
 	log.Printf("Fetching user from Supabase by email: %s\n", email)
@@ -39,7 +39,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, passwo
 	return &user, nil
 }
 
-// 指定されたIDに一致するユーザーを取得する
+// FetchBlogUsersById は指定されたIDに一致するユーザーを取得する。
 func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUsersData, error) {
 	log.Println("Fetching user from Supabase by ID")
 
@@ -72,7 +72,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUse
 	return &user, nil
 }
 
-// ユーザー情報を更新する
+// UpdateBlogUsers はユーザー情報を更新する。
 func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, password string) (*models.BlogUsersData, error) {
 	log.Println("Updating user in Supabase")
 

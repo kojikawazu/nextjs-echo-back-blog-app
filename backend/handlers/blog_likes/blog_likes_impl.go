@@ -79,7 +79,7 @@ func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	})
 }
 
-// ブログいいねの取得ハンドラ
+// IsBlogLiked は対象ブログにいいね済みかを確認するハンドラ。
 func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	utils.LogInfo(c, "Checking if blog is liked...")
 
@@ -118,7 +118,7 @@ func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	})
 }
 
-// ブログいいねの追加ハンドラ
+// CreateBlogLike はブログいいねを追加するハンドラ。
 func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog like...")
 
@@ -166,7 +166,7 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	return c.JSON(http.StatusOK, createdBlogLikeData)
 }
 
-// ブログいいねの削除ハンドラ
+// DeleteBlogLike はブログいいねを削除するハンドラ。
 func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog like...")
 

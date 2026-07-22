@@ -30,17 +30,17 @@ func logWithLevel(c echo.Context, level string, message string) {
 	}
 }
 
-// 情報ログ
+// LogInfo は情報ログを出力する。
 func LogInfo(c echo.Context, message string) {
 	logWithLevel(c, "INFO", message)
 }
 
-// エラーログ
+// LogError はエラーログを出力する。
 func LogError(c echo.Context, message string) {
 	logWithLevel(c, "ERROR", message)
 }
 
-// デバッグログ
+// LogDebug はデバッグログを出力する。
 func LogDebug(c echo.Context, message string) {
 	logWithLevel(c, "DEBUG", message)
 }

@@ -5,12 +5,13 @@ import (
 	utils_cookie "backend/utils/cookie"
 )
 
+// BlogLikeHandler はブログいいね系エンドポイントのハンドラ。
 type BlogLikeHandler struct {
 	BlogLikeService services_blogs_likes.BlogLikeService
 	CookieUtils     utils_cookie.CookieUtils
 }
 
-// コンストラクタ
+// NewBlogLikeHandler は BlogLikeHandler を生成する。
 func NewBlogLikeHandler(blogLikeService services_blogs_likes.BlogLikeService, cookieUtils utils_cookie.CookieUtils) *BlogLikeHandler {
 	return &BlogLikeHandler{
 		BlogLikeService: blogLikeService,

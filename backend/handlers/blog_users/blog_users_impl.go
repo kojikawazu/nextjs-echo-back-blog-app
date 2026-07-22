@@ -7,8 +7,8 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// リクエストボディで指定されたemailとpasswordでユーザーを取得する。
-// 有効なemailフォーマットかをチェックし、データベースに該当ユーザーがいない場合、404エラーを返す。
+// GetUserByEmailAndPassword はリクエストボディの email と password でユーザーを取得するエンドポイント。
+// 有効な email フォーマットかをチェックし、データベースに該当ユーザーがいない場合、404 エラーを返す。
 func (h *BlogUsersHandler) GetUserByEmailAndPassword(c echo.Context) error {
 	utils.LogInfo(c, "Fetching user by email and password...")
 
@@ -55,7 +55,7 @@ func (h *BlogUsersHandler) GetUserByEmailAndPassword(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// ユーザーIDでユーザーデータを取得する
+// FetchBlogUsers はクッキーの JWT トークンから解決したユーザー ID でユーザーデータを取得するエンドポイント。
 func (h *BlogUsersHandler) FetchBlogUsers(c echo.Context) error {
 	utils.LogInfo(c, "Fetching user...")
 
@@ -104,7 +104,7 @@ func (h *BlogUsersHandler) FetchBlogUsers(c echo.Context) error {
 	return c.JSON(http.StatusOK, user)
 }
 
-// ユーザーデータを更新する
+// UpdateBlogUsers はユーザーデータを更新し、認証クッキーを再発行するエンドポイント。
 func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 	utils.LogInfo(c, "Updating user...")
 

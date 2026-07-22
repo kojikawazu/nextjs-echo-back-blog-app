@@ -5,8 +5,10 @@ import (
 	"os"
 )
 
-// 環境変数から読み込む
+// JwtKey は環境変数 JWT_SECRET_KEY から読み込む JWT 署名鍵。
 var JwtKey = []byte(os.Getenv("JWT_SECRET_KEY"))
+
+// IsProduction は環境変数 ENV が "production" のとき true となる本番判定フラグ。
 var IsProduction = os.Getenv("ENV") == "production"
 
 func init() {

@@ -8,7 +8,7 @@ import (
 	"net/mail"
 )
 
-// 指定されたメールアドレスとパスワードでユーザーを取得する。
+// FetchUserByEmailAndPassword は指定されたメールアドレスとパスワードでユーザーを取得する。
 // ユーザーが見つからない場合、エラーを返す。
 func (s *UserServiceImpl) FetchUserByEmailAndPassword(email, password string) (*models.BlogUsersData, error) {
 	// バリデーション：emailとpasswordが空でないことを確認
@@ -38,7 +38,7 @@ func (s *UserServiceImpl) FetchUserByEmailAndPassword(email, password string) (*
 	return user, nil
 }
 
-// 指定されたIDに一致するユーザーを取得する
+// FetchUserById は指定されたIDに一致するユーザーを取得する。
 func (s *UserServiceImpl) FetchUserById(id string) (*models.BlogUsersData, error) {
 	log.Println("Fetching user by id")
 
@@ -60,7 +60,7 @@ func (s *UserServiceImpl) FetchUserById(id string) (*models.BlogUsersData, error
 	return user, nil
 }
 
-// 指定されたIDに一致するユーザーを更新する
+// UpdateUser は指定されたIDに一致するユーザーを更新する。
 func (s *UserServiceImpl) UpdateUser(id, name, email, password, newPassword string) (*models.BlogUsersData, error) {
 	log.Println("Updating user")
 

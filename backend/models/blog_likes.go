@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// ブログのいいね情報を表すデータ構造
+// BlogLikesData はブログのいいね情報を表すデータ構造。
 // 各フィールドには、JSONおよびデータベースのタグを指定。
 type BlogLikesData struct {
 	ID        string    `json:"id" db:"id"`                 // UUID型

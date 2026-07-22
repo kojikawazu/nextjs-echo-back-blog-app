@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 認証用のCookieを追加
+// AddAuthCookie は認証用のCookieを追加する。
 func AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"
@@ -26,7 +26,7 @@ func AddAuthCookie(c echo.Context, tokenString string, expirationTime time.Time)
 	c.SetCookie(cookie)
 }
 
-// 認証用のCookieを削除
+// DelAuthCookie は認証用のCookieを削除する。
 func DelAuthCookie(c echo.Context) {
 	cookie := new(http.Cookie)
 	cookie.Name = "token"

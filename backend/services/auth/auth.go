@@ -6,7 +6,7 @@ import (
 	"net/mail"
 )
 
-// ログイン処理を行う
+// Login はメール/パスワードを検証してログイン処理を行う。
 func (r *AuthServiceImpl) Login(email, password string) error {
 	log.Println("Logging in...")
 

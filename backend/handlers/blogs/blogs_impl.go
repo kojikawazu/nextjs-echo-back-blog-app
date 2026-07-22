@@ -9,7 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// 全ブログデータを取得する
+// FetchBlogs は全ブログデータを取得するエンドポイント。
 func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs...")
 
@@ -26,7 +26,7 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	return c.JSON(http.StatusOK, blogs)
 }
 
-// ユーザーIDでブログデータを取得する
+// FetchBlogsByUserId はユーザー ID でブログデータを取得するエンドポイント。
 func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs by userId...")
 
@@ -57,7 +57,7 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	return c.JSON(http.StatusOK, blogs)
 }
 
-// ブログIDでブログデータを取得する
+// FetchBlogById はブログ ID でブログデータを取得するエンドポイント。
 func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog by id...")
 
@@ -88,7 +88,7 @@ func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	return c.JSON(http.StatusOK, blog)
 }
 
-// ブログデータを作成する
+// CreateBlog はブログデータを作成するエンドポイント。
 func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog...")
 
@@ -171,7 +171,7 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	return c.JSON(http.StatusCreated, blog)
 }
 
-// ブログデータを更新する
+// UpdateBlog はブログデータを更新するエンドポイント。
 func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Updating blog...")
 
@@ -257,7 +257,7 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	return c.JSON(http.StatusOK, blog)
 }
 
-// ブログデータを削除する
+// DeleteBlog はブログデータを削除するエンドポイント。
 func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog...")
 
@@ -306,7 +306,7 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// ブログカテゴリーの取得
+// FetchBlogCategories はブログカテゴリーを取得するエンドポイント。
 func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 	utils.LogInfo(c, "Fetching categories...")
 
@@ -323,7 +323,7 @@ func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 	return c.JSON(http.StatusOK, categories)
 }
 
-// ブログタグの取得
+// FetchBlogTags はブログタグを取得するエンドポイント。
 func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 	utils.LogInfo(c, "Fetching tags...")
 
@@ -340,7 +340,7 @@ func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 	return c.JSON(http.StatusOK, tags)
 }
 
-// 人気のあるブログの取得
+// FetchBlogPopular は人気のあるブログを指定件数取得するエンドポイント。
 func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
 	utils.LogInfo(c, "Fetching popular blogs...")
 

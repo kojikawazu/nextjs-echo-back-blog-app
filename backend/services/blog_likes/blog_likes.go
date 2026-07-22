@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-// VisitIdに紐づくいいねデータを取得
+// FetchBlogLikesByVisitId は VisitId に紐づくいいねデータを取得する。
 func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikesData, error) {
 	log.Println("FetchBlogLikesByVisitId start...")
 
@@ -27,7 +27,7 @@ func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.
 	return blogLikes, nil
 }
 
-// いいね存在するか確認
+// IsBlogLiked はいいねが存在するかを確認する。
 func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")
 
@@ -47,7 +47,7 @@ func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) 
 	return isLiked, nil
 }
 
-// いいねデータの作成
+// CreateBlogLike はいいねデータを作成する。
 func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.BlogLikesData, error) {
 	log.Println("CreateBlogLike start...")
 
@@ -74,7 +74,7 @@ func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.Bl
 	return blogLike, nil
 }
 
-// いいねデータの削除
+// DeleteBlogLike はいいねデータを削除する。
 func (s *BlogLikeServiceImpl) DeleteBlogLike(blogId, visitId string) error {
 	log.Println("DeleteBlogLike start...")
 

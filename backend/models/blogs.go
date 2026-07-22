@@ -4,7 +4,7 @@ import (
 	"time"
 )
 
-// ブログの情報を表すデータ構造
+// BlogData はブログの情報を表すデータ構造。
 // 各フィールドには、JSONおよびデータベースのタグを指定。
 type BlogData struct {
 	ID          string    `json:"id" db:"id"`                     // UUID型

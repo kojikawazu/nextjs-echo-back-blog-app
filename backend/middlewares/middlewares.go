@@ -8,7 +8,7 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// ミドルウェアの設定
+// SetupMiddlewares は Echo にロガー・リカバリー・CORS の各ミドルウェアを設定する。
 func SetupMiddlewares(e *echo.Echo) {
 	// ロガーとリカバリーミドルウェアを使用
 	e.Use(middleware.Logger())

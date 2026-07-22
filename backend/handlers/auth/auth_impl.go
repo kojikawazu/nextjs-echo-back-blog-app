@@ -13,7 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ログインエンドポイント（JWTトークンの発行）
+// Login はメール/パスワードで認証し JWT トークンを発行するログインエンドポイント。
 func (h *AuthHandler) Login(c echo.Context) error {
 	utils.LogInfo(c, "Logging in...")
 
@@ -90,7 +90,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"message": "Login successful"})
 }
 
-// 認証確認エンドポイント
+// CheckAuth はクッキーの JWT トークンを検証する認証確認エンドポイント。
 func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	utils.LogInfo(c, "Checking authentication...")
 
@@ -147,7 +147,7 @@ func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	})
 }
 
-// ログアウトエンドポイント
+// Logout は認証クッキーを削除するログアウトエンドポイント。
 func (h *AuthHandler) Logout(c echo.Context) error {
 	utils.LogInfo(c, "Logging out...")
 

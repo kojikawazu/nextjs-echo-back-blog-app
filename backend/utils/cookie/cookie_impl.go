@@ -30,8 +30,10 @@ type CookieUtils interface {
 	GetVisitIdFromToken(c echo.Context, tokenString string) (string, error)
 }
 
+// CookieUtilsImpl は CookieUtils の実装。
 type CookieUtilsImpl struct{}
 
+// NewCookieUtils は CookieUtils を生成する。
 func NewCookieUtils() CookieUtils {
 	return &CookieUtilsImpl{}
 }

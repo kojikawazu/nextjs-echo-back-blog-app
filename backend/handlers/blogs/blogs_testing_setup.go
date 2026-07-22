@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Setup はテストの前に環境変数を読み込み、ログ設定を初期化します
+// SetupTest はテストの前に環境変数を読み込み、ログ設定を初期化する。
 func SetupTest(t *testing.T) {
 	// 環境変数の読み込み
 	err := godotenv.Load("../../../.env.test")

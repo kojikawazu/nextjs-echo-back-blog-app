@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-// ブログIDに一致するコメント情報を取得する
+// FetchCommentsByBlogId はブログIDに一致するコメント情報を取得する。
 func (r *CommentRepositoryImpl) FetchCommentsByBlogId(blogId string) ([]models.BlogCommentsData, error) {
 	log.Printf("FetchCommentsByBlogId start...")
 
@@ -53,7 +53,7 @@ func (r *CommentRepositoryImpl) FetchCommentsByBlogId(blogId string) ([]models.B
 	return comments, nil
 }
 
-// コメント情報を新規作成する
+// CreateComment はコメント情報を新規作成する。
 func (r *CommentRepositoryImpl) CreateComment(blogId, guestUser, comment string) (*models.BlogCommentsData, error) {
 	log.Printf("CreateComment start...")
 

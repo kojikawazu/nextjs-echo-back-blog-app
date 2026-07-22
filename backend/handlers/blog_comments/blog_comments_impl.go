@@ -7,7 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// ブログIDでコメントデータを取得する
+// FetchCommentsByBlogId はブログ ID でコメントデータを取得するエンドポイント。
 func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching comments by blogId...")
 
@@ -38,7 +38,7 @@ func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	return c.JSON(http.StatusOK, comments)
 }
 
-// コメントデータを新規作成する
+// CreateComment はコメントデータを新規作成するエンドポイント。
 func (h *CommentHandler) CreateComment(c echo.Context) error {
 	utils.LogInfo(c, "Creating comment...")
 

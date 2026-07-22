@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	// Supabaseとのやり取りに使用するグローバルなコンテキスト。
+	// Ctx は Supabase とのやり取りに使用するグローバルなコンテキスト。
 	Ctx = context.Background()
-	// Supabaseとの接続プールです。クエリ実行時に使用。
+	// Pool は Supabase との接続プール。クエリ実行時に使用する。
 	Pool *pgxpool.Pool
 )
 
-// Supabaseの接続を初期化
-// Supabaseの接続URLを環境変数から取得し、コネクションプールを設定する。
+// InitSupabase は Supabase の接続を初期化する。
+// 接続URLを環境変数から取得し、コネクションプールを設定する。
 // コネクションの最大数やアイドルタイム、シンプルプロトコルの使用を設定する。
 // 成功時にはnilを返し、接続に失敗した場合はエラーメッセージを返す。
 func InitSupabase() error {
@@ -58,7 +58,7 @@ func InitSupabase() error {
 	return nil
 }
 
-// Supabaseのコネクションプールをクローズ。
+// ClosePool は Supabase のコネクションプールをクローズする。
 // この関数はアプリケーションのシャットダウン時に呼び出されることを想定する。
 func ClosePool() {
 	if Pool != nil {
@@ -67,9 +67,9 @@ func ClosePool() {
 	}
 }
 
-// Supabaseに対してシンプルなクエリを実行し、接続が正しく動作しているかを確認する。
+// TestQuery は Supabase に対してシンプルなクエリを実行し、接続が正しく動作しているかを確認する。
 // クエリ結果として "1" を取得し、それをログに出力する。
-// クエリに失敗した場合、エラーを返する。
+// クエリに失敗した場合、エラーを返す。
 func TestQuery() error {
 	logger.InfoLog.Println("Testing query...")
 	query := `SELECT 1`

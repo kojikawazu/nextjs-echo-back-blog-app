@@ -5,12 +5,13 @@ import (
 	utils_cookie "backend/utils/cookie"
 )
 
+// BlogHandler はブログ系エンドポイントのハンドラ。
 type BlogHandler struct {
 	BlogService services_blogs.BlogService
 	CookieUtils utils_cookie.CookieUtils
 }
 
-// コンストラクタ
+// NewBlogHandler は BlogHandler を生成する。
 func NewBlogHandler(blogService services_blogs.BlogService, cookieUtils utils_cookie.CookieUtils) *BlogHandler {
 	return &BlogHandler{
 		BlogService: blogService,

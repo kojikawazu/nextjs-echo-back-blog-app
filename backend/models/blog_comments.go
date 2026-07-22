@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// ブログのコメント情報を表すデータ構造
+// BlogCommentsData はブログのコメント情報を表すデータ構造。
 // 各フィールドには、JSONおよびデータベースのタグを指定。
 type BlogCommentsData struct {
 	ID        string    `json:"id" db:"id"`                 // UUID型

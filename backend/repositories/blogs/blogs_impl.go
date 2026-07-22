@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// 全ブログデータを取得する
+// FetchBlogs は全ブログデータを取得する。
 func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogs start...")
 
@@ -83,7 +83,7 @@ func (r *BlogRepositoryImpl) FetchBlogs() ([]models.BlogData, error) {
 	return blogs, nil
 }
 
-// 指定されたユーザーIDに一致するブログデータを取得する
+// FetchBlogsByUserId は指定されたユーザーIDに一致するブログデータを取得する。
 func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogsByUserId start...")
 
@@ -159,7 +159,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 	return blogs, nil
 }
 
-// 指定されたIDに一致するブログデータを取得する
+// FetchBlogById は指定されたIDに一致するブログデータを取得する。
 func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogById start...")
 
@@ -216,7 +216,7 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 	return &blog, nil
 }
 
-// ブログデータの作成
+// CreateBlog はブログデータを作成する。
 func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("CreateBlog start...")
 
@@ -259,7 +259,7 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 	return &blog, nil
 }
 
-// ブログデータの更新
+// UpdateBlog はブログデータを更新する。
 func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("UpdateBlog start...")
 
@@ -322,7 +322,7 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 	return &blog, nil
 }
 
-// ブログデータの削除
+// DeleteBlog はブログデータを削除する。
 func (r *BlogRepositoryImpl) DeleteBlog(id string) error {
 	logger.InfoLog.Printf("DeleteBlog start...")
 
@@ -349,7 +349,7 @@ func (r *BlogRepositoryImpl) DeleteBlog(id string) error {
 	return nil
 }
 
-// ブログカテゴリ一覧を取得する
+// FetchBlogCategories はブログカテゴリ一覧を取得する。
 func (r *BlogRepositoryImpl) FetchBlogCategories() ([]string, error) {
 	logger.InfoLog.Printf("FetchBlogCategories start...")
 
@@ -392,7 +392,7 @@ func (r *BlogRepositoryImpl) FetchBlogCategories() ([]string, error) {
 	return categories, nil
 }
 
-// ブログタグ一覧を取得する
+// FetchBlogTags はブログタグ一覧を取得する。
 func (r *BlogRepositoryImpl) FetchBlogTags() ([]string, error) {
 	logger.InfoLog.Printf("FetchBlogTags start...")
 
@@ -435,7 +435,7 @@ func (r *BlogRepositoryImpl) FetchBlogTags() ([]string, error) {
 	return tags, nil
 }
 
-// 人気のあるブログを取得する
+// FetchBlogPopular は人気のあるブログを取得する。
 func (r *BlogRepositoryImpl) FetchBlogPopular(count int) ([]models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogPopular start...")
 
