@@ -371,7 +371,29 @@ terraform/
 
 ## 6. CI/CDパイプライン
 
-### 6.1 GitHub Actions ワークフロー
+GitHub Actions は 2 つのワークフローに責務を分離している。
+
+| ファイル | トリガー | 役割 |
+|---------|---------|------|
+| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + ユニットテスト）。マージ前に PR で実行される |
+| `.github/workflows/deploy.yml` | `main` への push | Docker ビルド → Artifact Registry へ push → Cloud Run へデプロイ |
+
+> テスト実行は `ci.yml` に一本化している。`deploy.yml` はデプロイ専任で、テスト・Go セットアップは持たない（PR 段階で `ci.yml` が品質を担保済みのため）。
+
+### 6.0 CI ワークフロー（品質ゲート）
+
+ファイル: `.github/workflows/ci.yml`
+
+PR・`main` への push で実行し、独立した 2 ジョブを並列に走らせる。
+
+| ジョブ | ステップ | 説明 |
+|-------|---------|------|
+| `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
+| `test` | `go test ./handlers/... ./services/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | 全 mock の Handler/Service 層 UT を実行。DB を必要としない |
+
+> 実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない（接続情報が必要なため）。ローカルで `.env.test` を用意して実行する。
+
+### 6.1 デプロイワークフロー
 
 ファイル: `.github/workflows/deploy.yml`
 
@@ -386,30 +408,30 @@ terraform/
 #### パイプラインフロー
 
 ```
-┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│  Checkout    │───>│  Setup Go &  │───>│  GCP認証     │───>│  Docker認証  │───>│  Build &     │───>│  Deploy to   │
-│  code        │    │  Unit Test   │    │              │    │  (GCR)       │    │  Push Image  │    │  Cloud Run   │
-└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────┬───────┘
-                                                                                                          │
-                                                                                                   ┌──────┴───────┐
-                                                                                                   │  Cleanup old │
-                                                                                                   │  images      │
-                                                                                                   └──────────────┘
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│  Checkout    │───>│  GCP認証     │───>│  Docker認証  │───>│  Build &     │───>│  Deploy to   │
+│  code        │    │              │    │  (GCR)       │    │  Push Image  │    │  Cloud Run   │
+└──────────────┘    └──────────────┘    └──────────────┘    └──────────────┘    └──────┬───────┘
+                                                                                       │
+                                                                                ┌──────┴───────┐
+                                                                                │  Cleanup old │
+                                                                                │  images      │
+                                                                                └──────────────┘
 ```
+
+> テストは `ci.yml`（PR・push 時）で実行済みのため、`deploy.yml` にテストステップは持たない。
 
 #### ステップ詳細
 
 | ステップ | Action/コマンド | 説明 |
 |---------|----------------|------|
 | 1. Checkout | `actions/checkout@v3` | ソースコードの取得 |
-| 2. Go セットアップ | `actions/setup-go@v5`（`go-version-file: backend/go.mod`） | go.mod のバージョンで Go をセットアップ |
-| 3. ユニットテスト | `go test ./handlers/... ./services/...`（`working-directory: backend`） | Handler/Service 層のテストを実行（`JWT_SECRET_KEY` を env で注入） |
-| 4. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキー（`credentials_json`）で認証 |
-| 5. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
-| 6. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
-| 7. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
-| 8. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
-| 9. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
+| 2. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキー（`credentials_json`）で認証 |
+| 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
+| 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
+| 5. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
+| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
+| 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
 #### 使用するGitHub Secrets
 
@@ -803,7 +825,7 @@ go test ./...
 
 - Repository 層テストは `backend/repositories/**/.._testing_setup.go` の `godotenv.Load("../../../.env.test")` で `backend/.env.test` を読み、実 DB に接続する（相対階層は移動後も保存されるため参照先は `backend/.env.test`）。
 - Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
-- CI（`.github/workflows/deploy.yml`）は DB 不要の `handlers` / `services` のみ `working-directory: backend` で実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
+- CI（`.github/workflows/ci.yml` の `test` ジョブ）は PR・`main` への push で DB 不要の `handlers` / `services` のみ `working-directory: backend` で実行する。実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない。詳細は [`08-test-specification.md`](08-test-specification.md)。
 
 ### 10.5 Docker での起動
 
