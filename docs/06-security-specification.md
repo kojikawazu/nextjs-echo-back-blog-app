@@ -250,7 +250,8 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 ### 6.5 SSL/TLS
 
-- Supabase接続には `sslmode=require` が強制される。
+- Supabase接続の SSL モードは環境変数 `DB_SSLMODE` で制御し、**未設定時は `require`**（本番デフォルト）。本番では `require` を維持する。
+- `disable` はローカルの非SSL DB（IT の testcontainers など）に接続する場合のみ使用する。接続文字列は `backend/supabase/client.go` の `buildConnString` が `SUPABASE_URL` に `sslmode` を付与して組み立てる。
 - Cloud RunはHTTPSを標準で提供するため、クライアント-サーバー間の通信は暗号化される。
 
 ## 7. SQLインジェクション対策

@@ -138,7 +138,13 @@
   - Repository層テスト: blogs, blog_users, blog_comments, blog_likes
   - テストフレームワーク: `testify v1.9.0`
   - モックベースのテスト（インターフェースDIを活用）
-  - テストセットアップヘルパー（`*_testing_setup.go`）
+
+- [x] **IT（Repository層）の testcontainers 化・CI 導入**
+  - 実 Supabase 直結から、使い捨て PostgreSQL コンテナ（`testcontainers-go` v0.35.0 + postgres モジュール）へ移行
+  - 共有ヘルパー `testsupport`（`//go:build integration`）で TestMain を統一。`SUPABASE_URL` 指定時は実 DB へフォールバック
+  - 決定的シード（`testsupport/testdata/schema.sql` / `seed.sql`）・接続断の異常系追加・脆いアサーション（SQLSTATE 全文一致）を緩和
+  - `supabase/client.go` の sslmode を `DB_SSLMODE`（既定 `require`）で環境変数化
+  - CI（`ci.yml`）に `integration-test` ジョブを追加（`go test -tags=integration ./repositories/...`）
 
 ## 改善タスク（未着手）
 
@@ -184,10 +190,9 @@
 
 ### ビルド・開発環境（優先度: 中）
 
-- [ ] **Go バージョンの統一**
-  - 現状: `go.mod`は`go 1.20`、`Dockerfile`は`golang:1.19`
-  - 対応: Dockerfileを`golang:1.20`以上に更新
-  - 備考: go.modの要求バージョンとビルド環境のバージョンを一致させる
+- [x] **Go バージョンの統一**
+  - 対応: `go.mod`を`go 1.22`、`Dockerfile`のビルドステージを`golang:1.22`に統一
+  - 備考: testcontainers-go（Go 1.21+ 要求）導入に合わせて実施
 
 ### コード品質（優先度: 低）
 
@@ -228,5 +233,5 @@
 | 優先度 | カテゴリ | タスク数 | 主要タスク |
 |--------|---------|---------|-----------|
 | 高 | セキュリティ | 4 | パスワードハッシュ化、CSRF保護、レート制限、入力サニタイズ |
-| 中 | データベース・ビルド | 4 | タグ正規化、型変更、ページネーション、Goバージョン統一 |
+| 中 | データベース | 3 | タグ正規化、型変更、ページネーション（Goバージョン統一は完了） |
 | 低 | コード品質・インフラ | 5 | バリデーションMW、構造化ログ、エラーハンドリング、認証MW、ヘルスチェック強化 |

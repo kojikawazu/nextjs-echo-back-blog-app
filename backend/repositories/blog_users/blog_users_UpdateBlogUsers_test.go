@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blog_users
 
 import (
@@ -7,9 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: 既知ユーザーを更新でき、更新後の値が返る。
 func TestRepository_UpdateBlogUsers(t *testing.T) {
-	setupSupabase()
-
 	repo := NewBlogUsersRepository()
 
 	testId := os.Getenv("TEST_USER_ID")
@@ -26,12 +27,10 @@ func TestRepository_UpdateBlogUsers(t *testing.T) {
 	assert.Equal(t, testEmail, user.Email)
 }
 
+// 準正常系: 存在しないIDでの更新は該当行なし（no rows）でエラーになる。
 func TestRepository_UpdateBlogUsers_NotFound(t *testing.T) {
-	setupSupabase()
-
 	repo := NewBlogUsersRepository()
 
-	// 存在しないIDで更新 → no rows → エラー
 	user, err := repo.UpdateBlogUsers("00000000-0000-0000-0000-000000000000", "name", "email@example.com", "pass")
 
 	assert.Error(t, err)

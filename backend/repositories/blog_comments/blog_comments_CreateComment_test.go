@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blog_comments
 
 import (
@@ -8,9 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: 既知ブログにコメントを作成でき、入力値がそのまま返る。
 func TestRepository_CreateComment(t *testing.T) {
-	setupSupabase(t)
-
 	repo := NewCommentRepository()
 
 	blogId := os.Getenv("TEST_BLOG_ID")
@@ -32,12 +33,10 @@ func TestRepository_CreateComment(t *testing.T) {
 	}
 }
 
+// 準正常系: UUID形式でないblogIdはPostgreSQLがエラーを返し、コメントは作成されない。
 func TestRepository_CreateComment_InvalidBlogId(t *testing.T) {
-	setupSupabase(t)
-
 	repo := NewCommentRepository()
 
-	// 不正なblogId（UUID形式でない）→ PostgreSQLがエラー
 	comment, err := repo.CreateComment("invalid-blog-id", "guest", "comment")
 
 	assert.Error(t, err)

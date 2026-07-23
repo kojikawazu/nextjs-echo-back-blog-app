@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blogs_test
 
 import (
@@ -7,15 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: カテゴリ一覧を取得でき、シード済みの "Tech" が含まれる。
 func TestRepository_FetchBlogCategories(t *testing.T) {
-	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
-	// メソッドを実行
 	categories, err := repo.FetchBlogCategories()
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.NotNil(t, categories)
 	assert.NotEmpty(t, categories)
+	assert.Contains(t, categories, "Tech")
 }

@@ -2,6 +2,11 @@
 #   ローカル実行例: golangci-lint run   （backend/ 内で実行）
 version: "2"
 
+run:
+  # integration build tag を付けた IT（repositories/**）も静的解析の対象に含める。
+  build-tags:
+    - integration
+
 linters:
   # v2 のデフォルト（errcheck, govet, ineffassign, staticcheck, unused）に
   # タイポ検出を追加する。gofmt/goimports は formatters 側で管理する。

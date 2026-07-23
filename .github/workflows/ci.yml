@@ -63,3 +63,22 @@ jobs:
         env:
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
         run: go test ./handlers/... ./services/...
+
+  # インテグレーションテスト（IT）。repositories 層を testcontainers 上の
+  # 使い捨て PostgreSQL に対して実行する（実 Supabase には接続しない）。
+  # GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+
+      - name: go test (repositories / testcontainers)
+        working-directory: backend
+        # SUPABASE_URL は設定しない → testsupport がコンテナを起動する。
+        run: go test -tags=integration ./repositories/...

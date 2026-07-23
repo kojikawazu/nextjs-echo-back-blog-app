@@ -1,6 +1,6 @@
 //go:build integration
 
-package repositories_blogs_test
+package repositories_blog_comments
 
 import (
 	"backend/testsupport"

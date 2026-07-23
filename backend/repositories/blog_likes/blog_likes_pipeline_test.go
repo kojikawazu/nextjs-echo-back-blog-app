@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blog_likes
 
 import (
@@ -8,11 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系（一連の流れ）: いいねの作成→存在確認→削除→削除確認を検証する。
 func TestRepository_BlogLike_Test(t *testing.T) {
-	// Supabaseクライアントの初期化
-	setupSupabase(t)
-
-	// リポジトリのインスタンスを作成
 	repo := NewBlogLikeRepository()
 
 	// UUIDを生成
@@ -27,7 +26,6 @@ func TestRepository_BlogLike_Test(t *testing.T) {
 		t.Fatalf("Failed to create blog like: %v", err)
 	}
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.NotNil(t, like)
 
@@ -39,7 +37,6 @@ func TestRepository_BlogLike_Test(t *testing.T) {
 		t.Fatalf("Failed to check if blog is liked: %v", err)
 	}
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.True(t, liked)
 
@@ -51,15 +48,13 @@ func TestRepository_BlogLike_Test(t *testing.T) {
 		t.Fatalf("Failed to delete blog like: %v", err)
 	}
 
-	// エラーチェック
 	assert.NoError(t, err)
 
 	// ---------------------------------------------------------
-	// 4. 「いいね」が削除されたことを確認
+	// 4. 「いいね」が削除されたことを確認（削除後なので false を期待）
 	// ---------------------------------------------------------
 	liked, err = repo.IsBlogLiked(blogID, visitorID)
 
-	// エラーチェックとデータ確認（削除後なので false を期待）
 	assert.Error(t, err)
 	assert.False(t, liked)
 }

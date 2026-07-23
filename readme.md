@@ -26,7 +26,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 
 | 分類 | 技術 | バージョン |
 |---|---|---|
-| 言語 | Go | 1.20 |
+| 言語 | Go | 1.22 |
 | Web フレームワーク | Echo | v4.12.0 |
 | DB ドライバ | pgx/v4（pgxpool） | v4.18.3 |
 | 認証 | golang-jwt/jwt（HS256） | v3.2.2 |
@@ -82,20 +82,23 @@ docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 
 ## テスト
 
-`go` コマンドは `backend/` 内で実行する。
+`go` コマンドは `backend/` 内で実行する。テストは 2 種類に分かれる。
 
 ```bash
 cd backend
 
-# 単体テスト（DB 不要・モック使用）。CI と同じ範囲
+# 単体テスト（UT）: DB 不要・全 mock。handlers / services。
 go test ./handlers/... ./services/...
 
-# 全テスト（Repository 層は実 DB へ接続するため .env.test が必要）
-cp .env.test.example .env.test   # SUPABASE_URL / JWT_SECRET_KEY を設定
-go test ./...
+# インテグレーションテスト（IT）: repositories 層。
+# 既定では testcontainers が使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
+go test -tags=integration ./repositories/...
 ```
 
-> CI（`ci.yml` の `test` ジョブ / PR・`main` への push）は DB 不要の `handlers` / `services` のみ実行する。実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
+- IT は `//go:build integration` タグで分離しているため、通常の `go test ./...` には含まれない。
+- IT は既定でコンテナを起動するため `.env.test` は不要。実 DB に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。
+
+> CI（`ci.yml`）は PR・`main` への push で、`test` ジョブ（UT）と `integration-test` ジョブ（IT / testcontainers）の両方を実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
 
 ## Lint / 静的解析
 
