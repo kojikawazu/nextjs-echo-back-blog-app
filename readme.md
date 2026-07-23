@@ -93,12 +93,16 @@ go test ./handlers/... ./services/...
 # インテグレーションテスト（IT）: repositories 層。
 # 既定では testcontainers が使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
 go test -tags=integration ./repositories/...
+
+# E2E（API-E2E）: 実サーバーを起動し HTTP フローを検証（Docker 稼働が前提）。
+# config が起動時に JWT_SECRET_KEY を要求するため env で渡す。
+JWT_SECRET_KEY=your-test-secret go test -tags=e2e ./e2e/...
 ```
 
-- IT は `//go:build integration` タグで分離しているため、通常の `go test ./...` には含まれない。
-- IT は既定でコンテナを起動するため `.env.test` は不要。実 DB に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。
+- IT は `//go:build integration`、E2E は `//go:build e2e` タグで分離しているため、通常の `go test ./...` には含まれない。
+- IT / E2E は既定でコンテナを起動するため `.env.test` は不要。実 DB に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。
 
-> CI（`ci.yml`）は PR・`main` への push で、`test` ジョブ（UT）と `integration-test` ジョブ（IT / testcontainers）の両方を実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
+> CI（`ci.yml`）は PR・`main` への push で、`test`（UT）・`integration-test`（IT / testcontainers）・`e2e-test`（API-E2E / testcontainers）の各ジョブを実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
 
 ## Lint / 静的解析
 
