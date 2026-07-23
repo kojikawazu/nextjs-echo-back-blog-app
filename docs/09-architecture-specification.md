@@ -375,7 +375,7 @@ GitHub Actions は 2 つのワークフローに責務を分離している。
 
 | ファイル | トリガー | 役割 |
 |---------|---------|------|
-| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + ユニットテスト）。マージ前に PR で実行される |
+| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + ユニットテスト + インテグレーションテスト）。マージ前に PR で実行される |
 | `.github/workflows/deploy.yml` | `main` への push | Docker ビルド → Artifact Registry へ push → Cloud Run へデプロイ |
 
 > テスト実行は `ci.yml` に一本化している。`deploy.yml` はデプロイ専任で、テスト・Go セットアップは持たない（PR 段階で `ci.yml` が品質を担保済みのため）。
@@ -384,14 +384,15 @@ GitHub Actions は 2 つのワークフローに責務を分離している。
 
 ファイル: `.github/workflows/ci.yml`
 
-PR・`main` への push で実行し、独立した 2 ジョブを並列に走らせる。
+PR・`main` への push で実行し、独立した 3 ジョブを並列に走らせる。
 
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
 | `test` | `go test ./handlers/... ./services/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | 全 mock の Handler/Service 層 UT を実行。DB を必要としない |
+| `integration-test` | `go test -tags=integration ./repositories/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない |
 
-> 実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない（接続情報が必要なため）。ローカルで `.env.test` を用意して実行する。
+> IT は `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。
 
 ### 6.1 デプロイワークフロー
 
@@ -456,7 +457,7 @@ PR・`main` への push で実行し、独立した 2 ジョブを並列に走�
 
 ```dockerfile
 # ビルドステージ
-FROM golang:1.19 as builder
+FROM golang:1.22 as builder
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -471,7 +472,7 @@ CMD ["/app/main"]
 
 | ステージ | ベースイメージ | 用途 |
 |---------|--------------|------|
-| builder | `golang:1.19` | Goアプリケーションのコンパイル |
+| builder | `golang:1.22` | Goアプリケーションのコンパイル |
 | runtime | `gcr.io/distroless/base` | 最小限のランタイム環境 |
 
 #### Distrolessイメージの特徴
@@ -487,6 +488,7 @@ CMD ["/app/main"]
 | 環境変数 | 説明 | 必須 |
 |---------|------|------|
 | `SUPABASE_URL` | Supabase（PostgreSQL）接続URL | はい |
+| `DB_SSLMODE` | 接続時の SSL モード（未設定時 `require`） | いいえ |
 | `JWT_SECRET_KEY` | JWT署名キー | はい |
 | `ALLOWED_ORIGINS` | CORS許可オリジン（カンマ区切り） | はい |
 | `ENV` | 環境識別子（`production` で本番Cookie設定） | はい |
@@ -663,17 +665,17 @@ backend/
 │   │   ├── blog_users.go           # BlogUsersRepository インターフェース
 │   │   ├── blog_users_impl.go      # SQL実装
 │   │   ├── blog_users_mock.go      # モック
-│   │   ├── blog_users_testing_setup.go
+│   │   ├── main_test.go            # TestMain（testsupport 経由でIT用DB準備）
 │   │   ├── blog_users_FetchUserById_test.go
 │   │   ├── blog_users_FetchUserByEmailAndPassword_test.go
-│   │   └── blog_users_UpdateBlogUsers_test.go
+│   │   ├── blog_users_UpdateBlogUsers_test.go
+│   │   └── zz_connection_closed_test.go  # 異常系（接続断で安全に失敗）
 │   ├── blogs/
 │   │   ├── blogs.go                # BlogRepository インターフェース
 │   │   ├── blogs_impl.go           # SQL実装（JOIN、集計クエリ含む）
 │   │   ├── blogs_mock.go           # モック
-│   │   ├── blogs_testing_setup.go  # テストセットアップ
-│   │   └── test/                   # Repository テスト群
-│   │       ├── main_test.go
+│   │   └── test/                   # Repository テスト群（IT）
+│   │       ├── main_test.go        # TestMain（testsupport 経由でIT用DB準備）
 │   │       ├── blogs_FetchBlogs_test.go
 │   │       ├── blogs_FetchBlogById_test.go
 │   │       ├── blogs_FetchBlogsByUserId_test.go
@@ -683,22 +685,32 @@ backend/
 │   │       ├── blogs_CreateBlog_test.go
 │   │       ├── blogs_UpdateBlog_test.go
 │   │       ├── blogs_DeleteBlog_test.go
-│   │       └── blogs_pipeline_test.go
+│   │       ├── blogs_pipeline_test.go
+│   │       └── zz_connection_closed_test.go  # 異常系（接続断で安全に失敗）
 │   ├── blog_likes/
 │   │   ├── blog_likes.go           # BlogLikeRepository インターフェース
 │   │   ├── blog_likes_impl.go      # SQL実装
 │   │   ├── blog_likes_mock.go      # モック
-│   │   ├── blog_testing_setup.go
-│   │   └── blog_likes_pipeline_test.go
+│   │   ├── main_test.go            # TestMain（testsupport 経由でIT用DB準備）
+│   │   ├── blog_likes_pipeline_test.go
+│   │   └── zz_connection_closed_test.go  # 異常系（接続断で安全に失敗）
 │   └── blog_comments/
 │       ├── blog_comments.go        # CommentRepository インターフェース
 │       ├── blog_comments_impl.go   # SQL実装
 │       ├── blog_comments_mock.go   # モック
-│       ├── blog_comments_testing_setup.go
-│       └── blog_comments_FetchCommentsByBlogId_test.go
+│       ├── main_test.go            # TestMain（testsupport 経由でIT用DB準備）
+│       ├── blog_comments_CreateComment_test.go
+│       ├── blog_comments_FetchCommentsByBlogId_test.go
+│       └── zz_connection_closed_test.go  # 異常系（接続断で安全に失敗）
 │
 ├── supabase/                        # Supabase接続管理
 │   └── client.go                   # 接続プール初期化・テストクエリ・クローズ
+│
+├── testsupport/                     # IT（Repository層）共有ヘルパー（build tag: integration）
+│   ├── testdb.go                   # testcontainers 起動 or 実DB接続の切替・TestMain 委譲先
+│   └── testdata/
+│       ├── schema.sql              # IT用スキーマ（コードのテーブル名に一致）
+│       └── seed.sql                # 決定的シード（固定UUID）
 │
 ├── utils/                           # ユーティリティ
 │   ├── cookie/
@@ -771,11 +783,11 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 | ツール | バージョン | 用途 |
 |--------|-----------|------|
-| Go | 1.20 以上（`go.mod` は `go 1.20`） | アプリケーションのビルド・実行 |
+| Go | 1.22 以上（`go.mod` は `go 1.22`） | アプリケーションのビルド・実行 |
 | Supabase / PostgreSQL | - | 稼働中の接続先（無料枠で可）。起動時に接続テスト `SELECT 1` を実行する |
-| Docker | 任意 | コンテナで起動する場合のみ |
+| Docker | アプリのコンテナ起動時、および IT（testcontainers）実行時に必須 | Repository 層 IT はコンテナで PostgreSQL を起動する |
 
-> 注意: `Dockerfile` のビルドステージは現状 `golang:1.19` で、`go.mod` の `go 1.20` と不一致（[`11-tasks.md`](11-tasks.md) の改善タスク参照）。ローカルでは 1.20 以上を使用すること。
+> `go.mod`（`go 1.22`）と `Dockerfile` のビルドステージ（`golang:1.22`）はバージョンを一致させている。
 
 ### 10.2 セットアップ手順
 
@@ -802,7 +814,8 @@ go run main.go
 | 変数名 | 必須 | 説明 | 参照コード |
 |--------|------|------|-----------|
 | `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `backend/config/config.go:9,12-15` |
-| `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=require` はコードが自動付与 | `backend/supabase/client.go:28` |
+| `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=<DB_SSLMODE>` はコードが自動付与 | `backend/supabase/client.go` |
+| `DB_SSLMODE` | - | 接続時の SSL モード。未設定時 `require`（本番）。非SSLのDBは `disable` | `backend/supabase/client.go` |
 | `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:17` |
 | `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `backend/config/config.go:10` |
 | `PORT` | - | リッスンポート（既定 8080） | `backend/main.go:74-77` |
@@ -815,17 +828,18 @@ go run main.go
 ```bash
 cd backend
 
-# 単体テスト（DB 不要・モック使用）。CI と同じ範囲
+# 単体テスト（UT / DB 不要・全 mock）
 go test ./handlers/... ./services/...
 
-# 全テスト（Repository 層は実 DB へ接続）
-cp .env.test.example .env.test   # SUPABASE_URL / JWT_SECRET_KEY を設定
-go test ./...
+# インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
+# 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
+go test -tags=integration ./repositories/...
 ```
 
-- Repository 層テストは `backend/repositories/**/.._testing_setup.go` の `godotenv.Load("../../../.env.test")` で `backend/.env.test` を読み、実 DB に接続する（相対階層は移動後も保存されるため参照先は `backend/.env.test`）。
+- IT は `//go:build integration` タグで分離されており、通常の `go test ./...` には含まれない。各パッケージの `TestMain` が `backend/testsupport` の `Start` を呼び、コンテナ起動・スキーマ/シード適用・接続を一括で行う。
+- IT は `SUPABASE_URL` を環境変数として指定した場合のみ、コンテナを起動せずその DB に接続する（`TEST_*` も併せて指定すること）。`testsupport` は `.env` ファイルを自動読み込みしない（古い `.env.test` によるコンテナ経路の意図しない乗っ取りを防ぐため）。
 - Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
-- CI（`.github/workflows/ci.yml` の `test` ジョブ）は PR・`main` への push で DB 不要の `handlers` / `services` のみ `working-directory: backend` で実行する。実 DB 接続が必要な `repositories` 層（IT）は CI では実行しない。詳細は [`08-test-specification.md`](08-test-specification.md)。
+- CI（`.github/workflows/ci.yml`）は PR・`main` への push で `test` ジョブ（UT）と `integration-test` ジョブ（IT / testcontainers）を `working-directory: backend` で実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
 
 ### 10.5 Docker での起動
 

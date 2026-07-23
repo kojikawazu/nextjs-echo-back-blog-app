@@ -1,5 +1,5 @@
 # ビルドステージ
-FROM golang:1.19 as builder
+FROM golang:1.22 as builder
 WORKDIR /app
 COPY . .
 RUN go mod download

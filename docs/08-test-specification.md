@@ -40,16 +40,18 @@
 
 | テストレベル | 対象層 | テスト種別 | DB接続 | モック使用 |
 |-------------|--------|-----------|--------|-----------|
-| Repository テスト | Repository層 | 結合テスト | 必要（Supabase） | なし |
-| Service テスト | Service層 | 単体テスト | 不要 | Repository モック |
-| Handler テスト | Handler層 | 単体テスト | 不要 | Service モック + Cookie モック |
+| Repository テスト | Repository層 | インテグレーション（IT） | 必要（既定は testcontainers の使い捨て PostgreSQL。`SUPABASE_URL` 指定時は実DB） | なし |
+| Service テスト | Service層 | 単体テスト（UT） | 不要 | Repository モック |
+| Handler テスト | Handler層 | 単体テスト（UT） | 不要 | Service モック + Cookie モック |
+
+> IT は `//go:build integration` タグで分離しており、実行は `go test -tags=integration ./repositories/...`。通常の `go test ./...`（UT）には含まれない。
 
 ### テストピラミッド
 
 ```
         /  Handler テスト  \        ← HTTPリクエスト/レスポンスの検証
        / Service テスト      \      ← ビジネスロジックの検証
-      / Repository テスト      \    ← データアクセスの検証（実DB）
+      / Repository テスト      \    ← データアクセスの検証（testcontainers / 実DB）
      /_________________________\
 ```
 
@@ -59,39 +61,48 @@
 
 | ツール | バージョン | 用途 |
 |--------|----------|------|
-| testing（標準パッケージ） | Go 1.20 | テストフレームワーク |
+| testing（標準パッケージ） | Go 1.22 | テストフレームワーク |
 | github.com/stretchr/testify | v1.9.0 | アサーション（assert）・モック（mock） |
-| net/http/httptest（標準パッケージ） | Go 1.20 | HTTPリクエスト/レスポンスのテスト |
-| github.com/joho/godotenv | v1.5.1 | テスト用環境変数の読み込み |
+| net/http/httptest（標準パッケージ） | Go 1.22 | HTTPリクエスト/レスポンスのテスト |
+| github.com/testcontainers/testcontainers-go | v0.35.0 | IT用の使い捨て PostgreSQL コンテナ（postgres モジュール） |
+| github.com/jackc/pgconn | v1.14.3 | IT のエラー検証（`PgError.Code` で SQLSTATE を判定） |
 | github.com/labstack/echo/v4 | v4.12.0 | Echoコンテキストの生成 |
 
 ---
 
 ## 3. テストファイル構成
 
-### 3.1 テストファイル一覧（全63ファイル）
+### 3.1 テストファイル一覧（主要ファイル）
 
 #### Repository層テスト（結合テスト）
 
 | ファイルパス | テスト対象 |
 |-------------|-----------|
-| `repositories/blogs/test/main_test.go` | TestMain（セットアップ） |
+| `repositories/blogs/test/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blogs/test/blogs_FetchBlogs_test.go` | 全ブログ取得 |
-| `repositories/blogs/test/blogs_FetchBlogById_test.go` | ブログID指定取得 |
-| `repositories/blogs/test/blogs_FetchBlogsByUserId_test.go` | ユーザーID指定取得 |
+| `repositories/blogs/test/blogs_FetchBlogById_test.go` | ブログID指定取得 + 準正常系（不正UUID） |
+| `repositories/blogs/test/blogs_FetchBlogsByUserId_test.go` | ユーザーID指定取得 + 準正常系（不正UUID） |
 | `repositories/blogs/test/blogs_FetchBlogCategories_test.go` | カテゴリ取得 |
 | `repositories/blogs/test/blogs_FetchBlogTags_test.go` | タグ取得 |
-| `repositories/blogs/test/blogs_FetchBlogPopular_test.go` | 人気ブログ取得 |
-| `repositories/blogs/test/blogs_CreateBlog_test.go` | ブログ作成 |
-| `repositories/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新 |
-| `repositories/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除 |
+| `repositories/blogs/test/blogs_FetchBlogPopular_test.go` | 人気ブログ取得 + 境界（0件） |
+| `repositories/blogs/test/blogs_CreateBlog_test.go` | ブログ作成（異常系: 空userId） |
+| `repositories/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新（異常系: 空id） |
+| `repositories/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除（異常系: 空id） |
 | `repositories/blogs/test/blogs_pipeline_test.go` | ブログCRUDパイプライン |
-| `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 |
-| `repositories/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 |
-| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 |
-| `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 |
-| `repositories/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 |
+| `repositories/blogs/test/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `repositories/blog_users/main_test.go` | TestMain（`testsupport.Start` 委譲） |
+| `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 + 準正常系（空id） |
+| `repositories/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 + 準正常系 |
+| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 + 準正常系（存在しないID） |
+| `repositories/blog_users/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `repositories/blog_comments/main_test.go` | TestMain（`testsupport.Start` 委譲） |
+| `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 + 準正常系（不正UUID） |
+| `repositories/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 + 準正常系（不正UUID） |
+| `repositories/blog_comments/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `repositories/blog_likes/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_likes/blog_likes_pipeline_test.go` | いいねCRUDパイプライン |
+| `repositories/blog_likes/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `testsupport/testdb.go` | IT共有ヘルパー（testcontainers 起動 / 実DB切替、TestMain 委譲先） |
 
 #### Service層テスト（単体テスト）
 
@@ -179,24 +190,24 @@ func TestMain(m *testing.M) {
 
 テストセットアップは、テストレベルに応じて2種類存在する。
 
-#### Repository層セットアップ（DB接続あり）
+#### Repository層セットアップ（IT / testsupport 経由）
+
+各 Repository テストパッケージの `TestMain` は、共有ヘルパー `backend/testsupport` の `Start` に委譲する（`//go:build integration`）。
 
 ```go
-func SetupTest(t *testing.T) {
-    // 環境変数の読み込み（.env.test）
-    godotenv.Load("../../../.env.test")
+//go:build integration
 
-    // ログ設定の初期化
-    logger.InitLogger()
-
-    // Supabaseクライアントの初期化
-    supabase.InitSupabase()
+func TestMain(m *testing.M) {
+    os.Exit(testsupport.Start(m))
 }
 ```
 
-- 環境変数ファイル `.env.test` からDB接続情報を読み込む
-- Supabase（PostgreSQL）への接続プールを初期化する
-- パスは相対パスで指定（テストファイルの配置場所に依存）
+`testsupport.Start` の動作:
+
+- `SUPABASE_URL` が**実環境変数として**設定済み → その DB を使う（実 Supabase 等。`TEST_*` も呼び出し側が指定）。
+- 未設定（既定） → `testcontainers` で使い捨ての PostgreSQL を起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用、`SUPABASE_URL` / `DB_SSLMODE=disable` / `TEST_*`（固定UUID）を設定してから接続する。テスト終了時にプールをクローズしコンテナを破棄する。
+- `.env` ファイルの自動読み込みは行わない（古い `.env.test` がコンテナ経路を意図せず乗っ取るのを防ぐため）。
+- モジュールルート（`go.mod`）を上方向探索で特定するため、旧来のパッケージ階層依存の相対パス（`../../` と `../../../` の混在）は解消済み。
 
 #### Service/Handler層セットアップ（DB接続なし）
 
@@ -321,44 +332,53 @@ func SetMockBlogCookies(c echo.Context, req *http.Request, mockCookieUtils *util
 
 ## 6. テストカテゴリ別詳細
 
-### 6.1 Repository テスト（結合テスト）
+### 6.1 Repository テスト（インテグレーション / IT）
 
 #### 概要
 
-- 実際のSupabase（PostgreSQL）データベースに接続してテストを実行する
-- テストデータは事前に環境変数で指定されたIDを使用する
-- CRUD操作の正常系・異常系を検証する
+- 既定では `testcontainers` が使い捨ての PostgreSQL を起動し、決定的シードに対してテストを実行する（実 Supabase には接続しない）。
+- `SUPABASE_URL` を環境変数で指定した場合のみ、その実 DB に接続する（`TEST_*` も併せて指定）。
+- 3分類（正常系 / 準正常系 / 異常系）を検証する。
 
 #### 環境変数要件
 
+testcontainers 経路では `testsupport` が下記を自動設定するため、実行時に指定するものは無い（Docker 稼働のみ前提）。実 DB 経路では呼び出し側が環境変数で与える。
+
 | 環境変数 | 説明 | 用途 |
 |---------|------|------|
-| `SUPABASE_URL` | Supabase接続URL | DB接続 |
-| `JWT_SECRET_KEY` | JWT署名キー | config初期化 |
-| `TEST_USER_ID` | テスト用ユーザーID (UUID) | ユーザー関連テスト |
-| `TEST_BLOG_ID` | テスト用ブログID (UUID) | ブログ取得テスト |
-| `TEST_MODE` | テストモードフラグ (`true`) | ログ抑制 |
+| `SUPABASE_URL` | 接続URL。**未設定なら testcontainers を起動** | DB接続の切替 |
+| `DB_SSLMODE` | SSLモード（コンテナ経路では `disable`） | SSL設定 |
+| `TEST_USER_ID` / `TEST_USER_NAME` / `TEST_USER_EMAIL` / `TEST_USER_PASSWD` | シード済みユーザーに対応する値 | ユーザー関連テスト |
+| `TEST_BLOG_ID` | シード済みブログID (UUID) | ブログ取得テスト |
 
-#### テスト対象機能
+> Repository テストは `config` パッケージを import しないため `JWT_SECRET_KEY` は不要。
 
-- 正常系: データ取得、作成、更新、削除
-- 異常系: 存在しないID、無効なUUID形式、空文字パラメータ
-- パイプラインテスト: CRUD操作の一連の流れ（Create → Read → Update → Delete）
+#### 分類とテスト対象
 
-#### テストの特徴
+- 正常系: データ取得・作成・更新・削除（シードの既知値に対する具体値アサーション）。
+- 準正常系: 存在しないID・無効なUUID形式・空文字パラメータ。
+- 異常系: コネクションプールがクローズ済みでもクエリが panic せず error を返すこと（`zz_connection_closed_test.go`）。
+- パイプラインテスト: CRUD操作の一連の流れ（Create → Read → Update → Delete）。
+
+#### テストの特徴（脆いアサーションの緩和）
+
+エラーメッセージ全文一致ではなく、SQLSTATE コードで検証し、PostgreSQL/ドライバのバージョン差異に強くしている。
 
 ```go
-// 正常系: 環境変数からテストデータIDを取得
+// 正常系: シードの既知値を具体的に検証
 id := os.Getenv("TEST_BLOG_ID")
 blog, err := repo.FetchBlogById(id)
 assert.NoError(t, err)
-assert.NotNil(t, blog)
+assert.Equal(t, "Test Blog Title", blog.Title)
 
-// 異常系: 無効なUUID形式のエラーを検証
-blog, err := repo.FetchBlogById("2")
+// 準正常系: 無効なUUIDは SQLSTATE 22P02 を検証（メッセージ全文には依存しない）
+blog, err = repo.FetchBlogById("2")
 assert.Error(t, err)
 assert.Nil(t, blog)
-assert.Equal(t, "ERROR: invalid input syntax for type uuid: \"2\" (SQLSTATE 22P02)", err.Error())
+var pgErr *pgconn.PgError
+if assert.ErrorAs(t, err, &pgErr) {
+    assert.Equal(t, "22P02", pgErr.Code)
+}
 ```
 
 ### 6.2 Service テスト（単体テスト）
@@ -443,19 +463,25 @@ func TestHandler_FetchBlogs(t *testing.T) {
 ### 全テスト実行
 
 ```bash
+# UT（DB不要）
 go test ./... -v
+
+# IT（Repository層 / testcontainers。Docker 稼働が前提）
+go test -tags=integration ./repositories/... -v
 ```
+
+> `go test ./...`（タグなし）に IT は含まれない（`//go:build integration` で分離）。
 
 ### 特定パッケージのテスト実行
 
 ```bash
-# Repository テスト（DB接続が必要）
-go test ./repositories/blogs/test/... -v
+# Repository テスト（IT / testcontainers）
+go test -tags=integration ./repositories/blogs/test/... -v
 
-# Service テスト
+# Service テスト（UT）
 go test ./services/blogs/test/... -v
 
-# Handler テスト
+# Handler テスト（UT）
 go test ./handlers/blogs/test/... -v
 ```
 
@@ -468,6 +494,7 @@ go test ./handlers/blogs/test/... -v -run TestHandler_FetchBlogs
 ### テストカバレッジの計測
 
 ```bash
+# UT
 go test ./... -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```

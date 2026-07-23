@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blogs_test
 
 import (
@@ -7,15 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: タグ一覧を取得でき、シード済みの "go,testing" が含まれる。
 func TestRepository_FetchBlogTags(t *testing.T) {
-	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
-	// メソッドを実行
 	tags, err := repo.FetchBlogTags()
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.NotNil(t, tags)
 	assert.NotEmpty(t, tags)
+	assert.Contains(t, tags, "go,testing")
 }

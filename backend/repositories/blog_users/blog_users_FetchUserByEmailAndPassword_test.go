@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blog_users
 
 import (
@@ -7,41 +9,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: 既知のメール・パスワードでユーザーを取得できる。
 func TestRepository_FetchUserByEmailAndPassword(t *testing.T) {
-	// Supabaseクライアントの初期化
-	setupSupabase()
-
-	// リポジトリのインスタンスを作成
 	repo := NewBlogUsersRepository()
 
-	// テスト用の環境変数を取得
 	testName := os.Getenv("TEST_USER_NAME")
 	testEmail := os.Getenv("TEST_USER_EMAIL")
 	testPasswd := os.Getenv("TEST_USER_PASSWD")
 
-	// メソッドを実行
 	user, err := repo.FetchBlogUsersByEmailAndPassword(testEmail, testPasswd)
 	if err != nil {
 		t.Fatalf("Failed to fetch user: %v", err)
 	}
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.Equal(t, testName, user.Name)
 	assert.Equal(t, testEmail, user.Email)
 }
 
+// 準正常系: 空のメール・パスワードは該当行なしでエラーになり、ユーザーは返らない。
 func TestRepository_FetchUserByEmailAndPassword_ErrorCases(t *testing.T) {
-	// Supabaseクライアントの初期化
-	setupSupabase()
-
-	// リポジトリのインスタンスを作成
 	repo := NewBlogUsersRepository()
 
-	// メソッドを実行
 	user, err := repo.FetchBlogUsersByEmailAndPassword("", "")
 
-	// エラーチェックとデータ確認
 	assert.Error(t, err)
 	assert.Nil(t, user)
 }

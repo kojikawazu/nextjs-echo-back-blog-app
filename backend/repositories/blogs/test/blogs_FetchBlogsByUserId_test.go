@@ -1,3 +1,5 @@
+//go:build integration
+
 package repositories_blogs_test
 
 import (
@@ -5,37 +7,40 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jackc/pgconn"
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: 既知ユーザーのブログ一覧を取得でき、2件以上が返る。
 func TestRepository_FetchBlogsByUserId(t *testing.T) {
-	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
-	// 環境変数からユーザIDを取得
 	testUserId := os.Getenv("TEST_USER_ID")
 
-	// メソッドを実行
 	blogs, err := repo.FetchBlogsByUserId(testUserId)
 	if err != nil {
 		t.Fatalf("Failed to fetch blog: %v", err)
 	}
 
-	// エラーチェックとデータ確認
 	assert.NoError(t, err)
 	assert.NotNil(t, blogs)
 	assert.GreaterOrEqual(t, len(blogs), 2)
+	for _, b := range blogs {
+		assert.Equal(t, testUserId, b.BlogUserId)
+	}
 }
 
+// 準正常系: UUID形式でないID（"2"）は 22P02 でエラーになる（SQLSTATE で検証）。
 func TestRepository_FetchBlogsByUserId_ErrorCase(t *testing.T) {
-	// リポジトリのインスタンスを作成
 	repo := repositories_blogs.NewBlogRepository()
 
-	// メソッドを実行
 	blogs, err := repo.FetchBlogsByUserId("2")
 
-	// エラーチェックとデータ確認
 	assert.Error(t, err)
 	assert.Nil(t, blogs)
-	assert.Equal(t, "ERROR: invalid input syntax for type uuid: \"2\" (SQLSTATE 22P02)", err.Error())
+
+	var pgErr *pgconn.PgError
+	if assert.ErrorAs(t, err, &pgErr) {
+		assert.Equal(t, "22P02", pgErr.Code)
+	}
 }
