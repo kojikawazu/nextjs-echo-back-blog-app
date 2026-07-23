@@ -40,19 +40,21 @@
 
 | テストレベル | 対象層 | テスト種別 | DB接続 | モック使用 |
 |-------------|--------|-----------|--------|-----------|
+| E2E テスト | 全層（HTTP→Handler→Service→Repository→DB） | エンドツーエンド（E2E） | 必要（既定は testcontainers。`SUPABASE_URL` 指定時は実DB） | なし（実サーバーを httptest で起動） |
 | Repository テスト | Repository層 | インテグレーション（IT） | 必要（既定は testcontainers の使い捨て PostgreSQL。`SUPABASE_URL` 指定時は実DB） | なし |
 | Service テスト | Service層 | 単体テスト（UT） | 不要 | Repository モック |
 | Handler テスト | Handler層 | 単体テスト（UT） | 不要 | Service モック + Cookie モック |
 
-> IT は `//go:build integration` タグで分離しており、実行は `go test -tags=integration ./repositories/...`。通常の `go test ./...`（UT）には含まれない。
+> IT は `//go:build integration`、E2E は `//go:build e2e` タグで分離しており、実行は `go test -tags=integration ./repositories/...` / `go test -tags=e2e ./e2e/...`。通常の `go test ./...`（UT）には含まれない。
 
 ### テストピラミッド
 
 ```
-        /  Handler テスト  \        ← HTTPリクエスト/レスポンスの検証
-       / Service テスト      \      ← ビジネスロジックの検証
-      / Repository テスト      \    ← データアクセスの検証（testcontainers / 実DB）
-     /_________________________\
+        /    E2E テスト     \        ← 実サーバーへの HTTP フロー検証（testcontainers / 実DB）
+       /  Handler テスト     \       ← HTTPリクエスト/レスポンスの検証
+      /  Service テスト        \     ← ビジネスロジックの検証
+     / Repository テスト         \   ← データアクセスの検証（testcontainers / 実DB）
+    /_____________________________\
 ```
 
 ---
@@ -454,6 +456,41 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | 認証エラー | Cookie未設定時の401レスポンス |
 | バリデーションエラー | 不正パラメータ時の400レスポンス |
 
+### 6.4 E2E テスト（API-E2E）
+
+#### 概要
+
+- `httptest.NewServer` で本番同等の Echo アプリ（`middlewares.SetupMiddlewares` + `routes.SetupRoutes`）を起動し、**実 HTTP リクエスト**で `Handler → Service → Repository → DB` を貫くフローを検証する。
+- DB は `testsupport`（既定は testcontainers の使い捨て PostgreSQL）を再利用。モックは使わない。
+- `http.Client` + `cookiejar` で認証 Cookie（`token` / `visit-id-token`）をリクエスト間で引き継ぐ。
+- 範囲は**正常系 + 準正常系**（純異常系は対象外）。
+- `//go:build e2e` で分離。実行は `JWT_SECRET_KEY=... go test -tags=e2e ./e2e/...`。
+
+> `config` パッケージが**起動時（init）**に `JWT_SECRET_KEY` を要求するため、E2E はバイナリ起動時に環境変数として渡す必要がある。
+
+#### テストファイル（`e2e/`）
+
+| ファイル | 検証フロー |
+|---------|-----------|
+| `main_test.go` | TestMain（`testsupport.Setup` + httptest サーバ起動） |
+| `helpers_test.go` | HTTP クライアント/リクエスト/ログインの共通ヘルパ |
+| `health_test.go` | 正常系: `GET /` → 200 |
+| `auth_flow_test.go` | 正常系: login→auth-check→logout→auth-check(401) / 準正常系: 誤パスワード401・欠落400・Cookie無し401 |
+| `blogs_read_test.go` | 正常系: 一覧・詳細・カテゴリ・タグ・人気 / 準正常系: 存在しないID → 404 |
+| `blogs_crud_test.go` | 正常系: 作成(201)→詳細→更新(200)→削除(204) / 準正常系: 未認証作成 → 401 |
+| `likes_comments_test.go` | 正常系: 訪問者ID発行→いいね作成/確認/削除、コメント一覧/作成(201) |
+
+#### 主なエンドポイントの期待ステータス（E2E で確定）
+
+| 操作 | 期待 |
+|------|------|
+| ログイン成功 / 失敗 / 欠落 | 200 / 401 / 400 |
+| ブログ作成（認証） / 未認証 | 201 / 401 |
+| ブログ更新 / 削除 | 200 / **204** |
+| ブログ詳細（存在しないID） | 404 |
+| いいね 作成 / 削除 / 状態確認 | 200 / 200 / 200 |
+| コメント 作成 / 一覧 | 201 / 200 |
+
 ---
 
 ## 7. テスト実行方法
@@ -468,9 +505,12 @@ go test ./... -v
 
 # IT（Repository層 / testcontainers。Docker 稼働が前提）
 go test -tags=integration ./repositories/... -v
+
+# E2E（API-E2E / testcontainers。Docker 稼働が前提。JWT_SECRET_KEY を env で渡す）
+JWT_SECRET_KEY=your-test-secret go test -tags=e2e ./e2e/... -v
 ```
 
-> `go test ./...`（タグなし）に IT は含まれない（`//go:build integration` で分離）。
+> `go test ./...`（タグなし）に IT・E2E は含まれない（`//go:build integration` / `//go:build e2e` で分離）。
 
 ### 特定パッケージのテスト実行
 

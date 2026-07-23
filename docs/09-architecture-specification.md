@@ -375,7 +375,7 @@ GitHub Actions は 2 つのワークフローに責務を分離している。
 
 | ファイル | トリガー | 役割 |
 |---------|---------|------|
-| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + ユニットテスト + インテグレーションテスト）。マージ前に PR で実行される |
+| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + UT + IT + E2E）。マージ前に PR で実行される |
 | `.github/workflows/deploy.yml` | `main` への push | Docker ビルド → Artifact Registry へ push → Cloud Run へデプロイ |
 
 > テスト実行は `ci.yml` に一本化している。`deploy.yml` はデプロイ専任で、テスト・Go セットアップは持たない（PR 段階で `ci.yml` が品質を担保済みのため）。
@@ -384,15 +384,16 @@ GitHub Actions は 2 つのワークフローに責務を分離している。
 
 ファイル: `.github/workflows/ci.yml`
 
-PR・`main` への push で実行し、独立した 3 ジョブを並列に走らせる。
+PR・`main` への push で実行し、独立した 4 ジョブを並列に走らせる。
 
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
 | `test` | `go test ./handlers/... ./services/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | 全 mock の Handler/Service 層 UT を実行。DB を必要としない |
 | `integration-test` | `go test -tags=integration ./repositories/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない |
+| `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
-> IT は `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。
+> IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。
 
 ### 6.1 デプロイワークフロー
 
@@ -706,11 +707,21 @@ backend/
 ├── supabase/                        # Supabase接続管理
 │   └── client.go                   # 接続プール初期化・テストクエリ・クローズ
 │
-├── testsupport/                     # IT（Repository層）共有ヘルパー（build tag: integration）
-│   ├── testdb.go                   # testcontainers 起動 or 実DB接続の切替・TestMain 委譲先
+├── testsupport/                     # IT/E2E 共有ヘルパー（build tag: integration || e2e）
+│   ├── testdb.go                   # testcontainers 起動 or 実DB接続の切替（Setup / Start）
 │   └── testdata/
-│       ├── schema.sql              # IT用スキーマ（コードのテーブル名に一致）
+│       ├── schema.sql              # スキーマ（コードのテーブル名に一致）
 │       └── seed.sql                # 決定的シード（固定UUID）
+│
+├── e2e/                             # API-E2E テスト（build tag: e2e）
+│   ├── doc.go                      # パッケージ宣言（デフォルトビルドで有効化するプレースホルダ）
+│   ├── main_test.go                # TestMain（DB準備 + httptest サーバ起動）
+│   ├── helpers_test.go             # HTTP クライアント/リクエストヘルパ
+│   ├── health_test.go              # ヘルスチェック
+│   ├── auth_flow_test.go           # ログイン→認証確認→ログアウト
+│   ├── blogs_read_test.go          # ブログ参照系
+│   ├── blogs_crud_test.go          # ブログ CRUD（認証あり）
+│   └── likes_comments_test.go      # いいね/コメントフロー
 │
 ├── utils/                           # ユーティリティ
 │   ├── cookie/
@@ -834,9 +845,13 @@ go test ./handlers/... ./services/...
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
 go test -tags=integration ./repositories/...
+
+# E2E（API-E2E）。実サーバーを起動し HTTP フローを検証（Docker 稼働が前提）。
+# config が起動時に JWT_SECRET_KEY を要求するため env で渡す。
+JWT_SECRET_KEY=... go test -tags=e2e ./e2e/...
 ```
 
-- IT は `//go:build integration` タグで分離されており、通常の `go test ./...` には含まれない。各パッケージの `TestMain` が `backend/testsupport` の `Start` を呼び、コンテナ起動・スキーマ/シード適用・接続を一括で行う。
+- IT は `//go:build integration`、E2E は `//go:build e2e` タグで分離されており、通常の `go test ./...` には含まれない。IT は各パッケージの `TestMain` が `backend/testsupport` の `Start` を、E2E は `main_test.go` が `Setup` を呼び、コンテナ起動・スキーマ/シード適用・接続を一括で行う。
 - IT は `SUPABASE_URL` を環境変数として指定した場合のみ、コンテナを起動せずその DB に接続する（`TEST_*` も併せて指定すること）。`testsupport` は `.env` ファイルを自動読み込みしない（古い `.env.test` によるコンテナ経路の意図しない乗っ取りを防ぐため）。
 - Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
 - CI（`.github/workflows/ci.yml`）は PR・`main` への push で `test` ジョブ（UT）と `integration-test` ジョブ（IT / testcontainers）を `working-directory: backend` で実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。

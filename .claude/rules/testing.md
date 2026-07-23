@@ -24,13 +24,16 @@ globs:
 
 | テスト種別 | ツール |
 |-----------|--------|
-| ユニットテスト | Go testing（テーブルドリブン） |
-| インテグレーションテスト | httptest + testcontainers |
-| スモークテスト | scripts/smoke-test.sh |
+| ユニットテスト（UT） | Go testing（テーブルドリブン）。外部I/Oのみモック |
+| インテグレーションテスト（IT） | testcontainers（実DB）。`//go:build integration` |
+| E2E（API-E2E） | httptest + testcontainers。`//go:build e2e`。実サーバー起動 → HTTP フロー検証 |
+| スモークテスト | scripts/smoke-test.sh（未実装） |
+
+共有ヘルパー `backend/testsupport`（build tag `integration || e2e`）が testcontainers の PostgreSQL 起動・スキーマ/シード適用・接続を担う。IT/E2E とも Docker 稼働が前提で、`SUPABASE_URL` を指定した場合のみ実DBへ接続する。
 
 ## テストファイル配置
 
 Go 標準どおりユニット / インテグレーションテストを**対象と同じパッケージにコロケートする**:
 
 - **ユニット / インテグレーションテスト**: 対象と同階層に `_test.go`（例: `handler.go` → `handler_test.go`）。インテグレーションはビルドタグ（例: `//go:build integration`）で分離してよい
-- **E2E テスト**: `e2e/` に集約
+- **E2E テスト**: `e2e/` に集約（`//go:build e2e`）。`config` が起動時に `JWT_SECRET_KEY` を要求するため、実行時に env で渡す

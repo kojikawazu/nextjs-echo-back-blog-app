@@ -146,6 +146,12 @@
   - `supabase/client.go` の sslmode を `DB_SSLMODE`（既定 `require`）で環境変数化
   - CI（`ci.yml`）に `integration-test` ジョブを追加（`go test -tags=integration ./repositories/...`）
 
+- [x] **E2E（API-E2E）の実装・CI 導入**
+  - `httptest` で本番同等の Echo アプリ（middlewares + routes）を起動し、実 HTTP フローで Handler→Service→Repository→DB を検証
+  - DB は `testsupport`（testcontainers）を再利用（`Setup()` を切り出し、build tag を `integration || e2e` に拡張）
+  - `e2e/`（`//go:build e2e`）に集約。範囲は正常系＋準正常系（認証フロー・ブログCRUD・いいね/コメント・ヘルスチェック）
+  - CI（`ci.yml`）に `e2e-test` ジョブを追加（`JWT_SECRET_KEY` を env 注入・`go test -tags=e2e ./e2e/...`）
+
 ## 改善タスク（未着手）
 
 ### セキュリティ（優先度: 高）
