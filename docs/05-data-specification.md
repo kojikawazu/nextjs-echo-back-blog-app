@@ -22,6 +22,8 @@
   - [6.1 接続パラメータ](#61-接続パラメータ)
   - [6.2 接続ライフサイクル](#62-接続ライフサイクル)
   - [6.3 本番環境での秘密情報管理](#63-本番環境での秘密情報管理)
+- [7. 監査列方針](#7-監査列方針)
+  - [7.1 現状との乖離（未対応）](#71-現状との乖離未対応)
 
 ---
 
@@ -312,3 +314,28 @@ Supabase（PostgreSQL）
 
 - `SUPABASE_URL` はTerraformの `google_secret_manager_secret` リソースとして管理される。
 - Cloud Runのコンテナ環境変数として、Secret Managerから自動注入される。
+
+## 7. 監査列方針
+
+本プロジェクトはORMを使わず `pgx` でSQLを直接実行するため、監査列（`created_at` / `updated_at`）の値は**DB側で自動設定する**方針とする。詳細なルールは [`.claude/rules/database.md`](../.claude/rules/database.md) を参照。
+
+| 列 | あるべき型 | あるべき既定 | 用途 |
+|---|---|---|---|
+| `created_at` | `timestamptz` | `DEFAULT now() NOT NULL` | 作成日時。UPDATE では書き換えない |
+| `updated_at` | `timestamptz` | `DEFAULT now() NOT NULL` + `BEFORE UPDATE` トリガ | 更新日時 |
+
+- リポジトリ層のINSERT / UPDATE文に監査列を書かない（`SET updated_at = NOW()` も含む）。`RETURNING` での読み出しは可。
+- タイムゾーン付き（`timestamptz`）で統一する。Cloud Run / Supabase / ローカルでコンテナのTZが異なるため、`timestamp`（タイムゾーンなし）を混在させると暗黙変換で値がずれる。
+
+### 7.1 現状との乖離（未対応）
+
+現行スキーマは上記方針を満たしておらず、以下の既知の問題がある。
+
+| 問題 | 影響 | 該当箇所 |
+|---|---|---|
+| `updated_at` を更新する `BEFORE UPDATE` トリガが存在しない。Goコード側にも `updated_at` への代入がない | **`updated_at` が作成時刻のまま更新されない** | `blog_users` / `blogs` / `blog_likes` |
+| `created_at` は `timestamptz`、`updated_at` は `timestamp`（TZなし）で型が不整合 | TZ差異による値のずれ | 同上 |
+
+- 該当は `work/backup.sql`（Supabase本番ダンプ）と `backend/testsupport/testdata/schema.sql`（IT/E2E用）の双方。
+- `blog_comments` は `updated_at` を持たない（更新機能がないため現状は問題にならない）。
+- スキーマ修正は影響範囲が異なるため別タスク（issue #117）として扱う。

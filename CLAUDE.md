@@ -19,3 +19,4 @@ Go + Echo フレームワークで構築されたブログWebアプリケーシ�
 | error-handling.md | 全体 | エラーハンドリング方針（バリデーション・HTTP ステータス・統一レスポンス） |
 | security.md | 全体 | セキュリティ方針（認証・CORS・インジェクション対策・シークレット管理） |
 | api.md | backend/** | Go + Echo API 設計・レイヤー分離（Handler/Service/Repository） |
+| database.md | backend/** | DB 方針（監査列の DB 側自動化・timestamptz 統一・スキーマ同期） |
