@@ -389,11 +389,11 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
-| `test` | `go test ./handlers/... ./services/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | 全 mock の Handler/Service 層 UT を実行。DB を必要としない |
+| `test` | `go test ./handlers/... ./services/... ./middlewares/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層 UT を実行。DB を必要としない |
 | `integration-test` | `go test -tags=integration ./repositories/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない |
-| `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
+| `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
-> IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。
+> IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。UT・E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。値は本番の secret ではなく CI 専用のダミー値（`ci-test-dummy-jwt-secret`）とする（Dependabot が起動したワークフローは Actions secrets を参照できず空になるため、また本番鍵をテストに露出させないため）。
 
 ### 6.1 デプロイワークフロー
 
@@ -458,7 +458,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 
 ```dockerfile
 # ビルドステージ
-FROM golang:1.22 as builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -473,7 +473,7 @@ CMD ["/app/main"]
 
 | ステージ | ベースイメージ | 用途 |
 |---------|--------------|------|
-| builder | `golang:1.22` | Goアプリケーションのコンパイル |
+| builder | `golang:1.25` | Goアプリケーションのコンパイル |
 | runtime | `gcr.io/distroless/base` | 最小限のランタイム環境 |
 
 #### Distrolessイメージの特徴
@@ -554,7 +554,8 @@ backend/
 │   └── logger.go                    # ログレベル設定（Info/Error/Warn/Debug/Test）
 │
 ├── middlewares/
-│   └── middlewares.go               # Echo ミドルウェア設定（Logger/Recover/CORS）
+│   ├── middlewares.go               # Echo ミドルウェア設定（RequestLogger/Recover/CORS）
+│   └── middlewares_test.go          # アクセスログミドルウェアの UT
 │
 ├── models/
 │   ├── auth.go                      # JWT Claims 構造体
@@ -794,11 +795,11 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 | ツール | バージョン | 用途 |
 |--------|-----------|------|
-| Go | 1.22 以上（`go.mod` は `go 1.22`） | アプリケーションのビルド・実行 |
+| Go | 1.25 以上（`go.mod` は `go 1.25.0`） | アプリケーションのビルド・実行 |
 | Supabase / PostgreSQL | - | 稼働中の接続先（無料枠で可）。起動時に接続テスト `SELECT 1` を実行する |
 | Docker | アプリのコンテナ起動時、および IT（testcontainers）実行時に必須 | Repository 層 IT はコンテナで PostgreSQL を起動する |
 
-> `go.mod`（`go 1.22`）と `Dockerfile` のビルドステージ（`golang:1.22`）はバージョンを一致させている。
+> `go.mod`（`go 1.25.0`）と `Dockerfile` のビルドステージ（`golang:1.25`）はバージョンを一致させている。依存更新で `go.mod` の `go` 指令が引き上げられた場合は、`Dockerfile` も同一 PR で揃える（公式 golang イメージは `GOTOOLCHAIN=local` のため新しいツールチェーンを自動取得しない）。
 
 ### 10.2 セットアップ手順
 
@@ -827,7 +828,7 @@ go run main.go
 | `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `backend/config/config.go:9,12-15` |
 | `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=<DB_SSLMODE>` はコードが自動付与 | `backend/supabase/client.go` |
 | `DB_SSLMODE` | - | 接続時の SSL モード。未設定時 `require`（本番）。非SSLのDBは `disable` | `backend/supabase/client.go` |
-| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:17` |
+| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:22` |
 | `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `backend/config/config.go:10` |
 | `PORT` | - | リッスンポート（既定 8080） | `backend/main.go:74-77` |
 | `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `backend/logger/logger.go` |
@@ -840,7 +841,7 @@ go run main.go
 cd backend
 
 # 単体テスト（UT / DB 不要・全 mock）
-go test ./handlers/... ./services/...
+go test ./handlers/... ./services/... ./middlewares/...
 
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
