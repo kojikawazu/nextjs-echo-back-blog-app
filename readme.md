@@ -26,7 +26,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 
 | 分類 | 技術 | バージョン |
 |---|---|---|
-| 言語 | Go | 1.22 |
+| 言語 | Go | 1.25 |
 | Web フレームワーク | Echo | v4.12.0 |
 | DB ドライバ | pgx/v4（pgxpool） | v4.18.3 |
 | 認証 | golang-jwt/jwt（HS256） | v3.2.2 |
@@ -87,8 +87,8 @@ docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 ```bash
 cd backend
 
-# 単体テスト（UT）: DB 不要・全 mock。handlers / services。
-go test ./handlers/... ./services/...
+# 単体テスト（UT）: DB 不要・全 mock。handlers / services / middlewares。
+go test ./handlers/... ./services/... ./middlewares/...
 
 # インテグレーションテスト（IT）: repositories 層。
 # 既定では testcontainers が使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

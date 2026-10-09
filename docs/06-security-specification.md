@@ -235,7 +235,7 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 - 実行ステージのDockerイメージとして `gcr.io/distroless/base` を使用。
 - シェル、パッケージマネージャー、その他の不要なプログラムが含まれないため、攻撃対象面が最小化される。
-- マルチステージビルド（ビルド: `golang:1.19`、実行: `distroless`）により、ビルドツールが実行環境に残らない。
+- マルチステージビルド（ビルド: `golang:1.25`、実行: `distroless`）により、ビルドツールが実行環境に残らない。
 
 ### 6.3 IAMロール
 

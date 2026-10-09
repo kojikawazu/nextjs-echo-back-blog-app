@@ -45,7 +45,7 @@ jobs:
           version: v2.12.2
           working-directory: backend
 
-  # ユニットテスト。全 mock の handlers / services のみ実行し、DB を必要としない。
+  # ユニットテスト。全 mock の handlers / services / middlewares のみ実行し、DB を必要としない。
   # 実 DB 接続が必要な repositories 層（IT）は CI では実行しない。
   test:
     runs-on: ubuntu-latest
@@ -58,11 +58,13 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: go test (handlers & services / all mock, no DB)
+      - name: go test (handlers & services & middlewares / all mock, no DB)
         working-directory: backend
+        # テスト専用のダミー値。本番の secret は使わない（Dependabot 起動の
+        # ワークフローは Actions secrets を参照できず空になるため）。
         env:
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
-        run: go test ./handlers/... ./services/...
+          JWT_SECRET_KEY: ci-test-dummy-jwt-secret
+        run: go test ./handlers/... ./services/... ./middlewares/...
 
   # インテグレーションテスト（IT）。repositories 層を testcontainers 上の
   # 使い捨て PostgreSQL に対して実行する（実 Supabase には接続しない）。
@@ -86,7 +88,8 @@ jobs:
   # E2E テスト。httptest で起動した実サーバー（全ルート）へ HTTP を投げ、
   # Handler → Service → Repository → DB を貫くフローを検証する。
   # DB は testcontainers の使い捨て PostgreSQL を再利用する。
-  # config パッケージが起動時に JWT_SECRET_KEY を要求するため env で注入する。
+  # config パッケージが起動時に JWT_SECRET_KEY を要求するため env で注入する
+  # （テスト専用のダミー値。本番の secret は使わない）。
   e2e-test:
     runs-on: ubuntu-latest
     steps:
@@ -101,6 +104,6 @@ jobs:
       - name: go test (e2e / testcontainers)
         working-directory: backend
         env:
-          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          JWT_SECRET_KEY: ci-test-dummy-jwt-secret
         # SUPABASE_URL は設定しない → testsupport がコンテナを起動する。
         run: go test -tags=e2e ./e2e/...

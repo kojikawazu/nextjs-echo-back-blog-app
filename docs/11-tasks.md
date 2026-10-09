@@ -200,6 +200,11 @@
   - 対応: `go.mod`を`go 1.22`、`Dockerfile`のビルドステージを`golang:1.22`に統一
   - 備考: testcontainers-go（Go 1.21+ 要求）導入に合わせて実施
 
+- [x] **Go 1.25 への引き上げ（#131）**
+  - 対応: `go.mod` を `go 1.25.0`、`Dockerfile` のビルドステージを `golang:1.25` に統一
+  - 背景: Dependabot の依存更新（x/crypto / echo / containerd）が Go 1.25 以上を要求するため
+  - 併せて非推奨の `middleware.Logger()` を `middleware.RequestLoggerWithConfig` へ移行し、CI の `JWT_SECRET_KEY` をテスト用ダミー値に変更
+
 ### コード品質（優先度: 低）
 
 - [ ] **リクエストバリデーションミドルウェアの追加**

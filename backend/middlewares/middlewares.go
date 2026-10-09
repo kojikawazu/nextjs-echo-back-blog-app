@@ -1,6 +1,8 @@
 package middlewares
 
 import (
+	"io"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -14,7 +16,7 @@ import (
 //   - e: ミドルウェアを設定する対象の Echo インスタンス
 func SetupMiddlewares(e *echo.Echo) {
 	// ロガーとリカバリーミドルウェアを使用
-	e.Use(middleware.Logger())
+	e.Use(newRequestLogger(os.Stdout))
 	e.Use(middleware.Recover())
 
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
@@ -35,4 +37,52 @@ func SetupMiddlewares(e *echo.Echo) {
 		// },
 		AllowCredentials: true,
 	}))
+}
+
+// newRequestLogger は HTTP リクエスト/レスポンスのアクセスログを JSON 形式で出力するミドルウェアを返す。
+// 非推奨となった middleware.Logger の後継として middleware.RequestLoggerWithConfig を使用する。
+// リクエストヘッダ・ボディ等のセンシティブ情報は記録しない。
+//
+// 引数:
+//   - w: ログの出力先
+//
+// 戻り値:
+//   - echo.MiddlewareFunc: アクセスログミドルウェア
+func newRequestLogger(w io.Writer) echo.MiddlewareFunc {
+	logger := slog.New(slog.NewJSONHandler(w, nil))
+
+	return middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		// ハンドラのエラーをエラーハンドラに渡し、確定したステータスを記録する
+		HandleError:      true,
+		LogLatency:       true,
+		LogRemoteIP:      true,
+		LogHost:          true,
+		LogMethod:        true,
+		LogURI:           true,
+		LogUserAgent:     true,
+		LogStatus:        true,
+		LogError:         true,
+		LogContentLength: true,
+		LogResponseSize:  true,
+		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
+			attrs := []slog.Attr{
+				slog.String("remote_ip", v.RemoteIP),
+				slog.String("host", v.Host),
+				slog.String("method", v.Method),
+				slog.String("uri", v.URI),
+				slog.String("user_agent", v.UserAgent),
+				slog.Int("status", v.Status),
+				slog.Duration("latency", v.Latency),
+				slog.String("bytes_in", v.ContentLength),
+				slog.Int64("bytes_out", v.ResponseSize),
+			}
+			if v.Error != nil {
+				attrs = append(attrs, slog.String("error", v.Error.Error()))
+				logger.LogAttrs(c.Request().Context(), slog.LevelError, "request", attrs...)
+				return nil
+			}
+			logger.LogAttrs(c.Request().Context(), slog.LevelInfo, "request", attrs...)
+			return nil
+		},
+	})
 }

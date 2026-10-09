@@ -128,7 +128,10 @@ signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 ### 4.4 Echo Logger ミドルウェア
 
-- `middleware.Logger()` により、すべてのHTTPリクエスト/レスポンスのアクセスログが自動記録される。
+- `middleware.RequestLoggerWithConfig`（`middlewares.newRequestLogger`）により、すべてのHTTPリクエスト/レスポンスのアクセスログが `log/slog` の JSON 形式で標準出力に記録される（非推奨の `middleware.Logger()` から移行）。
+- 記録項目: `remote_ip` / `host` / `method` / `uri` / `user_agent` / `status` / `latency` / `bytes_in` / `bytes_out`。ハンドラがエラーを返した場合は `error` を付与し `ERROR` レベルで出力する。
+- `HandleError: true` により、エラーハンドラ適用後の確定ステータス（例: 404 / 500）を記録する。
+- リクエストヘッダ（`Authorization` / `Cookie` 等）・ボディは記録しない。
 
 ### 4.5 初期化時のフェイルファスト
 
@@ -175,7 +178,7 @@ signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 ### 5.5 Dockerコンテナ構成
 
-- マルチステージビルドを採用し、ビルドステージ（`golang:1.19`）と実行ステージ（`gcr.io/distroless/base`）を分離。
+- マルチステージビルドを採用し、ビルドステージ（`golang:1.25`）と実行ステージ（`gcr.io/distroless/base`）を分離。
 - distrolessベースイメージにより、最小限のランタイム環境でセキュアかつ軽量なコンテナを実現。
 
 ### 5.6 Infrastructure as Code
