@@ -1,0 +1,26 @@
+version: 2
+updates:
+  # GitHub Actions のアクション更新（Node ランタイムの非推奨対応を含む）。
+  # 全アクションを 1 つの PR にまとめる。
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Go 依存（backend/go.mod）。バージョン更新 PR は出さず、セキュリティ更新のみ受け取る。
+  # セキュリティ更新は 1 つの PR にまとめ、go.sum の連鎖コンフリクトを防ぐ。
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule:
+      interval: weekly
+    # 0 はバージョン更新のみ無効化する（セキュリティ更新には影響しない）
+    open-pull-requests-limit: 0
+    groups:
+      go-security:
+        applies-to: security-updates
+        patterns:
+          - "*"

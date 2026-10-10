@@ -205,6 +205,11 @@
   - 背景: Dependabot の依存更新（x/crypto / echo / containerd）が Go 1.25 以上を要求するため
   - 併せて非推奨の `middleware.Logger()` を `middleware.RequestLoggerWithConfig` へ移行し、CI の `JWT_SECRET_KEY` をテスト用ダミー値に変更
 
+- [ ] **Dependabot の設定と Node 20 向けアクションの更新（#127）**
+  - 対応済み: `.github/dependabot.yml` を追加。`github-actions` は週次バージョン更新（1 PR に集約）、`gomod` はセキュリティ更新のみ（1 PR に集約）
+  - 残: Dependabot が作るアクション更新 PR をレビュー・マージし、CI の Node 20 非推奨注記が消えたことを確認する
+  - 背景: Node 20 向けアクションの非推奨対応、および gomod のセキュリティ更新 PR が依存ごとに分かれ `go.sum` で連鎖コンフリクトしていたため
+
 ### コード品質（優先度: 低）
 
 - [ ] **リクエストバリデーションミドルウェアの追加**
