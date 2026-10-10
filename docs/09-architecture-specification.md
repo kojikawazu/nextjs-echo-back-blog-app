@@ -395,6 +395,17 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 
 > IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する。UT・E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。値は本番の secret ではなく CI 専用のダミー値（`ci-test-dummy-jwt-secret`）とする（Dependabot が起動したワークフローは Actions secrets を参照できず空になるため、また本番鍵をテストに露出させないため）。
 
+### 6.0.1 依存関係の自動更新（Dependabot）
+
+ファイル: `.github/dependabot.yml`
+
+| エコシステム | 対象 | 更新方針 |
+|-------------|------|---------|
+| `github-actions` | `.github/workflows/*.yml` のアクション | 週次でバージョン更新。全アクションを 1 つの PR（グループ `github-actions`）にまとめる |
+| `gomod` | `backend/go.mod` | **セキュリティ更新のみ**（`open-pull-requests-limit: 0` でバージョン更新 PR は無効化）。セキュリティ更新は 1 つの PR（グループ `go-security`）にまとめ、`go.sum` の連鎖コンフリクトを防ぐ |
+
+> セキュリティ更新はリポジトリ設定（Dependabot security updates）で有効化されている。Dependabot が起動した CI は Actions secrets を参照できないため、CI はテスト用ダミー値で完結させている（6.0 参照）。Dependabot の PR は手で push せず、コンフリクト時は `@dependabot rebase` で解消する（手で push すると以後 Dependabot が当該 PR を更新しなくなる）。
+
 ### 6.1 デプロイワークフロー
 
 ファイル: `.github/workflows/deploy.yml`
