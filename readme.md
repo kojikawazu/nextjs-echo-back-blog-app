@@ -27,7 +27,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 | 分類 | 技術 | バージョン |
 |---|---|---|
 | 言語 | Go | 1.25 |
-| Web フレームワーク | Echo | v4.12.0 |
+| Web フレームワーク | Echo | v4.15.3 |
 | DB ドライバ | pgx/v4（pgxpool） | v4.18.3 |
 | 認証 | golang-jwt/jwt（HS256） | v3.2.2 |
 | データベース | Supabase（PostgreSQL） | - |
