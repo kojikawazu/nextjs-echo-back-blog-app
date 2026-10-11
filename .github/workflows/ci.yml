@@ -45,7 +45,7 @@ jobs:
           version: v2.12.2
           working-directory: backend
 
-  # ユニットテスト。全 mock の handlers / services / middlewares のみ実行し、DB を必要としない。
+  # ユニットテスト。全 mock の handlers / services / middlewares / models のみ実行し、DB を必要としない。
   # 実 DB 接続が必要な repositories 層（IT）は CI では実行しない。
   test:
     runs-on: ubuntu-latest
@@ -58,13 +58,13 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: go test (handlers & services & middlewares / all mock, no DB)
+      - name: go test (handlers & services & middlewares & models / all mock, no DB)
         working-directory: backend
         # テスト専用のダミー値。本番の secret は使わない（Dependabot 起動の
         # ワークフローは Actions secrets を参照できず空になるため）。
         env:
           JWT_SECRET_KEY: ci-test-dummy-jwt-secret
-        run: go test ./handlers/... ./services/... ./middlewares/...
+        run: go test ./handlers/... ./services/... ./middlewares/... ./models/...
 
   # インテグレーションテスト（IT）。repositories 層を testcontainers 上の
   # 使い捨て PostgreSQL に対して実行する（実 Supabase には接続しない）。

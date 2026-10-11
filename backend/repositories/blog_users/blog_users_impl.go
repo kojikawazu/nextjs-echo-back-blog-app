@@ -17,7 +17,7 @@ import (
 //   - *models.BlogUsersData: 取得したユーザー情報
 //   - error: 取得に失敗した場合のエラー
 func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, password string) (*models.BlogUsersData, error) {
-	log.Printf("Fetching user from Supabase by email: %s\n", email)
+	log.Println("Fetching user from Supabase by email")
 
 	query := `
         SELECT id, name, email, created_at, updated_at
@@ -43,7 +43,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, passwo
 		return nil, err
 	}
 
-	log.Printf("Fetched user successfully: %v", user)
+	log.Printf("Fetched user successfully: id=%s", user.ID)
 	return &user, nil
 }
 
@@ -83,7 +83,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUse
 		return nil, err
 	}
 
-	log.Printf("Fetched user successfully: %v", user)
+	log.Printf("Fetched user successfully: id=%s", user.ID)
 	return &user, nil
 }
 
@@ -125,6 +125,6 @@ func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, password stri
 		return nil, err
 	}
 
-	log.Printf("Updated user successfully: %v", user)
+	log.Printf("Updated user successfully: id=%s", user.ID)
 	return &user, nil
 }
