@@ -90,14 +90,16 @@
 
 ```go
 type BlogUsersData struct {
-    ID        string    `json:"id" db:"id"`
-    Name      string    `json:"name" db:"name"`
-    Email     string    `json:"email" db:"email"`
-    Password  string    `json:"password" db:"password"`
-    CreatedAt time.Time `json:"created_at" db:"created_at"`
-    UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+    ID        string    `db:"id"`
+    Name      string    `db:"name"`
+    Email     string    `db:"email"`
+    Password  string    `json:"-" db:"password"`
+    CreatedAt time.Time `db:"created_at"`
+    UpdatedAt time.Time `db:"updated_at"`
 }
 ```
+
+> API レスポンスには `dto.UserResponse` を使う（#121）。本モデルは JSON タグを持たず、`Password` は `json:"-"` で直列化対象から外している。
 
 **備考:**
 - ユーザー情報取得時（`FetchBlogUsers`）にはレスポンス返却前にパスワードフィールドを空文字列に上書きしてから返す。

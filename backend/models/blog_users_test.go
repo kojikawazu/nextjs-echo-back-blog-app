@@ -2,6 +2,7 @@ package models
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
@@ -89,4 +90,15 @@ func TestBlogUsersData_String_EmptyPassword(t *testing.T) {
 	user.Password = ""
 
 	assert.Contains(t, user.String(), "Password:[REDACTED]")
+}
+
+// 準正常系: DTO を経由せずモデルを直接 JSON 化してもパスワードは出力されない（多層防御）。
+func TestBlogUsersData_JSONDoesNotLeakPassword(t *testing.T) {
+	user := newTestUser()
+
+	b, err := json.Marshal(user)
+
+	assert.NoError(t, err)
+	assert.NotContains(t, string(b), testPassword)
+	assert.NotContains(t, string(b), "Password")
 }
