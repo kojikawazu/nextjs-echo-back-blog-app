@@ -9,14 +9,15 @@ import (
 const redacted = "[REDACTED]"
 
 // BlogUsersData はブログユーザーの情報を表すデータ構造。
-// 各フィールドには、JSONおよびデータベースのタグを指定。
+// API のレスポンスには dto.UserResponse を使い、本構造体をそのまま返さない。
+// 誤ってシリアライズされてもパスワードが出力されないよう、Password は json:"-" とする。
 type BlogUsersData struct {
-	ID        string    `json:"id" db:"id"`                 // UUID型
-	Name      string    `json:"name" db:"name"`             // ユーザー名
-	Email     string    `json:"email" db:"email"`           // メールアドレス
-	Password  string    `json:"password" db:"password"`     // パスワード
-	CreatedAt time.Time `json:"created_at" db:"created_at"` // タイムスタンプ
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"` // タイムスタンプ
+	ID        string    `db:"id"`                // UUID型
+	Name      string    `db:"name"`              // ユーザー名
+	Email     string    `db:"email"`             // メールアドレス
+	Password  string    `json:"-" db:"password"` // パスワード（シリアライズしない）
+	CreatedAt time.Time `db:"created_at"`        // タイムスタンプ
+	UpdatedAt time.Time `db:"updated_at"`        // タイムスタンプ
 }
 
 // String は fmt の %v / %+v / %s 出力用の文字列を返す。

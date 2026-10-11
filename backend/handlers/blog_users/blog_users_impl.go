@@ -1,65 +1,12 @@
 package handlers_blog_users
 
 import (
+	"backend/dto"
 	utils "backend/utils/log"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
 )
-
-// GetUserByEmailAndPassword はリクエストボディの email と password でユーザーを取得するエンドポイント。
-// 有効な email フォーマットかをチェックし、データベースに該当ユーザーがいない場合、404 エラーを返す。
-//
-// 引数:
-//   - c: リクエスト/レスポンスを保持する echo コンテキスト（email/password を含む JSON ボディ）
-//
-// 戻り値:
-//   - error: レスポンス書き込みエラー。バインド失敗や不正入力は 400、ユーザー不在は 404、その他は 500、成功時は 200 で返す
-func (h *BlogUsersHandler) GetUserByEmailAndPassword(c echo.Context) error {
-	utils.LogInfo(c, "Fetching user by email and password...")
-
-	// JSONのリクエストボディからemailとpasswordを取得
-	type RequestBody struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
-	// リクエストボディをバインド
-	var reqBody RequestBody
-	if err := c.Bind(&reqBody); err != nil {
-		utils.LogError(c, "Failed to bind request body: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
-	}
-
-	// サービス層からユーザーデータを取得
-	user, err := h.UserService.FetchUserByEmailAndPassword(reqBody.Email, reqBody.Password)
-	if err != nil {
-		switch err.Error() {
-		case "email and password are required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Email and password are required",
-			})
-		case "invalid email format":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid email format",
-			})
-		case "user not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "User not found",
-			})
-		default:
-			utils.LogError(c, "Error fetching user: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to fetch user",
-			})
-		}
-	}
-
-	utils.LogInfo(c, "Fetched user successfully")
-	return c.JSON(http.StatusOK, user)
-}
 
 // FetchBlogUsers はクッキーの JWT トークンから解決したユーザー ID でユーザーデータを取得するエンドポイント。
 //
@@ -109,11 +56,8 @@ func (h *BlogUsersHandler) FetchBlogUsers(c echo.Context) error {
 		}
 	}
 
-	// パスワードだけ抜く
-	user.Password = ""
-
 	utils.LogInfo(c, "Fetched user successfully")
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, dto.NewUserResponse(user))
 }
 
 // UpdateBlogUsers はユーザーデータを更新し、認証クッキーを再発行するエンドポイント。
@@ -215,5 +159,5 @@ func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 	h.CookieUtils.UpdateAuthCookie(c, tokenString, expirationTime)
 
 	utils.LogInfo(c, "Updated user successfully")
-	return c.JSON(http.StatusOK, user)
+	return c.JSON(http.StatusOK, dto.NewUserResponse(user))
 }

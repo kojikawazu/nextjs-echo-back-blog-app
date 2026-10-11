@@ -548,12 +548,12 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
     | 1. Cookie "token" からJWTトークン取得
     | 2. JWTトークン解析 → userId取得
     | 3. UserService.FetchUserById 呼び出し
-    | 4. レスポンスから password フィールドを空文字に設定
+    | 4. レスポンス DTO（dto.UserResponse）へ変換
     v
 [レスポンス: 200 OK + ユーザーデータ（password除外）]
 ```
 
-**設計ポイント**: パスワードはDB取得後にハンドラー層で `user.Password = ""` と設定してからレスポンスに含める。
+**設計ポイント**: ハンドラーはモデルをレスポンス DTO（`dto.UserResponse`: id / name / email / created_at / updated_at）に変換して返す。DTO にパスワードのフィールドが存在しないため、レスポンスにパスワードは含まれない（#121）。
 
 ### 5.2 プロフィール更新フロー
 

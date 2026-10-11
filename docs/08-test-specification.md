@@ -148,7 +148,7 @@
 | `handlers/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新ハンドラ |
 | `handlers/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除ハンドラ |
 | `handlers/blog_users/blog_users_FetchUser_test.go` | ユーザー取得ハンドラ |
-| `handlers/blog_users/blog_users_GetUserByEmailAndPassword_test.go` | メール・パスワード取得ハンドラ |
+| `handlers/blog_users/blog_users_response_test.go` | ユーザー取得・更新のレスポンスが DTO の公開フィールドのみで password キーを含まないこと |
 | `handlers/blog_users/blog_users_UpdateUser_test.go` | ユーザー更新ハンドラ |
 | `handlers/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | コメント取得ハンドラ |
 | `handlers/blog_comments/blog_comments_CreateComment_test.go` | コメント作成ハンドラ |
@@ -170,7 +170,8 @@
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー・JSON 出力・機密ヘッダ非記録） |
-| `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること |
+| `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
+| `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
 
 ---
 
@@ -484,6 +485,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | `blogs_read_test.go` | 正常系: 一覧・詳細・カテゴリ・タグ・人気 / 準正常系: 存在しないID → 404 |
 | `blogs_crud_test.go` | 正常系: 作成(201)→詳細→更新(200)→削除(204) / 準正常系: 未認証作成 → 401 |
 | `likes_comments_test.go` | 正常系: 訪問者ID発行→いいね作成/確認/削除、コメント一覧/作成(201) |
+| `users_test.go` | 正常系: ユーザー取得のレスポンスに password キーが含まれない（公開フィールドのみ） / 準正常系: 未認証のユーザー取得 → 401。ユーザー更新はアカウントを書き換えるため E2E では行わず、レスポンスの DTO はハンドラ UT で検証する |
 
 #### 主なエンドポイントの期待ステータス（E2E で確定）
 

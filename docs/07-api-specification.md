@@ -238,11 +238,12 @@ JWTトークンからユーザーIDを取得し、そのユーザーの詳細情
   "id": "uuid-string",
   "name": "ユーザー名",
   "email": "user@example.com",
-  "password": "",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
+
+> レスポンスはレスポンス DTO（`dto.UserResponse`）で返し、`password` キーは含まない（#121）。
 
 **エラー時**
 
@@ -293,13 +294,12 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
   "id": "uuid-string",
   "name": "新しいユーザー名",
   "email": "new_email@example.com",
-  "password": "",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-02T00:00:00Z"
 }
 ```
 
-> **注意**: UPDATE SQLのRETURNING句に `password` が含まれていないため、レスポンスの `password` フィールドは常に空文字となる。
+> レスポンスはレスポンス DTO（`dto.UserResponse`）で返し、`password` キーは含まない（#121）。
 
 - JWTトークンがCookieに再設定される
 
@@ -1038,16 +1038,19 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | CreatedAt | created_at | created_at | time.Time | 作成日時 |
 | UpdatedAt | updated_at | updated_at | time.Time | 更新日時 |
 
-### BlogUsersData
+### UserResponse（`dto.UserResponse`）
 
-| フィールド | JSON名 | DB名 | 型 | 説明 |
-|-----------|--------|------|----|------|
+ユーザー情報のレスポンス DTO。`models.BlogUsersData` から公開してよいフィールドのみを写す。パスワードは含めない。
+
+| フィールド | JSON名 | 元のモデル項目（DB名） | 型 | 説明 |
+|-----------|--------|----------------------|----|------|
 | ID | id | id | string (UUID) | ユーザーID |
 | Name | name | name | string | ユーザー名 |
 | Email | email | email | string | メールアドレス |
-| Password | password | password | string | パスワード |
 | CreatedAt | created_at | created_at | time.Time | 作成日時 |
 | UpdatedAt | updated_at | updated_at | time.Time | 更新日時 |
+
+> `models.BlogUsersData` は API に直接返さない。JSON タグを持たず、`Password` は `json:"-"` のため誤ってシリアライズされても出力されない。
 
 ### BlogLikesData
 
