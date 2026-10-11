@@ -156,6 +156,10 @@
 
 ### セキュリティ（優先度: 高）
 
+- [x] **ログへの資格情報の出力防止（#122）**
+  - 対応: `BlogUsersData` に `String()` / `GoString()` を実装し Password・Email をマスク。リポジトリ・認証ハンドラ・サービスのログをユーザー ID 識別に変更。リクエストボディのログ出力（コメントアウト済みコード）を削除
+  - テスト: models の UT、handlers/services のログキャプチャ UT、repositories のログキャプチャ IT
+
 - [ ] **パスワードのハッシュ化（bcrypt）**
   - 現状: `blog_users.password`が平文保存
   - 対応: `golang.org/x/crypto/bcrypt`を使用したハッシュ化

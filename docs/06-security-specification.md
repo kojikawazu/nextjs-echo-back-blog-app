@@ -9,6 +9,7 @@
   - [1.2 認証トークンのペイロード](#12-認証トークンのペイロード)
   - [1.3 認証フロー](#13-認証フロー)
   - [1.4 JWT鍵の管理](#14-jwt鍵の管理)
+  - [1.5 ログへの資格情報の出力防止](#15-ログへの資格情報の出力防止)
 - [2. 認可（Authorization）](#2-認可authorization)
   - [2.1 Cookie認証チェックによる書き込み操作の保護](#21-cookie認証チェックによる書き込み操作の保護)
   - [2.2 認証不要のエンドポイント](#22-認証不要のエンドポイント)
@@ -93,6 +94,14 @@ type Claims struct {
 
 - `JWT_SECRET_KEY` 環境変数が未設定の場合、アプリケーション起動時に `log.Fatal` で即座に終了する。
 - 本番環境ではGCP Secret Managerに格納され、Cloud Runのコンテナ環境変数として注入される。
+
+### 1.5 ログへの資格情報の出力防止
+
+Cloud Run の標準出力は Cloud Logging に収集・保持されるため、パスワード・メールアドレスをログに出力しない（#122）。
+
+- **ユーザー構造体のマスク**: `models.BlogUsersData` は `String()` / `GoString()` を実装し、`%v` / `%+v` / `%s` / `%#v`（値・ポインタ・スライス経由を含む）で出力しても `Password` と `Email` は `[REDACTED]` と表示される。構造体を誤ってログに渡しても資格情報は漏れない。
+- **識別子はユーザー ID**: リポジトリ層・認証ハンドラの成功ログはユーザー ID（`id=<UUID>`）のみを出力し、メールアドレスは出力しない。
+- **リクエストボディ・ヘッダを記録しない**: ログインのリクエストボディ（email / password）や `Authorization` / `Cookie` ヘッダはログに出力しない（アクセスログミドルウェアも同様。[04-non-functional-specification.md](04-non-functional-specification.md) 4.4 参照）。
 
 ## 2. 認可（Authorization）
 

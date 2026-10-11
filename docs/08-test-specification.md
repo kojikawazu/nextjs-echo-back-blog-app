@@ -96,6 +96,7 @@
 | `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 + 準正常系（空id） |
 | `repositories/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 + 準正常系 |
 | `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 + 準正常系（存在しないID） |
+| `repositories/blog_users/blog_users_log_test.go` | 取得・更新・認証失敗時のログにパスワード・メールアドレスが残らないこと |
 | `repositories/blog_users/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
 | `repositories/blog_comments/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 + 準正常系（不正UUID） |
@@ -123,6 +124,7 @@
 | `services/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 |
 | `services/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 |
 | `services/blog_users/blog_users_UpdateUser_test.go` | ユーザー更新 |
+| `services/blog_users/blog_users_log_test.go` | ユーザー取得（成功・不在・取得エラー）時のログに資格情報が残らないこと |
 | `services/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | コメント取得 |
 | `services/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 |
 | `services/blog_likes/blog_likes_FetchBlogLikesByVisitId_test.go` | 訪問者IDいいね取得 |
@@ -160,6 +162,7 @@
 | `handlers/auth/auth_CheckAuth_test.go` | 認証確認ハンドラ |
 | `handlers/auth/auth_Logout_test.go` | ログアウトハンドラ |
 | `handlers/auth/auth_pipeline_test.go` | 認証フローパイプライン |
+| `handlers/auth/auth_log_test.go` | ログイン・認証確認時のログに資格情報が残らず、ユーザー ID で識別されること |
 
 #### その他
 
@@ -167,6 +170,7 @@
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー・JSON 出力・機密ヘッダ非記録） |
+| `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること |
 
 ---
 

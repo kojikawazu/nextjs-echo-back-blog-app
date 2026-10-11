@@ -36,7 +36,7 @@ func (s *UserServiceImpl) FetchUserByEmailAndPassword(email, password string) (*
 	user, err := s.UserRepository.FetchBlogUsersByEmailAndPassword(email, password)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			log.Printf("User not found for email: %s", email)
+			log.Println("User not found")
 			return nil, errors.New("user not found")
 		}
 		log.Printf("Failed to fetch user: %v", err)
