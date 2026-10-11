@@ -129,19 +129,21 @@ type BlogUsersData struct {
 
 ```go
 type BlogData struct {
-    ID          string    `json:"id" db:"id"`
-    BlogUserId  string    `json:"blog_user_id" db:"blog_user_id"`
-    Title       string    `json:"title" db:"title"`
-    Description string    `json:"description" db:"description"`
-    GithubUrl   string    `json:"github_url" db:"github_url"`
-    Category    string    `json:"category" db:"category"`
-    Tags        string    `json:"tags" db:"tags"`
-    Likes       int8      `json:"likes" db:"likes"`
-    CommentCnt  int8      `json:"comment_cnt" db:"comment_cnt"`
-    CreatedAt   time.Time `json:"created_at" db:"created_at"`
-    UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+    ID          string    `db:"id"`
+    BlogUserId  string    `db:"blog_user_id"`
+    Title       string    `db:"title"`
+    Description string    `db:"description"`
+    GithubUrl   string    `db:"github_url"`
+    Category    string    `db:"category"`
+    Tags        string    `db:"tags"`
+    Likes       int8      `db:"likes"`
+    CommentCnt  int8      `db:"comment_cnt"`
+    CreatedAt   time.Time `db:"created_at"`
+    UpdatedAt   time.Time `db:"updated_at"`
 }
 ```
+
+> API レスポンスには `dto.BlogResponse` を使う（#139）。本モデルは JSON タグを持たない。
 
 **備考:**
 - `likes` と `comment_cnt` はテーブル上のカラムとして存在するが、読み取り時には `blog_likes` テーブルおよび `blog_comments` テーブルとのLEFT JOINによるCOUNT集計値が使用される。
@@ -166,13 +168,15 @@ type BlogData struct {
 
 ```go
 type BlogLikesData struct {
-    ID        string    `json:"id" db:"id"`
-    BlogId    string    `json:"blog_id" db:"blog_id"`
-    VisitId   string    `json:"visit_id" db:"visit_id"`
-    CreatedAt time.Time `json:"created_at" db:"created_at"`
-    UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+    ID        string    `db:"id"`
+    BlogId    string    `db:"blog_id"`
+    VisitId   string    `db:"visit_id"`
+    CreatedAt time.Time `db:"created_at"`
+    UpdatedAt time.Time `db:"updated_at"`
 }
 ```
+
+> API レスポンスには `dto.BlogLikeResponse` を使う（#139）。本モデルは JSON タグを持たない。
 
 **備考:**
 - `blog_id` と `visit_id` の組み合わせでいいねの一意性を判定する（同一訪問者が同一ブログに複数回いいねすることを防ぐロジックがService層に存在）。
@@ -194,13 +198,15 @@ type BlogLikesData struct {
 
 ```go
 type BlogCommentsData struct {
-    ID        string    `json:"id" db:"id"`
-    BlogId    string    `json:"blog_id" db:"blog_id"`
-    GuestUser string    `json:"guest_user" db:"guest_user"`
-    Comment   string    `json:"comment" db:"comment"`
-    CreatedAt time.Time `json:"created_at" db:"created_at"`
+    ID        string    `db:"id"`
+    BlogId    string    `db:"blog_id"`
+    GuestUser string    `db:"guest_user"`
+    Comment   string    `db:"comment"`
+    CreatedAt time.Time `db:"created_at"`
 }
 ```
+
+> API レスポンスには `dto.CommentResponse` を使う（#139）。本モデルは JSON タグを持たない。
 
 **備考:**
 - `blog_likes` と異なり、`updated_at` カラムは存在しない（コメントは作成のみで更新・削除機能なし）。

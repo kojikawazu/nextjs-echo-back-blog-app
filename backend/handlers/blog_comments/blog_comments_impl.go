@@ -1,6 +1,7 @@
 package handlers_blog_comments
 
 import (
+	"backend/dto"
 	utils "backend/utils/log"
 	"net/http"
 
@@ -41,7 +42,7 @@ func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Fetched comments successfully")
-	return c.JSON(http.StatusOK, comments)
+	return c.JSON(http.StatusOK, dto.NewCommentResponses(comments))
 }
 
 // CreateComment はコメントデータを新規作成するエンドポイント。
@@ -96,5 +97,5 @@ func (h *CommentHandler) CreateComment(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Created comment successfully")
-	return c.JSON(http.StatusCreated, newComment)
+	return c.JSON(http.StatusCreated, dto.NewCommentResponse(newComment))
 }
