@@ -100,7 +100,7 @@ JWT_SECRET_KEY=your-test-secret go test -tags=e2e ./e2e/...
 ```
 
 - IT は `//go:build integration`、E2E は `//go:build e2e` タグで分離しているため、通常の `go test ./...` には含まれない。
-- IT / E2E は既定でコンテナを起動するため `.env.test` は不要。実 DB に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。
+- IT / E2E は既定でコンテナを起動するため `.env.test` は不要。ローカルの DB（`supabase start` 等）に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。IT / E2E はデータを変更するため、**ローカル以外（本番 Supabase 等）の `SUPABASE_URL` は `testsupport` が拒否する**。
 
 > CI（`ci.yml`）は PR・`main` への push で、`test`（UT）・`integration-test`（IT / testcontainers）・`e2e-test`（API-E2E / testcontainers）の各ジョブを実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
 
