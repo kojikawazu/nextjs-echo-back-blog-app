@@ -172,6 +172,8 @@
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー・JSON 出力・機密ヘッダ非記録） |
+| `middlewares/rate_limiter_test.go` | レートリミット: 上限内は通る・超過で 429 と `{"error":"Too many requests"}`・IP ごとに独立・`X-Forwarded-For` 左端の偽装で回避できない・XFF なし/解釈不能時は接続元で数える・ヘルスチェック除外・認証系の枠の共有と他エンドポイントへの非干渉。`SetupMiddlewares` の IP 抽出設定 |
+| `routes/routes_test.go` | 認証系レートリミットがログイン・ユーザー更新に適用され（カウント共有）、他のエンドポイントに影響しないこと |
 | `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
 | `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
 | `dto/blogs_test.go` / `dto/blog_likes_test.go` / `dto/blog_comments_test.go` | DTO の JSON が DTO 化以前（モデル直返し）の出力と完全一致すること（ゴールデン）、ゼロ値・nil（`null`）・空（`[]`）・順序の保持 |
@@ -474,6 +476,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 - `http.Client` + `cookiejar` で認証 Cookie（`token` / `visit-id-token`）をリクエスト間で引き継ぐ。
 - 範囲は**正常系 + 準正常系**（純異常系は対象外）。
 - `//go:build e2e` で分離。実行は `JWT_SECRET_KEY=... go test -tags=e2e ./e2e/...`。
+- E2E のリクエストは全て 127.0.0.1 から届くため、`doJSON` はリクエストごとに異なる `X-Forwarded-For`（198.18.0.0/15）を付け、テスト間でレートリミットのカウントを共有しないようにする。レートリミット自体の検証は `doJSONFrom` で送信元を固定して行う。
 
 > `config` パッケージが**起動時（init）**に `JWT_SECRET_KEY` を要求するため、E2E はバイナリ起動時に環境変数として渡す必要がある。
 
@@ -485,6 +488,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | `helpers_test.go` | HTTP クライアント/リクエスト/ログインの共通ヘルパ |
 | `health_test.go` | 正常系: `GET /` → 200 |
 | `auth_flow_test.go` | 正常系: login→auth-check→logout→auth-check(401) / 準正常系: 誤パスワード401・欠落400・Cookie無し401 |
+| `rate_limit_test.go` | 準正常系: 同じ送信元からのログイン試行が 6 回目で 429 / 上限到達後は正しいパスワードでも 429、別の送信元は 200 |
 | `blogs_read_test.go` | 正常系: 一覧・詳細・カテゴリ・タグ・人気 / 準正常系: 存在しないID → 404 |
 | `blogs_crud_test.go` | 正常系: 作成(201)→詳細→更新(200)→削除(204) / 準正常系: 未認証作成 → 401 |
 | `likes_comments_test.go` | 正常系: 訪問者ID発行→いいね作成/確認/削除、コメント一覧/作成(201) |

@@ -58,13 +58,13 @@ jobs:
         with:
           go-version-file: backend/go.mod
 
-      - name: go test (handlers & services & middlewares & models & dto / all mock, no DB)
+      - name: go test (handlers & services & middlewares & routes & models & dto / all mock, no DB)
         working-directory: backend
         # テスト専用のダミー値。本番の secret は使わない（Dependabot 起動の
         # ワークフローは Actions secrets を参照できず空になるため）。
         env:
           JWT_SECRET_KEY: ci-test-dummy-jwt-secret
-        run: go test ./handlers/... ./services/... ./middlewares/... ./models/... ./dto/...
+        run: go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/...
 
   # インテグレーションテスト（IT）。repositories 層を testcontainers 上の
   # 使い捨て PostgreSQL に対して実行する（実 Supabase には接続しない）。

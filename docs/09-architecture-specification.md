@@ -142,7 +142,7 @@
 ### 2.2 データフロー
 
 1. クライアントからHTTPリクエストを受信
-2. ミドルウェアでロギング、リカバリ、CORS処理を実行
+2. ミドルウェアでロギング、リカバリ、CORS処理、レートリミットを実行
 3. ルーターが対応するHandlerにリクエストを振り分け
 4. Handlerがリクエストをパースし、必要に応じてCookieからJWTを検証
 5. HandlerがServiceの対応メソッドを呼び出す
@@ -293,6 +293,10 @@ CommentRepository ──> CommentService ─────────┘──> C
 | Logger | リクエストログの自動出力 |
 | Recover | パニック時の自動リカバリ |
 | CORS | `ALLOWED_ORIGINS` 環境変数で許可オリジンを制御。AllowCredentials: true |
+| RateLimiter（全体） | クライアント IP 単位で毎秒 20 件・瞬間 60 件まで（ヘルスチェック `GET /` を除く）。CORS の後に置き、429 にも CORS ヘッダを付ける |
+| RateLimiter（認証系） | ルート単位で `POST /api/users/login`・`PUT /api/users/update` に適用（5 回/分、2 つでカウントを共有）。`routes.go` で `middlewares.NewAuthRateLimiter()` を渡す |
+
+- クライアント IP は `e.IPExtractor = echo.ExtractIPFromXFFHeader()`（`X-Forwarded-For` の右端側）で取る。カウントはインスタンスのメモリで持つ。詳細は [06-security-specification.md](06-security-specification.md) 8.2。
 
 #### CORS設定詳細
 
@@ -389,7 +393,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
-| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./models/... ./dto/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・モデル・DTO の UT を実行。DB を必要としない |
+| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO の UT を実行。DB を必要としない |
 | `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
@@ -443,7 +447,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
 | 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
 | 5. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
-| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ |
+| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する） |
 | 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
 #### 使用するGitHub Secrets
@@ -572,8 +576,10 @@ backend/
 │   └── logger.go                    # ログレベル設定（Info/Error/Warn/Debug/Test）
 │
 ├── middlewares/
-│   ├── middlewares.go               # Echo ミドルウェア設定（RequestLogger/Recover/CORS）
-│   └── middlewares_test.go          # アクセスログミドルウェアの UT
+│   ├── middlewares.go               # Echo ミドルウェア設定（IPExtractor/RequestLogger/Recover/CORS/RateLimiter）
+│   ├── middlewares_test.go          # アクセスログミドルウェアの UT
+│   ├── rate_limiter.go              # レートリミット（全体・認証系）
+│   └── rate_limiter_test.go         # レートリミット・IP 抽出の UT
 │
 ├── models/
 │   ├── auth.go                      # JWT Claims 構造体
@@ -583,7 +589,8 @@ backend/
 │   └── blog_comments.go            # BlogCommentsData 構造体
 │
 ├── routes/
-│   └── routes.go                    # ルーティング定義、DI組み立て
+│   ├── routes.go                    # ルーティング定義、DI組み立て
+│   └── routes_test.go               # 認証系レートリミットの適用先の UT
 │
 ├── handlers/                        # Handler層（HTTPリクエスト処理）
 │   ├── auth/
@@ -846,7 +853,7 @@ go run main.go
 | `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `backend/config/config.go:9,12-15` |
 | `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=<DB_SSLMODE>` はコードが自動付与 | `backend/supabase/client.go` |
 | `DB_SSLMODE` | - | 接続時の SSL モード。未設定時 `require`（本番）。非SSLのDBは `disable` | `backend/supabase/client.go` |
-| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:22` |
+| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:26` |
 | `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `backend/config/config.go:10` |
 | `PORT` | - | リッスンポート（既定 8080） | `backend/main.go:74-77` |
 | `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `backend/logger/logger.go` |
@@ -859,7 +866,7 @@ go run main.go
 cd backend
 
 # 単体テスト（UT / DB 不要・全 mock）
-go test ./handlers/... ./services/... ./middlewares/... ./models/... ./dto/...
+go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/...
 
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

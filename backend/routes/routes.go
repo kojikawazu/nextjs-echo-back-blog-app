@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"backend/middlewares"
 	utils_cookie "backend/utils/cookie"
 
 	handlers_auth "backend/handlers/auth"
@@ -55,18 +56,21 @@ func SetupRoutes(e *echo.Echo) {
 	blogLikeHandler := handlers_blogs_likes.NewBlogLikeHandler(blogLikeService, cookieUtils)
 	commentHandler := handlers_comments.NewCommentHandler(commentService)
 
+	// 認証系エンドポイントの厳しいレートリミット（ログイン・ユーザー更新でカウントを共有する）
+	authRateLimiter := middlewares.NewAuthRateLimiter()
+
 	// APIエンドポイントの設定
 	api := e.Group("/api")
 	{
 		// ユーザー関連のエンドポイント
 		blogUsers := api.Group("/users")
 		{
-			blogUsers.POST("/login", authHandler.Login)
+			blogUsers.POST("/login", authHandler.Login, authRateLimiter)
 			blogUsers.GET("/auth-check", authHandler.CheckAuth)
 			blogUsers.POST("/logout", authHandler.Logout)
 
 			blogUsers.GET("/detail", blogUsersHandler.FetchBlogUsers)
-			blogUsers.PUT("/update", blogUsersHandler.UpdateBlogUsers)
+			blogUsers.PUT("/update", blogUsersHandler.UpdateBlogUsers, authRateLimiter)
 		}
 		// ブログ関連のエンドポイント
 		blogs := api.Group("/blogs")

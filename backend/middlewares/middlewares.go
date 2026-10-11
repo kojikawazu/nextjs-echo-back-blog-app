@@ -10,11 +10,15 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// SetupMiddlewares は Echo にロガー・リカバリー・CORS の各ミドルウェアを設定する。
+// SetupMiddlewares は Echo にロガー・リカバリー・CORS・レートリミットの各ミドルウェアを設定する。
 //
 // 引数:
 //   - e: ミドルウェアを設定する対象の Echo インスタンス
 func SetupMiddlewares(e *echo.Echo) {
+	// クライアント IP は X-Forwarded-For の右端（Cloud Run のフロントエンドが付与した値）から取る。
+	// 既定の c.RealIP() は左端を使うため、ヘッダの偽装でレートリミットを回避できてしまう。
+	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+
 	// ロガーとリカバリーミドルウェアを使用
 	e.Use(newRequestLogger(os.Stdout))
 	e.Use(middleware.Recover())
@@ -37,6 +41,9 @@ func SetupMiddlewares(e *echo.Echo) {
 		// },
 		AllowCredentials: true,
 	}))
+
+	// レートリミット（CORS の後に置き、429 にも CORS ヘッダが付くようにする）
+	e.Use(newAPIRateLimiter())
 }
 
 // newRequestLogger は HTTP リクエスト/レスポンスのアクセスログを JSON 形式で出力するミドルウェアを返す。

@@ -17,6 +17,13 @@ resource "google_cloud_run_service" "echo_blog_app_service" {
   }
 
   template {
+    metadata {
+      annotations = {
+        # レートリミットはインスタンスのメモリでカウントするため、最大インスタンス数で実効上限を固定する（deploy.yml の --max-instances と揃える）
+        "autoscaling.knative.dev/maxScale" = "3"
+      }
+    }
+
     spec {
       containers {
         image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/${google_artifact_registry_repository.echo_blog_app_repo.repository_id}/${var.service_name}:latest"
