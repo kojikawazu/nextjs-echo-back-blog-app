@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // captureStdLog は標準 log の出力をバッファへ差し替え、テスト終了時に復元する。
@@ -22,12 +24,17 @@ func captureStdLog(t *testing.T) *bytes.Buffer {
 }
 
 // TestRepository_DoesNotLogCredentials は実 DB に対する取得・更新でログにパスワード・メールアドレスが残らないことを検証する。
-// FetchBlogUsersById は password 列を読み出すため、構造体の丸ごと出力があれば DB 上の値がログに載る。
+// FetchBlogUsersById / FetchBlogUsersByEmail は password 列（ハッシュ）を読み出すため、構造体の丸ごと出力があれば DB 上の値がログに載る。
 func TestRepository_DoesNotLogCredentials(t *testing.T) {
 	testID := os.Getenv("TEST_USER_ID")
 	testName := os.Getenv("TEST_USER_NAME")
 	testEmail := os.Getenv("TEST_USER_EMAIL")
 	testPasswd := os.Getenv("TEST_USER_PASSWD")
+
+	// 更新ケース用に、シードと同じパスワードのハッシュを用意する（後続テストのログインを壊さない）
+	hashBytes, err := bcrypt.GenerateFromPassword([]byte(testPasswd), bcrypt.DefaultCost)
+	require.NoError(t, err)
+	testHash := string(hashBytes)
 
 	tests := []struct {
 		name    string
@@ -36,10 +43,10 @@ func TestRepository_DoesNotLogCredentials(t *testing.T) {
 		wantLog string
 	}{
 		{
-			// 正常系: email + password での取得
-			name: "fetch_by_email_and_password",
+			// 正常系: email での取得（パスワードハッシュ列を含む）
+			name: "fetch_by_email",
 			run: func(r BlogUsersRepository) error {
-				_, err := r.FetchBlogUsersByEmailAndPassword(testEmail, testPasswd)
+				_, err := r.FetchBlogUsersByEmail(testEmail)
 				return err
 			},
 			wantLog: "Fetched user successfully: id=" + testID,
@@ -54,23 +61,23 @@ func TestRepository_DoesNotLogCredentials(t *testing.T) {
 			wantLog: "Fetched user successfully: id=" + testID,
 		},
 		{
-			// 正常系: 更新
+			// 正常系: 更新（ハッシュを保存する）
 			name: "update",
 			run: func(r BlogUsersRepository) error {
-				_, err := r.UpdateBlogUsers(testID, testName, testEmail, testPasswd)
+				_, err := r.UpdateBlogUsers(testID, testName, testEmail, testHash)
 				return err
 			},
 			wantLog: "Updated user successfully: id=" + testID,
 		},
 		{
-			// 準正常系: 認証失敗（不一致）時もログに資格情報が残らない
-			name: "fetch_by_email_and_wrong_password",
+			// 準正常系: 存在しないメールアドレスでの取得時もログに入力値が残らない
+			name: "fetch_by_unknown_email",
 			run: func(r BlogUsersRepository) error {
-				_, err := r.FetchBlogUsersByEmailAndPassword(testEmail, "wrong-password-value")
+				_, err := r.FetchBlogUsersByEmail("unknown-" + testEmail)
 				return err
 			},
 			wantErr: true,
-			wantLog: "User not found or failed to fetch user",
+			wantLog: "User not found",
 		},
 	}
 
@@ -84,7 +91,7 @@ func TestRepository_DoesNotLogCredentials(t *testing.T) {
 			logs := buf.String()
 			assert.NotContains(t, logs, testPasswd)
 			assert.NotContains(t, logs, testEmail)
-			assert.NotContains(t, logs, "wrong-password-value")
+			assert.NotContains(t, logs, testHash)
 			assert.Contains(t, logs, tt.wantLog)
 		})
 	}

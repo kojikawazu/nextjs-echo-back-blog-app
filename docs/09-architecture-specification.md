@@ -273,7 +273,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 | 環境変数 | godotenv | v1.5.1 | .env ファイル読み込み |
 | UUID | google/uuid | v1.6.0 | UUID生成・バリデーション |
 | テスト | testify | v1.9.0 | アサーション・モック |
-| 暗号化 | golang.org/x/crypto | v0.22.0（indirect） | go.mod 上は間接依存。現状コードからの直接利用はなく、将来のパスワードハッシュ化（bcrypt）導入時の利用を想定 |
+| 暗号化 | golang.org/x/crypto | v0.52.0 | `bcrypt` でパスワードのハッシュ化・照合を行う（`services/blog_users/password.go`。#120） |
 
 ### 4.2 インフラストラクチャ
 

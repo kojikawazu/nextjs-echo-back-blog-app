@@ -4,9 +4,11 @@ import (
 	"backend/models"
 	repositories_users "backend/repositories/blog_users"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestService_UpdateUser(t *testing.T) {
@@ -19,10 +21,10 @@ func TestService_UpdateUser(t *testing.T) {
 		ID:       "1",
 		Name:     "John Doe",
 		Email:    "john@example.com",
-		Password: "123",
+		Password: mustHash(t, "123"),
 	}
 	mockUserRepository.On("FetchBlogUsersById", "1").Return(mockUser, nil)
-	mockUserRepository.On("UpdateBlogUsers", "1", "John Doe", "john@example.com", "1234").Return(mockUser, nil)
+	mockUserRepository.On("UpdateBlogUsers", "1", "John Doe", "john@example.com", mock.MatchedBy(isHashOf("1234"))).Return(mockUser, nil)
 
 	// サービス層メソッドの実行
 	user, err := userService.UpdateUser("1", "John Doe", "john@example.com", "123", "1234")
@@ -185,7 +187,7 @@ func TestService_UpdateUser_NotComparePassword(t *testing.T) {
 		ID:       "1",
 		Name:     "John Doe",
 		Email:    "john@example.com",
-		Password: "123",
+		Password: mustHash(t, "123"),
 	}
 	mockUserRepository.On("FetchBlogUsersById", "1").Return(mockUser, nil)
 
@@ -214,10 +216,10 @@ func TestService_UpdateUser_NotUpdate(t *testing.T) {
 		ID:       "1",
 		Name:     "John Doe",
 		Email:    "john@example.com",
-		Password: "123",
+		Password: mustHash(t, "123"),
 	}
 	mockUserRepository.On("FetchBlogUsersById", "123").Return(mockUser, nil)
-	mockUserRepository.On("UpdateBlogUsers", "123", "John Doe", "john@example.com", "1234").Return(nil, errors.New("failed to update user"))
+	mockUserRepository.On("UpdateBlogUsers", "123", "John Doe", "john@example.com", mock.MatchedBy(isHashOf("1234"))).Return(nil, errors.New("failed to update user"))
 
 	// サービス層メソッドの実行
 	user, err := userService.UpdateUser("123", "John Doe", "john@example.com", "123", "1234")
@@ -231,4 +233,18 @@ func TestService_UpdateUser_NotUpdate(t *testing.T) {
 
 	// モックが期待通りに呼び出されたかを確認
 	mockUserRepository.AssertExpectations(t)
+}
+
+// 準正常系: 新しいパスワードが 72 バイトを超える場合は保存せず "password too long" を返す。
+func TestService_UpdateUser_NewPasswordTooLong(t *testing.T) {
+	mockUserRepository := new(repositories_users.MockUserRepository)
+	userService := NewUserService(mockUserRepository)
+
+	mockUserRepository.On("FetchBlogUsersById", "1").Return(&models.BlogUsersData{ID: "1", Password: mustHash(t, "123")}, nil)
+
+	user, err := userService.UpdateUser("1", "John Doe", "john@example.com", "123", strings.Repeat("a", 73))
+
+	assert.Nil(t, user)
+	assert.EqualError(t, err, "password too long")
+	mockUserRepository.AssertNotCalled(t, "UpdateBlogUsers", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }

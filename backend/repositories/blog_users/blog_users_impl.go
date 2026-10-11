@@ -3,31 +3,33 @@ package repositories_blog_users
 import (
 	"backend/models"
 	"backend/supabase"
+	"errors"
 	"log"
+
+	"github.com/jackc/pgx/v4"
 )
 
-// FetchBlogUsersByEmailAndPassword は指定されたメールアドレスとパスワードでユーザーを取得する。
-// ユーザーが見つからない場合、エラーを返す。
+// FetchBlogUsersByEmail は指定されたメールアドレスのユーザーを、パスワードハッシュを含めて取得する。
+// パスワードの照合は呼び出し側（サービス層）で行う。
 //
 // 引数:
 //   - email: 取得対象のメールアドレス
-//   - password: 認証に用いるパスワード
 //
 // 戻り値:
-//   - *models.BlogUsersData: 取得したユーザー情報
-//   - error: 取得に失敗した場合のエラー
-func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, password string) (*models.BlogUsersData, error) {
+//   - *models.BlogUsersData: 取得したユーザー情報（Password は bcrypt ハッシュ）
+//   - error: 該当なしの場合は ErrUserNotFound、その他取得に失敗した場合のエラー
+func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmail(email string) (*models.BlogUsersData, error) {
 	log.Println("Fetching user from Supabase by email")
 
 	query := `
-        SELECT id, name, email, created_at, updated_at
+        SELECT id, name, email, password, created_at, updated_at
         FROM blog_users
-        WHERE email = $1 AND password = $2
+        WHERE email = $1
         LIMIT 1
     `
 
 	// Supabaseからクエリを実行し、条件に一致するユーザーを取得
-	row := supabase.Pool.QueryRow(supabase.Ctx, query, email, password)
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, email)
 
 	// 取得した結果をスキャン
 	var user models.BlogUsersData
@@ -35,11 +37,16 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmailAndPassword(email, passwo
 		&user.ID,
 		&user.Name,
 		&user.Email,
+		&user.Password,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
 	if err != nil {
-		log.Printf("User not found or failed to fetch user: %v", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Println("User not found")
+			return nil, ErrUserNotFound
+		}
+		log.Printf("Failed to fetch user: %v", err)
 		return nil, err
 	}
 
@@ -93,12 +100,12 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUse
 //   - id: 更新対象のユーザーID
 //   - name: 更新後のユーザー名
 //   - email: 更新後のメールアドレス
-//   - password: 更新後のパスワード
+//   - passwordHash: 更新後のパスワードの bcrypt ハッシュ（平文を渡さない）
 //
 // 戻り値:
 //   - *models.BlogUsersData: 更新後のユーザー情報
 //   - error: 更新に失敗した場合のエラー
-func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, password string) (*models.BlogUsersData, error) {
+func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, passwordHash string) (*models.BlogUsersData, error) {
 	log.Println("Updating user in Supabase")
 
 	query := `
@@ -109,7 +116,7 @@ func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, password stri
 	`
 
 	// Supabaseからクエリを実行し、条件に一致するユーザーを更新
-	row := supabase.Pool.QueryRow(supabase.Ctx, query, name, email, password, id)
+	row := supabase.Pool.QueryRow(supabase.Ctx, query, name, email, passwordHash, id)
 
 	// 取得した結果をスキャン
 	var user models.BlogUsersData

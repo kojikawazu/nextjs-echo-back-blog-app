@@ -94,8 +94,8 @@
 | `repositories/blogs/test/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
 | `repositories/blog_users/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 + 準正常系（空id） |
-| `repositories/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 + 準正常系 |
-| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 + 準正常系（存在しないID） |
+| `repositories/blog_users/blog_users_FetchUserByEmail_test.go` | メール指定取得（パスワードが bcrypt ハッシュで保存されていること）+ 準正常系（存在しないメール → `ErrUserNotFound`） |
+| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新（渡したハッシュが保存され元のパスワードで照合できること）+ 準正常系（存在しないID） |
 | `repositories/blog_users/blog_users_log_test.go` | 取得・更新・認証失敗時のログにパスワード・メールアドレスが残らないこと |
 | `repositories/blog_users/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
 | `testsupport/guard_test.go` | テスト用 DB の接続先検査（ローカルのみ許可・リモート/解析不能は拒否・エラーに接続情報を含めない）、リモート指定時に `Setup` が接続せずエラーを返すこと |
@@ -123,8 +123,9 @@
 | `services/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新 |
 | `services/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除 |
 | `services/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 |
-| `services/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | メール・パスワード指定取得 |
-| `services/blog_users/blog_users_UpdateUser_test.go` | ユーザー更新 |
+| `services/blog_users/blog_users_FetchUserByEmailAndPassword_test.go` | bcrypt 照合による認証（成功 / 必須欠落 / 形式不正 / ユーザー不在 / 不一致 / 平文保存値 / リポジトリエラー） |
+| `services/blog_users/password_test.go` | `hashPassword` / `verifyPassword`（ソルト・72 バイト上限・平文や壊れたハッシュを一致扱いにしない）、ダミーハッシュ |
+| `services/blog_users/blog_users_UpdateUser_test.go` | ユーザー更新（新しいパスワードがハッシュ化されて渡ること・72 バイト超の拒否を含む） |
 | `services/blog_users/blog_users_log_test.go` | ユーザー取得（成功・不在・取得エラー）時のログに資格情報が残らないこと |
 | `services/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | コメント取得 |
 | `services/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 |

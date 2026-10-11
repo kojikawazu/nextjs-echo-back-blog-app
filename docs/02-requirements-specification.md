@@ -505,7 +505,7 @@
 | Cookie設定（本番環境） | `Secure=true`, `SameSite=None`, `HttpOnly=true` |
 | Cookie設定（開発環境） | `Secure=false`, `SameSite=Lax`, `HttpOnly=true` |
 | CORS | 許可オリジンを環境変数で制御、`AllowCredentials=true` |
-| パスワード | 平文保存（現行実装。ハッシュ化が推奨される） |
+| パスワード | bcrypt（cost 10）でハッシュ化して保存（#120） |
 
 ### 9.2 パフォーマンス
 

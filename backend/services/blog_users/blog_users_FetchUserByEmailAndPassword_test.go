@@ -3,61 +3,98 @@ package services_blog_users
 import (
 	"backend/models"
 	repositories_blog_users "backend/repositories/blog_users"
-	"database/sql"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+// 正常系: 保存されている bcrypt ハッシュと一致すればユーザーを返す。
 func TestService_FetchUserByEmailAndPassword(t *testing.T) {
-	// モックリポジトリをインスタンス化
 	mockUserRepository := new(repositories_blog_users.MockUserRepository)
 	userService := NewUserService(mockUserRepository)
 
-	// モックの挙動を設定
 	mockUser := &models.BlogUsersData{
-		ID:    "1",
-		Name:  "John Doe",
-		Email: "john@example.com",
+		ID:       "1",
+		Name:     "John Doe",
+		Email:    "john@example.com",
+		Password: mustHash(t, "password123"),
 	}
-	mockUserRepository.On("FetchBlogUsersByEmailAndPassword", "john@example.com", "password123").Return(mockUser, nil)
+	mockUserRepository.On("FetchBlogUsersByEmail", "john@example.com").Return(mockUser, nil)
 
-	// サービス層メソッドの実行
 	user, err := userService.FetchUserByEmailAndPassword("john@example.com", "password123")
 
-	// エラーチェック
 	assert.NoError(t, err)
-
-	// データが期待通りか確認
 	assert.NotNil(t, user)
 	assert.Equal(t, "John Doe", user.Name)
-
-	// モックが期待通りに呼び出されたかを確認
 	mockUserRepository.AssertExpectations(t)
 }
 
+// TestService_FetchUserByEmailAndPassword_InvalidCases は入力不正・認証失敗時の振る舞いを検証する。
 func TestService_FetchUserByEmailAndPassword_InvalidCases(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockUserRepository := new(repositories_blog_users.MockUserRepository)
-	userService := NewUserService(mockUserRepository)
+	tests := []struct {
+		name     string
+		email    string
+		password string
+		setup    func(m *repositories_blog_users.MockUserRepository)
+		wantErr  string
+	}{
+		{
+			// 準正常系: 必須項目の欠落
+			name: "empty_email_and_password", email: "", password: "",
+			setup:   func(m *repositories_blog_users.MockUserRepository) {},
+			wantErr: "email and password are required",
+		},
+		{
+			// 準正常系: メール形式の不正
+			name: "invalid_email_format", email: "invalid-email", password: "password123",
+			setup:   func(m *repositories_blog_users.MockUserRepository) {},
+			wantErr: "invalid email format",
+		},
+		{
+			// 準正常系: ユーザー不在（#137: リポジトリが返す ErrUserNotFound を判定できる）
+			name: "user_not_found", email: "john@example.com", password: "password123",
+			setup: func(m *repositories_blog_users.MockUserRepository) {
+				m.On("FetchBlogUsersByEmail", "john@example.com").Return(nil, repositories_blog_users.ErrUserNotFound)
+			},
+			wantErr: "invalid credentials",
+		},
+		{
+			// 準正常系: パスワード不一致（ユーザー不在と同じエラーで区別させない）
+			name: "wrong_password", email: "john@example.com", password: "wrong-password",
+			setup: func(m *repositories_blog_users.MockUserRepository) {
+				m.On("FetchBlogUsersByEmail", "john@example.com").Return(&models.BlogUsersData{ID: "1", Password: mustHash(t, "password123")}, nil)
+			},
+			wantErr: "invalid credentials",
+		},
+		{
+			// 異常系: 保存値が平文のまま（移行漏れ）でも認証を通さない
+			name: "plaintext_stored_password", email: "john@example.com", password: "password123",
+			setup: func(m *repositories_blog_users.MockUserRepository) {
+				m.On("FetchBlogUsersByEmail", "john@example.com").Return(&models.BlogUsersData{ID: "1", Password: "password123"}, nil)
+			},
+			wantErr: "invalid credentials",
+		},
+		{
+			// 異常系: リポジトリの想定外エラーはそのまま返す（認証失敗と区別する）
+			name: "repository_error", email: "john@example.com", password: "password123",
+			setup: func(m *repositories_blog_users.MockUserRepository) {
+				m.On("FetchBlogUsersByEmail", "john@example.com").Return(nil, errors.New("connection refused"))
+			},
+			wantErr: "connection refused",
+		},
+	}
 
-	// 1. メールアドレスとパスワードが空の場合
-	_, err := userService.FetchUserByEmailAndPassword("", "")
-	assert.Error(t, err)
-	assert.Equal(t, "email and password are required", err.Error())
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUserRepository := new(repositories_blog_users.MockUserRepository)
+			tt.setup(mockUserRepository)
 
-	// 2. メールアドレスの形式が無効な場合
-	_, err = userService.FetchUserByEmailAndPassword("invalid-email", "password123")
-	assert.Error(t, err)
-	assert.Equal(t, "invalid email format", err.Error())
+			user, err := NewUserService(mockUserRepository).FetchUserByEmailAndPassword(tt.email, tt.password)
 
-	// 3. ユーザーが見つからない場合
-	mockUserRepository.On("FetchBlogUsersByEmailAndPassword", "john@example.com", "password123").Return(nil, sql.ErrNoRows)
-
-	_, err = userService.FetchUserByEmailAndPassword("john@example.com", "password123")
-	assert.Error(t, err)
-	assert.Equal(t, "user not found", err.Error())
-
-	// モックが期待通りに呼び出されたかを確認
-	mockUserRepository.AssertExpectations(t)
+			assert.Nil(t, user)
+			assert.EqualError(t, err, tt.wantErr)
+			mockUserRepository.AssertExpectations(t)
+		})
+	}
 }

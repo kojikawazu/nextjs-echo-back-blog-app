@@ -16,6 +16,7 @@
 - [トラブルシューティング](#トラブルシューティング)
   - [既存テーブルがある場合の対処](#既存テーブルがある場合の対処)
 - [注意事項](#注意事項)
+- [付録 A: パスワードのハッシュ化（#120）](#付録-a-パスワードのハッシュ化120)
 
 ---
 
@@ -166,3 +167,70 @@ pg_dump "postgresql://postgres.[移行元プロジェクトRef]:[パスワード
 - パスワードや接続文字列をGitにコミットしないこと
 - 移行前に移行先プロジェクトのバックアップを取得しておくことを推奨
 - `backup.sql` は作業完了後に削除すること（認証情報がSQLコメントに含まれる場合がある）
+
+---
+
+## 付録 A: パスワードのハッシュ化（#120）
+
+`blog_users.password` に平文で保存されていた既存ユーザーのパスワードを、bcrypt ハッシュに一括変換する。アプリは #120 以降、bcrypt ハッシュのみを照合する（平文の保存値では認証が通らない）。
+
+### 前提
+
+- 本番の Supabase プロジェクトは**他アプリと共用**のため、`public.blog_users` 以外に触れない
+- `pgcrypto` 拡張が `extensions` スキーマに導入済みであること（`extensions.crypt` / `extensions.gen_salt` を使う）
+- pgcrypto の `gen_salt('bf', 10)` は `$2a$10$` 形式のハッシュを生成し、Go の `golang.org/x/crypto/bcrypt` で照合できる（コストもアプリの `bcrypt.DefaultCost` と同じ 10）
+
+### 手順
+
+1. #120 の PR をマージし、Cloud Run へのデプロイ完了を確認する（**この時点から移行完了までログインできない**。閲覧系の機能には影響しない）
+2. 直ちに移行 SQL を適用する（Supabase のマイグレーションとして記録する）
+3. 移行後の確認クエリで、平文が残っていないことを確認する
+4. 本番でログインできることを確認する
+5. 移行前の本番ダンプ（`work/backup.sql` 等）には平文が残っているため、削除または再取得する
+
+### 移行前の確認（値は取得しない）
+
+```sql
+SELECT
+  count(*)                                                   AS users,
+  count(*) FILTER (WHERE password ~ '^\$2[aby]\$[0-9]{2}\$') AS bcrypt_like,
+  count(*) FILTER (WHERE password IS NULL OR password = '')  AS empty_password
+FROM public.blog_users;
+```
+
+### 移行 SQL
+
+```sql
+-- 平文の行のみを対象にする（bcrypt 形式の行はスキップするため、再実行しても安全）
+UPDATE public.blog_users
+SET password = extensions.crypt(password, extensions.gen_salt('bf', 10))
+WHERE password IS NOT NULL
+  AND password <> ''
+  AND password !~ '^\$2[aby]\$[0-9]{2}\$';
+```
+
+- 平文は DB の外に出さずに DB 内でハッシュ化する（通信・ログに平文が流れない）
+- 空・NULL のパスワードは変換しない（該当行は認証できない状態のまま。移行前の確認で件数を把握する）
+
+### 移行後の確認
+
+```sql
+-- users = bcrypt_like であること（平文が残っていない）
+SELECT
+  count(*)                                                   AS users,
+  count(*) FILTER (WHERE password ~ '^\$2[aby]\$10\$')       AS bcrypt_like
+FROM public.blog_users;
+```
+
+### ロールバック
+
+- ハッシュ化は不可逆のため、平文には戻せない。アプリを #120 より前に戻すとログインできなくなる
+- 問題が起きた場合はアプリを戻さず、該当ユーザーのパスワードを新しいハッシュで再設定する:
+
+```sql
+-- '<new-password>' は実行時に指定する（SQL ファイル・履歴に残さない）
+UPDATE public.blog_users
+SET password = extensions.crypt('<new-password>', extensions.gen_salt('bf', 10))
+WHERE id = '<user-id>';
+```
+

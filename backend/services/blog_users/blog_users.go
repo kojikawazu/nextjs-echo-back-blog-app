@@ -2,14 +2,19 @@ package services_blog_users
 
 import (
 	"backend/models"
-	"database/sql"
+	repositories_blog_users "backend/repositories/blog_users"
 	"errors"
 	"log"
 	"net/mail"
 )
 
-// FetchUserByEmailAndPassword は指定されたメールアドレスとパスワードでユーザーを取得する。
-// ユーザーが見つからない場合、エラーを返す。
+// errInvalidCredentials はログイン時にユーザー不在・パスワード不一致のいずれかであることを示すエラー。
+// どちらであるかを呼び出し側に区別させない（メールアドレスの登録有無を推測させないため）。
+var errInvalidCredentials = errors.New("invalid credentials")
+
+// FetchUserByEmailAndPassword は指定されたメールアドレスとパスワードでユーザーを認証し、取得する。
+// パスワードは保存されている bcrypt ハッシュと照合する。
+// ユーザー不在・パスワード不一致はいずれも "invalid credentials" を返す。
 //
 // 引数:
 //   - email: 取得対象のメールアドレス
@@ -33,14 +38,21 @@ func (s *UserServiceImpl) FetchUserByEmailAndPassword(email, password string) (*
 
 	log.Println("Email and password are valid")
 
-	user, err := s.UserRepository.FetchBlogUsersByEmailAndPassword(email, password)
+	user, err := s.UserRepository.FetchBlogUsersByEmail(email)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, repositories_blog_users.ErrUserNotFound) {
+			// ユーザー不在でも照合 1 回分の時間をかける（応答時間による登録有無の推測を防ぐ）
+			verifyPassword(dummyPasswordHash, password)
 			log.Println("User not found")
-			return nil, errors.New("user not found")
+			return nil, errInvalidCredentials
 		}
 		log.Printf("Failed to fetch user: %v", err)
 		return nil, err
+	}
+
+	if !verifyPassword(user.Password, password) {
+		log.Printf("Invalid password: id=%s", user.ID)
+		return nil, errInvalidCredentials
 	}
 
 	return user, nil
@@ -128,14 +140,25 @@ func (s *UserServiceImpl) UpdateUser(id, name, email, password, newPassword stri
 		log.Printf("Failed to validate user: %v", err)
 		return nil, errors.New("failed to validate user")
 	}
-	if currentUser.Password != password {
+	if !verifyPassword(currentUser.Password, password) {
 		log.Printf("Invalid current password")
 		return nil, errors.New("invalid current password")
 	}
 
 	log.Println("ID and email are valid")
 
-	user, err := s.UserRepository.UpdateBlogUsers(id, name, email, newPassword)
+	// 新しいパスワードは bcrypt でハッシュ化してから保存する（平文を DB に渡さない）
+	newPasswordHash, err := hashPassword(newPassword)
+	if err != nil {
+		if errors.Is(err, errPasswordTooLong) {
+			log.Printf("New password is too long")
+			return nil, errPasswordTooLong
+		}
+		log.Printf("Failed to hash password: %v", err)
+		return nil, errors.New("failed to update user")
+	}
+
+	user, err := s.UserRepository.UpdateBlogUsers(id, name, email, newPasswordHash)
 	if err != nil {
 		log.Printf("Failed to update user: %v", err)
 		return nil, errors.New("failed to update user")

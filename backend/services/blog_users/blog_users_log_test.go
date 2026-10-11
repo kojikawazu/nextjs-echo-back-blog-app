@@ -4,7 +4,6 @@ import (
 	"backend/models"
 	repositories_blog_users "backend/repositories/blog_users"
 	"bytes"
-	"database/sql"
 	"errors"
 	"log"
 	"testing"
@@ -39,12 +38,12 @@ func TestService_FetchUserByEmailAndPassword_DoesNotLogCredentials(t *testing.T)
 		{
 			// 正常系
 			name:    "found",
-			repoRet: &models.BlogUsersData{ID: "1", Email: logTestEmail, Password: logTestPassword},
+			repoRet: &models.BlogUsersData{ID: "1", Email: logTestEmail, Password: mustHash(t, logTestPassword)},
 		},
 		{
 			// 準正常系: ユーザー不在のログにメールアドレスを含めない
 			name:    "not_found",
-			repoErr: sql.ErrNoRows,
+			repoErr: repositories_blog_users.ErrUserNotFound,
 			wantErr: true,
 			wantLog: "User not found",
 		},
@@ -62,7 +61,7 @@ func TestService_FetchUserByEmailAndPassword_DoesNotLogCredentials(t *testing.T)
 			buf := captureStdLog(t)
 
 			mockRepo := new(repositories_blog_users.MockUserRepository)
-			mockRepo.On("FetchBlogUsersByEmailAndPassword", logTestEmail, logTestPassword).Return(tt.repoRet, tt.repoErr)
+			mockRepo.On("FetchBlogUsersByEmail", logTestEmail).Return(tt.repoRet, tt.repoErr)
 
 			_, err := NewUserService(mockRepo).FetchUserByEmailAndPassword(logTestEmail, logTestPassword)
 

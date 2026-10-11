@@ -3,7 +3,9 @@
 -- TEST_* 環境変数と一致させている（本番ダンプの実データは流用しない）。
 
 INSERT INTO blog_users (id, name, email, password) VALUES
-    ('11111111-1111-1111-1111-111111111111', 'Test User', 'test@example.com', 'test-password');
+    ('11111111-1111-1111-1111-111111111111', 'Test User', 'test@example.com',
+     -- 'test-password' の bcrypt ハッシュ（cost 10）。TEST_USER_PASSWD は平文の 'test-password'
+     '$2a$10$SNFQMJ.cTyv4AoYXGMe1g.YJ0cvkCqH8gt/mpxAj9AJEZX9d6O4ve');
 
 -- 2件用意する（FetchBlogs / FetchBlogsByUserId が len>=2 を期待するため）。両方とも同一ユーザー所有。
 INSERT INTO blogs (id, blog_user_id, title, description, github_url, category, tags, likes, comment_cnt) VALUES
