@@ -1,6 +1,7 @@
 package handlers_blogs
 
 import (
+	"backend/dto"
 	utils "backend/utils/log"
 	"net/http"
 	"strconv"
@@ -29,7 +30,7 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Fetched blogs successfully")
-	return c.JSON(http.StatusOK, blogs)
+	return c.JSON(http.StatusOK, dto.NewBlogResponses(blogs))
 }
 
 // FetchBlogsByUserId はユーザー ID でブログデータを取得するエンドポイント。
@@ -66,7 +67,7 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Fetched blogs successfully")
-	return c.JSON(http.StatusOK, blogs)
+	return c.JSON(http.StatusOK, dto.NewBlogResponses(blogs))
 }
 
 // FetchBlogById はブログ ID でブログデータを取得するエンドポイント。
@@ -103,7 +104,7 @@ func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Fetched blog successfully")
-	return c.JSON(http.StatusOK, blog)
+	return c.JSON(http.StatusOK, dto.NewBlogResponse(blog))
 }
 
 // CreateBlog はブログデータを作成するエンドポイント。
@@ -192,7 +193,7 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Created blog successfully")
-	return c.JSON(http.StatusCreated, blog)
+	return c.JSON(http.StatusCreated, dto.NewBlogResponse(blog))
 }
 
 // UpdateBlog はブログデータを更新するエンドポイント。
@@ -284,7 +285,7 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Updated blog successfully")
-	return c.JSON(http.StatusOK, blog)
+	return c.JSON(http.StatusOK, dto.NewBlogResponse(blog))
 }
 
 // DeleteBlog はブログデータを削除するエンドポイント。
@@ -427,5 +428,5 @@ func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Fetched popular blogs successfully")
-	return c.JSON(http.StatusOK, blogs)
+	return c.JSON(http.StatusOK, dto.NewBlogResponses(blogs))
 }

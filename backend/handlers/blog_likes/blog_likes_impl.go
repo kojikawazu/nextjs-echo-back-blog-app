@@ -1,6 +1,7 @@
 package handlers_blog_likes
 
 import (
+	"backend/dto"
 	utils "backend/utils/log"
 	"net/http"
 
@@ -45,7 +46,7 @@ func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 
 	utils.LogInfo(c, "Blog likes fetched successfully")
 	c.Response().Header().Set("Cache-Control", "no-store")
-	return c.JSON(http.StatusOK, blogLikesData)
+	return c.JSON(http.StatusOK, dto.NewBlogLikeResponses(blogLikesData))
 }
 
 // GenerateVisitorId -　訪問者IDを生成するハンドラ
@@ -187,7 +188,7 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	}
 
 	utils.LogInfo(c, "Blog like created successfully")
-	return c.JSON(http.StatusOK, createdBlogLikeData)
+	return c.JSON(http.StatusOK, dto.NewBlogLikeResponse(createdBlogLikeData))
 }
 
 // DeleteBlogLike はブログいいねを削除するハンドラ。

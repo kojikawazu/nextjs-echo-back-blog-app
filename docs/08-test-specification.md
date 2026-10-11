@@ -174,6 +174,7 @@
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー・JSON 出力・機密ヘッダ非記録） |
 | `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
 | `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
+| `dto/blogs_test.go` / `dto/blog_likes_test.go` / `dto/blog_comments_test.go` | DTO の JSON が DTO 化以前（モデル直返し）の出力と完全一致すること（ゴールデン）、ゼロ値・nil（`null`）・空（`[]`）・順序の保持 |
 
 ---
 

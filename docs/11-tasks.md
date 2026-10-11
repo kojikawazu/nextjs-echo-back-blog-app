@@ -162,7 +162,11 @@
 
 - [x] **ユーザーレスポンスの DTO 化（#121）**
   - 対応: `backend/dto/` を新設し `UserResponse` を定義。`/users/detail`・`/users/update` は DTO を返す。モデルの JSON タグを外し `Password` は `json:"-"`。未使用の `GetUserByEmailAndPassword` ハンドラを削除
-  - 残: blogs / blog_likes / blog_comments のモデル直返しの DTO 化（#139）
+  - 残: なし（blogs / blog_likes / blog_comments は #139 で DTO 化）
+
+- [x] **blogs / blog_likes / blog_comments のレスポンス DTO 化（#139）**
+  - 対応: `dto.BlogResponse` / `dto.BlogLikeResponse` / `dto.CommentResponse` を追加し、ハンドラはすべて DTO を返す。モデルから JSON タグを削除
+  - API の形は不変（キー名・型・空の一覧は `null`）。DTO 化以前の JSON をゴールデンとしてテストで固定
 
 - [x] **IT / E2E の本番 DB への誤接続防止（#140）**
   - 対応: `testsupport` で `SUPABASE_URL` の接続先を検査し、ローカル（localhost / 127.0.0.1 / ::1 / Unix ソケット）以外は接続せずにテストを中止する。`.env.test.example` の例をローカルの DB に変更

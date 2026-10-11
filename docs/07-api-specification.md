@@ -1025,10 +1025,17 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 ## 7. データモデル
 
-### BlogData
+API のレスポンスはすべてレスポンス DTO（`backend/dto/`）で返し、モデル（`backend/models/`）を直接返さない（`.claude/rules/api.md`）。モデルは JSON タグを持たない。
 
-| フィールド | JSON名 | DB名 | 型 | 説明 |
-|-----------|--------|------|----|------|
+- 一覧のレスポンスは、該当が 0 件の場合 `[]` ではなく **`null`** を返す（DTO 化以前からの挙動。#139 で互換性のため維持）
+- `GET /api/blogs/categories`・`GET /api/blogs/tags` は文字列の配列（`[]string`）をそのまま返す
+
+### BlogResponse（`dto.BlogResponse`）
+
+ブログ記事のレスポンス DTO。
+
+| フィールド | JSON名 | 元のモデル項目（DB名） | 型 | 説明 |
+|-----------|--------|----------------------|----|------|
 | ID | id | id | string (UUID) | ブログID |
 | BlogUserId | blog_user_id | blog_user_id | string (UUID) | ブログユーザーID |
 | Title | title | title | string | タイトル |
@@ -1055,20 +1062,24 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 > `models.BlogUsersData` は API に直接返さない。JSON タグを持たず、`Password` は `json:"-"` のため誤ってシリアライズされても出力されない。
 
-### BlogLikesData
+### BlogLikeResponse（`dto.BlogLikeResponse`）
 
-| フィールド | JSON名 | DB名 | 型 | 説明 |
-|-----------|--------|------|----|------|
+いいねのレスポンス DTO。フロントエンドの `BlogLike` 型が `visit_id` を参照するため含める。
+
+| フィールド | JSON名 | 元のモデル項目（DB名） | 型 | 説明 |
+|-----------|--------|----------------------|----|------|
 | ID | id | id | string (UUID) | いいねID |
 | BlogId | blog_id | blog_id | string (UUID) | ブログID |
 | VisitId | visit_id | visit_id | string (UUID) | 訪問者ID |
 | CreatedAt | created_at | created_at | time.Time | 作成日時 |
 | UpdatedAt | updated_at | updated_at | time.Time | 更新日時 |
 
-### BlogCommentsData
+### CommentResponse（`dto.CommentResponse`）
 
-| フィールド | JSON名 | DB名 | 型 | 説明 |
-|-----------|--------|------|----|------|
+コメントのレスポンス DTO。
+
+| フィールド | JSON名 | 元のモデル項目（DB名） | 型 | 説明 |
+|-----------|--------|----------------------|----|------|
 | ID | id | id | string (UUID) | コメントID |
 | BlogId | blog_id | blog_id | string (UUID) | ブログID |
 | GuestUser | guest_user | guest_user | string | ゲストユーザー名 |

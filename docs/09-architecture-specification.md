@@ -561,9 +561,12 @@ backend/
 ├── config/
 │   └── config.go                    # JWT鍵・環境判定の設定
 │
-├── dto/
-│   ├── blog_users.go                # レスポンス DTO（UserResponse）。モデルを直接返さない
-│   └── blog_users_test.go
+├── dto/                             # レスポンス DTO。モデルを直接返さない（JSON タグは DTO 側で管理）
+│   ├── blog_users.go                # UserResponse（パスワードを含めない）
+│   ├── blogs.go                     # BlogResponse
+│   ├── blog_likes.go                # BlogLikeResponse
+│   ├── blog_comments.go             # CommentResponse
+│   └── *_test.go                    # DTO 化以前の JSON との一致（ゴールデン）を検証
 │
 ├── logger/
 │   └── logger.go                    # ログレベル設定（Info/Error/Warn/Debug/Test）
