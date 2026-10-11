@@ -129,6 +129,10 @@ func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "New password is required",
 			})
+		case "password too long":
+			return c.JSON(http.StatusBadRequest, map[string]string{
+				"error": "Password is too long",
+			})
 		case "invalid email format":
 			return c.JSON(http.StatusBadRequest, map[string]string{
 				"error": "Invalid email format",

@@ -313,10 +313,13 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | 400 Bad Request | `Email is required` | email が空 |
 | 400 Bad Request | `Password is required` | password が空 |
 | 400 Bad Request | `New password is required` | newPassword が空 |
+| 400 Bad Request | `Password is too long` | newPassword が 72 バイトを超える（bcrypt の上限） |
 | 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
 | 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
 | 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
 | 500 Internal Server Error | `Failed to update user` | DB更新エラー、ユーザー検証失敗、現パスワード不一致 |
+
+> 新しいパスワードは bcrypt でハッシュ化して保存する。現在のパスワードは保存済みのハッシュと照合する（#120）。
 | 500 Internal Server Error | `Failed to create token` | トークン再作成に失敗 |
 
 > **注意**: Handler層には `404 User not found` の分岐が存在するが、Service層は `"failed to validate user"` や `"invalid current password"` を返すため、これらのエラーはHandler側の `"user not found"` 条件に一致せず、全てdefaultの500に落ちる。

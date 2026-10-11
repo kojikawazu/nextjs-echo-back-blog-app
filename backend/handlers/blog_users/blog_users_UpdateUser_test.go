@@ -9,6 +9,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -498,5 +499,40 @@ func TestHandler_UpdateUser_NotUpdated(t *testing.T) {
 
 	// モックが期待通りに呼び出されたかを確認
 	mockCookieUtils.AssertExpectations(t)
+	mockUserService.AssertExpectations(t)
+}
+
+// 準正常系: 新しいパスワードが長すぎる（bcrypt の 72 バイト超）場合は 400 を返す。
+func TestHandler_UpdateUser_NewPasswordTooLong(t *testing.T) {
+	e := echo.New()
+
+	longPassword := strings.Repeat("a", 73)
+	jsonData, err := json.Marshal(map[string]string{
+		"name":        "John Doe",
+		"email":       "john@example.com",
+		"password":    "password",
+		"newPassword": longPassword,
+	})
+	if err != nil {
+		t.Fatalf("Failed to marshal JSON: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	mockCookieUtils := new(utils_cookie.MockCookieUtils)
+	mockUserService := new(services_users.MockUserService)
+	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
+
+	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", longPassword).Return(nil, errors.New("password too long"))
+	SetMockBlogCookies(c, req, mockCookieUtils)
+
+	err = handler.UpdateBlogUsers(c)
+
+	assert.NoError(t, err)
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+	assert.JSONEq(t, `{"error":"Password is too long"}`, rec.Body.String())
 	mockUserService.AssertExpectations(t)
 }

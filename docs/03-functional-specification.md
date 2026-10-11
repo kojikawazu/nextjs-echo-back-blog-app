@@ -81,9 +81,10 @@
 2. `AuthService.Login` でバリデーションを実行:
    - `email` と `password` が空でないことを確認
    - `email` が `net/mail.ParseAddress` による有効なメール形式であることを確認
-3. `UserService.FetchUserByEmailAndPassword` でデータベースからユーザーを検索:
-   - `email` と `password` の両方が一致するユーザーをSELECT
-   - パスワードはDBに平文保存されているため、直接比較
+3. `UserService.FetchUserByEmailAndPassword` でユーザーを認証:
+   - `email` でユーザーを1件取得（`FetchBlogUsersByEmail`。パスワードの bcrypt ハッシュを含む）
+   - 入力の `password` と保存されている bcrypt ハッシュを `bcrypt.CompareHashAndPassword` で照合
+   - ユーザー不在・パスワード不一致はいずれも 401 `Invalid credentials`（区別しない）。ユーザー不在時もダミーハッシュで照合し、応答時間の差を抑える
 4. JWTトークン生成:
    - ペイロード: `user_id`, `email`, `username`
    - 有効期限: 現在時刻 + 1時間
@@ -581,12 +582,13 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
     |    - email: net/mail.ParseAddress による形式チェック
     | 2. 現パスワード検証:
     |    - FetchBlogUsersById(id) で現在のユーザー情報取得
-    |    - currentUser.Password != password → エラー
-    | 3. UserRepository.UpdateBlogUsers(id, name, email, newPassword) 呼び出し
+    |    - currentUser.Password（bcrypt ハッシュ）と password を照合し、不一致ならエラー
+    | 3. newPassword を bcrypt（cost 10）でハッシュ化（72 バイト超は 400 Password is too long）
+    | 4. UserRepository.UpdateBlogUsers(id, name, email, newPasswordHash) 呼び出し
     v
 [BlogUsersHandler.UpdateBlogUsers（続き）]
     |
-    | 4. 更新成功後:
+    | 5. 更新成功後:
     |    - 新しいJWTトークン生成（更新後のユーザー情報で）
     |    - Cookie "token" を新しいトークンで更新
     v

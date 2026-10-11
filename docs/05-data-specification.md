@@ -82,7 +82,7 @@
 | id | UUID | NOT NULL | PRIMARY KEY | ユーザーID（自動生成） |
 | name | TEXT | NOT NULL | - | ユーザー名 |
 | email | TEXT | NOT NULL | - | メールアドレス（ログイン認証に使用） |
-| password | TEXT | NOT NULL | - | パスワード（平文で格納） |
+| password | TEXT | NOT NULL | - | パスワードの bcrypt ハッシュ（`$2a$10$...`、60 文字）。平文は保存しない（#120） |
 | created_at | TIMESTAMP | NOT NULL | DEFAULT now() | 作成日時 |
 | updated_at | TIMESTAMP | NOT NULL | DEFAULT now() | 更新日時 |
 
@@ -102,8 +102,10 @@ type BlogUsersData struct {
 > API レスポンスには `dto.UserResponse` を使う（#121）。本モデルは JSON タグを持たず、`Password` は `json:"-"` で直列化対象から外している。
 
 **備考:**
-- ユーザー情報取得時（`FetchBlogUsers`）にはレスポンス返却前にパスワードフィールドを空文字列に上書きしてから返す。
-- email/password照合時のSQLクエリでは、パスワードを平文比較している。
+- API レスポンスは `dto.UserResponse` で返し、パスワードは含めない（#121）。
+- パスワードの照合は SQL ではなくサービス層で行う。`email` でユーザーを取得し、`bcrypt.CompareHashAndPassword` でハッシュと照合する（#120）。
+- 既存ユーザーの平文パスワードは、pgcrypto の `crypt()` で一括してハッシュ化した（手順: [supabase-migration-guide.md 付録 A](supabase-migration-guide.md#付録-a-パスワードのハッシュ化120)）。
+- テスト用シード（`testsupport/testdata/seed.sql`）のパスワードも `test-password` の bcrypt ハッシュとする。
 
 ### 2.2 blogs（ブログ記事）
 
