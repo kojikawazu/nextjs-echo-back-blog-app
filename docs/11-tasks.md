@@ -164,6 +164,9 @@
   - 対応: `backend/dto/` を新設し `UserResponse` を定義。`/users/detail`・`/users/update` は DTO を返す。モデルの JSON タグを外し `Password` は `json:"-"`。未使用の `GetUserByEmailAndPassword` ハンドラを削除
   - 残: blogs / blog_likes / blog_comments のモデル直返しの DTO 化（#139）
 
+- [x] **IT / E2E の本番 DB への誤接続防止（#140）**
+  - 対応: `testsupport` で `SUPABASE_URL` の接続先を検査し、ローカル（localhost / 127.0.0.1 / ::1 / Unix ソケット）以外は接続せずにテストを中止する。`.env.test.example` の例をローカルの DB に変更
+
 - [ ] **パスワードのハッシュ化（bcrypt）**
   - 現状: `blog_users.password`が平文保存
   - 対応: `golang.org/x/crypto/bcrypt`を使用したハッシュ化

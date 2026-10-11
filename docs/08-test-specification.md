@@ -40,8 +40,8 @@
 
 | テストレベル | 対象層 | テスト種別 | DB接続 | モック使用 |
 |-------------|--------|-----------|--------|-----------|
-| E2E テスト | 全層（HTTP→Handler→Service→Repository→DB） | エンドツーエンド（E2E） | 必要（既定は testcontainers。`SUPABASE_URL` 指定時は実DB） | なし（実サーバーを httptest で起動） |
-| Repository テスト | Repository層 | インテグレーション（IT） | 必要（既定は testcontainers の使い捨て PostgreSQL。`SUPABASE_URL` 指定時は実DB） | なし |
+| E2E テスト | 全層（HTTP→Handler→Service→Repository→DB） | エンドツーエンド（E2E） | 必要（既定は testcontainers。`SUPABASE_URL` 指定時はそのローカル DB） | なし（実サーバーを httptest で起動） |
+| Repository テスト | Repository層 | インテグレーション（IT） | 必要（既定は testcontainers の使い捨て PostgreSQL。`SUPABASE_URL` 指定時はそのローカル DB） | なし |
 | Service テスト | Service層 | 単体テスト（UT） | 不要 | Repository モック |
 | Handler テスト | Handler層 | 単体テスト（UT） | 不要 | Service モック + Cookie モック |
 
@@ -98,6 +98,7 @@
 | `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新 + 準正常系（存在しないID） |
 | `repositories/blog_users/blog_users_log_test.go` | 取得・更新・認証失敗時のログにパスワード・メールアドレスが残らないこと |
 | `repositories/blog_users/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `testsupport/guard_test.go` | テスト用 DB の接続先検査（ローカルのみ許可・リモート/解析不能は拒否・エラーに接続情報を含めない）、リモート指定時に `Setup` が接続せずエラーを返すこと |
 | `repositories/blog_comments/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 + 準正常系（不正UUID） |
 | `repositories/blog_comments/blog_comments_CreateComment_test.go` | コメント作成 + 準正常系（不正UUID） |
@@ -212,7 +213,7 @@ func TestMain(m *testing.M) {
 
 `testsupport.Start` の動作:
 
-- `SUPABASE_URL` が**実環境変数として**設定済み → その DB を使う（実 Supabase 等。`TEST_*` も呼び出し側が指定）。
+- `SUPABASE_URL` が**実環境変数として**設定済み → その DB を使う（ローカルの Supabase 等。`TEST_*` も呼び出し側が指定）。**接続先はローカル（localhost / 127.0.0.1 / ::1 / Unix ソケット）に限り、それ以外（本番 Supabase 等）は接続せずに `Setup` がエラーを返す**（`testsupport/guard.go` の `checkLocalDB`。IT / E2E はデータを変更するため。#140）。エラーメッセージには接続文字列・ホスト名を含めない（CI ログが公開のため）。
 - 未設定（既定） → `testcontainers` で使い捨ての PostgreSQL を起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用、`SUPABASE_URL` / `DB_SSLMODE=disable` / `TEST_*`（固定UUID）を設定してから接続する。テスト終了時にプールをクローズしコンテナを破棄する。
 - `.env` ファイルの自動読み込みは行わない（古い `.env.test` がコンテナ経路を意図せず乗っ取るのを防ぐため）。
 - モジュールルート（`go.mod`）を上方向探索で特定するため、旧来のパッケージ階層依存の相対パス（`../../` と `../../../` の混在）は解消済み。
@@ -345,7 +346,7 @@ func SetMockBlogCookies(c echo.Context, req *http.Request, mockCookieUtils *util
 #### 概要
 
 - 既定では `testcontainers` が使い捨ての PostgreSQL を起動し、決定的シードに対してテストを実行する（実 Supabase には接続しない）。
-- `SUPABASE_URL` を環境変数で指定した場合のみ、その実 DB に接続する（`TEST_*` も併せて指定）。
+- `SUPABASE_URL` を環境変数で指定した場合のみ、その DB に接続する（`TEST_*` も併せて指定）。接続先はローカルの DB に限る（本番等のリモートは `testsupport` が拒否する）。
 - 3分類（正常系 / 準正常系 / 異常系）を検証する。
 
 #### 環境変数要件
@@ -354,7 +355,7 @@ testcontainers 経路では `testsupport` が下記を自動設定するため�
 
 | 環境変数 | 説明 | 用途 |
 |---------|------|------|
-| `SUPABASE_URL` | 接続URL。**未設定なら testcontainers を起動** | DB接続の切替 |
+| `SUPABASE_URL` | 接続URL。**未設定なら testcontainers を起動**。指定時はローカルの DB のみ許可 | DB接続の切替 |
 | `DB_SSLMODE` | SSLモード（コンテナ経路では `disable`） | SSL設定 |
 | `TEST_USER_ID` / `TEST_USER_NAME` / `TEST_USER_EMAIL` / `TEST_USER_PASSWD` | シード済みユーザーに対応する値 | ユーザー関連テスト |
 | `TEST_BLOG_ID` | シード済みブログID (UUID) | ブログ取得テスト |
@@ -577,8 +578,9 @@ go tool cover -html=coverage.out
 #### 必要な環境変数
 
 ```env
-# DB接続（Repository テストで必要）
-SUPABASE_URL=postgresql://user:password@host:port/dbname
+# DB接続（任意。未設定なら IT / E2E は testcontainers を起動する）
+# 指定する場合はローカルの DB のみ（本番等のリモートは testsupport が拒否する）
+# SUPABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 # JWT設定（全テストで必要）
 JWT_SECRET_KEY=your-secret-key
@@ -597,7 +599,8 @@ ALLOWED_ORIGINS=http://localhost:3000
 
 ### 注意事項
 
-- Repository テストは実際のデータベースに対して実行されるため、テスト用のSupabaseプロジェクトまたは専用のテスト環境が必要
+- Repository テスト（IT）・E2E は既定で testcontainers の使い捨て PostgreSQL に対して実行されるため、テスト用の Supabase プロジェクトは不要
+- IT / E2E はデータを変更する。`.env.test` に本番の接続URLを書かないこと（書いても `testsupport` が接続を拒否するが、ハンドラ等の UT が `.env.test` を読み込むため、本番の接続情報をテスト用ファイルに置かない）
 - テストデータの事前作成が必要（`TEST_USER_ID`、`TEST_BLOG_ID` に対応するレコード）
 - パイプラインテスト（Create→Read→Update→Delete）はテストデータの作成と削除を一連の流れで行う
 - `JWT_SECRET_KEY` が未設定の場合、`config` パッケージの `init()` で `log.Fatal` が発生しテストが中断される

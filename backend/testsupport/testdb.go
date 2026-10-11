@@ -6,7 +6,9 @@
 // 動作は環境変数 SUPABASE_URL の有無で切り替わる（判定は実環境変数のみ。
 // .env ファイルの自動読み込みは行わない。ローカルの古い .env.test が
 // コンテナ経路を意図せず乗っ取るのを防ぐため）:
-//   - SUPABASE_URL が設定済み: その DB をそのまま使う（実 Supabase 等）。
+//   - SUPABASE_URL が設定済み: その DB をそのまま使う（ローカルの Supabase 等）。
+//     テストはデータを変更するため、接続先はローカル（localhost / 127.0.0.1 / ::1 /
+//     Unix ソケット）に限り、それ以外は Setup がエラーを返す（checkLocalDB）。
 //     この場合、呼び出し側が TEST_* も併せて指定すること。
 //   - 未設定（既定）: testcontainers で使い捨ての PostgreSQL を起動し、
 //     schema.sql / seed.sql を適用し、TEST_* をフィクスチャ値に設定してから接続する。
@@ -71,7 +73,11 @@ func Setup() (func(), error) {
 	logger.InitLogger()
 
 	// SUPABASE_URL が実環境変数として指定済みなら、その DB をそのまま使う。
-	if os.Getenv("SUPABASE_URL") != "" {
+	// テストはデータを変更するため、接続先はローカルの DB に限る（本番等への誤接続を防ぐ）。
+	if url := os.Getenv("SUPABASE_URL"); url != "" {
+		if err := checkLocalDB(url); err != nil {
+			return nil, err
+		}
 		if err := supabase.InitSupabase(); err != nil {
 			return nil, fmt.Errorf("supabase init failed (SUPABASE_URL): %w", err)
 		}

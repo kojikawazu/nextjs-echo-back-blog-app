@@ -29,7 +29,7 @@ globs:
 | E2E（API-E2E） | httptest + testcontainers。`//go:build e2e`。実サーバー起動 → HTTP フロー検証 |
 | スモークテスト | scripts/smoke-test.sh（未実装） |
 
-共有ヘルパー `backend/testsupport`（build tag `integration || e2e`）が testcontainers の PostgreSQL 起動・スキーマ/シード適用・接続を担う。IT/E2E とも Docker 稼働が前提で、`SUPABASE_URL` を指定した場合のみ実DBへ接続する。
+共有ヘルパー `backend/testsupport`（build tag `integration || e2e`）が testcontainers の PostgreSQL 起動・スキーマ/シード適用・接続を担う。IT/E2E とも Docker 稼働が前提で、`SUPABASE_URL` を指定した場合のみその DB へ接続する。**IT/E2E はデータを変更するため、接続先はローカル（localhost / 127.0.0.1 / ::1 / Unix ソケット）に限る**。それ以外（本番 Supabase 等）を指すと `testsupport` がテストを中止する。
 
 ## テストファイル配置
 
