@@ -8,6 +8,7 @@
   - [ベースURL](#ベースurl)
   - [認証方式](#認証方式)
   - [共通エラーレスポンス形式](#共通エラーレスポンス形式)
+  - [レートリミット](#レートリミット)
   - [共通レスポンスヘッダー](#共通レスポンスヘッダー)
 - [1. ヘルスチェック](#1-ヘルスチェック)
   - [GET /](#get-)
@@ -69,6 +70,24 @@
   "error": "エラーメッセージ"
 }
 ```
+
+### レートリミット
+
+クライアント IP 単位で上限を設け、超過時は **429 Too Many Requests** を返す（#124）。
+
+```json
+{
+  "error": "Too many requests"
+}
+```
+
+| 対象 | 上限 |
+|------|------|
+| 全エンドポイント（`GET /` を除く） | 毎秒 20 件・瞬間 60 件まで |
+| `POST /api/users/login`・`PUT /api/users/update`（2 つで共有） | 5 回まで、以降 12 秒ごとに 1 回（5 回/分） |
+
+- クライアント IP は `X-Forwarded-For` の右端（Cloud Run のフロントエンドが付与した値）から取る。
+- フロントエンド（BFF）経由のリクエストは BFF の IP で数えるため、BFF 経由の利用者全体で 1 つの枠を共有する。詳細は [06-security-specification.md](06-security-specification.md) 8.2（利用者単位にする対応は #146）。
 
 ### 共通レスポンスヘッダー
 
@@ -145,6 +164,7 @@ Service is running
 | 400 Bad Request | `Email and password are required` | email または password が空 |
 | 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
 | 401 Unauthorized | `Invalid credentials` | `FetchUserByEmailAndPassword` がエラーを返した場合（ユーザー未存在、DB取得失敗を含む全てのエラー） |
+| 429 Too Many Requests | `Too many requests` | 認証系レートリミット超過（`PUT /api/users/update` と共有。5 回/分） |
 | 500 Internal Server Error | `An error occurred` | AuthService.Loginバリデーションで未定義のエラーが発生（現行実装では到達しない） |
 | 500 Internal Server Error | `Could not create token` | JWTトークン生成に失敗 |
 
@@ -317,6 +337,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
 | 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
 | 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
+| 429 Too Many Requests | `Too many requests` | 認証系レートリミット超過（`POST /api/users/login` と共有。5 回/分） |
 | 500 Internal Server Error | `Failed to update user` | DB更新エラー、ユーザー検証失敗、現パスワード不一致 |
 
 > 新しいパスワードは bcrypt でハッシュ化して保存する。現在のパスワードは保存済みのハッシュと照合する（#120）。

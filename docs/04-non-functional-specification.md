@@ -70,6 +70,7 @@ Supabase（PostgreSQL）への接続には `jackc/pgx/v4/pgxpool` を使用し�
 
 - Cloud Runのマネージドオートスケーリングにより、リクエスト数の増加に応じてコンテナインスタンスが自動追加される。
 - ステートレス設計のため、任意のインスタンスがどのリクエストにも応答可能。
+- **最大インスタンス数は 3**（`deploy.yml` の `--max-instances 3`、Terraform の `autoscaling.knative.dev/maxScale`）。レートリミットのカウントはインスタンスのメモリで持つため、インスタンス数で実効上限が緩む範囲と、濫用時のコストの上限を固定する（#124。詳細は [06-security-specification.md](06-security-specification.md) 8.2）。
 
 ## 3. 可用性
 
