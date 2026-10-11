@@ -51,10 +51,20 @@ func TestRepository_BlogLike_Test(t *testing.T) {
 	assert.NoError(t, err)
 
 	// ---------------------------------------------------------
-	// 4. 「いいね」が削除されたことを確認（削除後なので false を期待）
+	// 4. 「いいね」が削除されたことを確認（削除後なので false・エラーなしを期待）
 	// ---------------------------------------------------------
 	liked, err = repo.IsBlogLiked(blogID, visitorID)
 
-	assert.Error(t, err)
+	assert.NoError(t, err)
+	assert.False(t, liked)
+}
+
+// 準正常系: いいねしていない組み合わせは「いいねしていない」（false）であり、エラーにしない。
+func TestRepository_IsBlogLiked_NotLiked(t *testing.T) {
+	repo := NewBlogLikeRepository()
+
+	liked, err := repo.IsBlogLiked(os.Getenv("TEST_BLOG_ID"), uuid.New().String())
+
+	assert.NoError(t, err)
 	assert.False(t, liked)
 }

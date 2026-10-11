@@ -1,11 +1,12 @@
 package handlers_blogs
 
 import (
+	"backend/apperrors"
 	"backend/dto"
+	services_blogs "backend/services/blogs"
 	utils "backend/utils/log"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/labstack/echo/v4"
 )
@@ -16,17 +17,14 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
+//   - error: 取得失敗時はエラー。成功時は 200 でブログ一覧を返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs...")
 
 	// サービス層から全ブログデータを取得
 	blogs, err := h.BlogService.FetchBlogs()
 	if err != nil {
-		utils.LogError(c, "Error fetching blogs: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error fetching blogs",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched blogs successfully")
@@ -39,7 +37,7 @@ func (h *BlogHandler) FetchBlogs(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ userId を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。不正な userId は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
+//   - error: 不正な userId は ErrInvalidUserID、その他の失敗はエラー。成功時は 200 でブログ一覧を返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blogs by userId...")
 
@@ -49,21 +47,7 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 	// サービス層からユーザーIDでブログデータを取得
 	blogs, err := h.BlogService.FetchBlogsByUserId(userId)
 	if err != nil {
-		switch err.Error() {
-		case "invalid userId":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid userId",
-			})
-		case "blog not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "Blog not found",
-			})
-		default:
-			utils.LogError(c, "Error fetching blogs: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error fetching blogs",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched blogs successfully")
@@ -76,7 +60,7 @@ func (h *BlogHandler) FetchBlogsByUserId(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ id を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。不正な id は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
+//   - error: 不正な id は ErrInvalidID、不在は ErrBlogNotFound、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog by id...")
 
@@ -86,21 +70,7 @@ func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 	// サービス層からIDでブログデータを取得
 	blog, err := h.BlogService.FetchBlogById(id)
 	if err != nil {
-		switch err.Error() {
-		case "invalid id":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid id",
-			})
-		case "blog not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "Blog not found",
-			})
-		default:
-			utils.LogError(c, "Error fetching blog: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error fetching blog",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched blog successfully")
@@ -113,26 +83,20 @@ func (h *BlogHandler) FetchBlogById(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーと title/githubUrl/category/description/tags を含む JSON ボディ）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正入力は 400、作成失敗は 500、成功時は 201 で返す
+//   - error: 認証トークンの不在・不正は apperrors.ErrAuthTokenMissing / ErrAuthTokenInvalid、不正入力は ErrInvalidXxx、その他の失敗はエラー。成功時は 201 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) CreateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
-		utils.LogError(c, "Error getting cookie: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting cookie",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 
 	// JWTトークンを解析してユーザーIDを取得
 	userId, err := h.CookieUtils.GetUserIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting userId from token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting userId from token",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	// JSONボディのバインド
@@ -146,50 +110,13 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 
 	var req CreateBlogRequest
 	if err := c.Bind(&req); err != nil {
-		utils.LogError(c, "Error binding request: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
+		return apperrors.Wrap(apperrors.ErrInvalidRequestBody, err)
 	}
 
 	// サービス層からブログデータを作成
 	blog, err := h.BlogService.CreateBlog(userId, req.Title, req.GitHubURL, req.Category, req.Description, req.Tags)
 	if err != nil {
-		switch err.Error() {
-		case "invalid userId":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid userId",
-			})
-		case "invalid title":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid title",
-			})
-		case "invalid githubUrl":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid githubUrl",
-			})
-		case "invalid category":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid category",
-			})
-		case "invalid description":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid description",
-			})
-		case "invalid tags":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid tags",
-			})
-		case "failed to create blog":
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to create blog",
-			})
-		default:
-			utils.LogError(c, "server error: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Server error",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Created blog successfully")
@@ -202,26 +129,20 @@ func (h *BlogHandler) CreateBlog(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキー、パスパラメータ id、更新内容を含む JSON ボディ）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正入力は 400、更新失敗は 500、成功時は 200 で返す
+//   - error: 認証トークンの不在・不正は apperrors.ErrAuthTokenMissing / ErrAuthTokenInvalid、不正入力は ErrInvalidXxx、不在は ErrBlogNotFound、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 	utils.LogInfo(c, "Updating blog...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
-		utils.LogError(c, "Error getting cookie: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting cookie",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 
 	// JWTトークンを解析してユーザーIDを取得
 	_, err = h.CookieUtils.GetUserIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting userId from token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting userId from token",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	// パスパラメータからidを取得
@@ -238,50 +159,13 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 
 	var req UpdateBlogRequest
 	if err := c.Bind(&req); err != nil {
-		utils.LogError(c, "Error binding request: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
+		return apperrors.Wrap(apperrors.ErrInvalidRequestBody, err)
 	}
 
 	// サービス層からブログデータを更新
 	blog, err := h.BlogService.UpdateBlog(id, req.Title, req.GitHubURL, req.Category, req.Description, req.Tags)
 	if err != nil {
-		switch err.Error() {
-		case "invalid id":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid id",
-			})
-		case "invalid title":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid title",
-			})
-		case "invalid githubUrl":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid githubUrl",
-			})
-		case "invalid category":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid category",
-			})
-		case "invalid description":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid description",
-			})
-		case "invalid tags":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid tags",
-			})
-		case "failed to update blog":
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to update blog",
-			})
-		default:
-			utils.LogError(c, "server error: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Server error",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Updated blog successfully")
@@ -294,26 +178,20 @@ func (h *BlogHandler) UpdateBlog(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーとパスパラメータ id を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正な id は 400、削除失敗は 500、成功時は 204 で返す
+//   - error: 認証トークンの不在・不正は apperrors.ErrAuthTokenMissing / ErrAuthTokenInvalid、不正な id は ErrInvalidID、その他の失敗はエラー。成功時は 204 を返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
-		utils.LogError(c, "Error getting cookie: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting cookie",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 
 	// JWTトークンを解析してユーザーIDを取得
 	_, err = h.CookieUtils.GetUserIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting userId from token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting userId from token",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	// パスパラメータからidを取得
@@ -322,21 +200,7 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 	// サービス層からブログデータを削除
 	err = h.BlogService.DeleteBlog(id)
 	if err != nil {
-		switch err.Error() {
-		case "invalid id":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid id",
-			})
-		case "failed to delete blog":
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to delete blog",
-			})
-		default:
-			utils.LogError(c, "server error: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Server error",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Deleted blog successfully")
@@ -349,17 +213,14 @@ func (h *BlogHandler) DeleteBlog(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
+//   - error: 取得失敗時はエラー。成功時は 200 でカテゴリ一覧を返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 	utils.LogInfo(c, "Fetching categories...")
 
 	// サービス層からカテゴリーを取得
 	categories, err := h.BlogService.FetchBlogCategories()
 	if err != nil {
-		utils.LogError(c, "Error fetching categories: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error fetching categories",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched categories successfully")
@@ -372,17 +233,14 @@ func (h *BlogHandler) FetchBlogCategories(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。取得失敗時は 500、成功時は 200 で返す
+//   - error: 取得失敗時はエラー。成功時は 200 でタグ一覧を返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 	utils.LogInfo(c, "Fetching tags...")
 
 	// サービス層からタグを取得
 	tags, err := h.BlogService.FetchBlogTags()
 	if err != nil {
-		utils.LogError(c, "Error fetching tags: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error fetching tags",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched tags successfully")
@@ -395,7 +253,7 @@ func (h *BlogHandler) FetchBlogTags(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ count を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。count が数値変換できない場合は 400、ブログ不在は 404、その他は 500、成功時は 200 で返す
+//   - error: count が数値でない・0 以下の場合は ErrInvalidCount、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
 	utils.LogInfo(c, "Fetching popular blogs...")
 
@@ -403,28 +261,13 @@ func (h *BlogHandler) FetchBlogPopular(c echo.Context) error {
 	count := c.Param("count")
 	countInt, err := strconv.Atoi(count)
 	if err != nil {
-		utils.LogError(c, "Error converting count to int: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid count",
-		})
+		return apperrors.Wrap(services_blogs.ErrInvalidCount, err)
 	}
 
 	// サービス層から人気のあるブログを取得
 	blogs, err := h.BlogService.FetchBlogPopular(countInt)
 	if err != nil {
-		utils.LogError(c, "Error fetching popular blogs: "+err.Error())
-
-		// ✅ `"blog not found"` の場合は `404 Not Found` を返す
-		if strings.Contains(err.Error(), "blog not found") {
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "blog not found",
-			})
-		}
-
-		// ✅ その他のエラーは `500 Internal Server Error`
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error fetching popular blogs",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched popular blogs successfully")

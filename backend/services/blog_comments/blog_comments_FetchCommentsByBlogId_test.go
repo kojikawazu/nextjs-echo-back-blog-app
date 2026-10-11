@@ -64,7 +64,7 @@ func TestService_FetchCommentsByBlogId_InvalidBlogId(t *testing.T) {
 	// エラーチェック
 	assert.Error(t, err)
 	assert.Nil(t, comments)
-	assert.Equal(t, "invalid blogId", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidBlogID)
 
 	// モックが期待通りに呼び出されたかを確認
 	mockCommentRepo.AssertNotCalled(t, "FetchCommentsByBlogId", blogId)
@@ -79,7 +79,8 @@ func TestService_FetchCommentsByBlogId_NotComments(t *testing.T) {
 	blogId := "1"
 
 	// モックリポジトリのメソッドをモック化
-	mockCommentRepo.On("FetchCommentsByBlogId", blogId).Return(nil, errors.New("comments not found"))
+	repoErr := errors.New("db error")
+	mockCommentRepo.On("FetchCommentsByBlogId", blogId).Return(nil, repoErr)
 
 	// テスト対象メソッドの実行
 	comments, err := commentService.FetchCommentsByBlogId(blogId)
@@ -87,7 +88,9 @@ func TestService_FetchCommentsByBlogId_NotComments(t *testing.T) {
 	// エラーチェック
 	assert.Error(t, err)
 	assert.Nil(t, comments)
-	assert.Equal(t, "comments not found", err.Error())
+	// 原因（リポジトリのエラー）を辿れ、入力エラーの sentinel には該当しない（= 404 ではなく 500 になる）
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrInvalidBlogID)
 
 	// モックが期待通りに呼び出されたかを確認
 	mockCommentRepo.AssertExpectations(t)

@@ -36,9 +36,8 @@ func TestService_IsBlogLiked_InvalidBlogId(t *testing.T) {
 	isLiked, err := blogLikeService.IsBlogLiked("", "1")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrBlogIDOrVisitIDEmpty)
 	assert.False(t, isLiked)
-	assert.Contains(t, "BlogId or VisitId is empty", err.Error())
 
 	// モックが期待通りに呼び出されてないかを確認
 	mockBlogLikeRepository.AssertNotCalled(t, "IsBlogLiked", "", "1")
@@ -53,9 +52,8 @@ func TestService_IsBlogLiked_InvalidVisitId(t *testing.T) {
 	isLiked, err := blogLikeService.IsBlogLiked("1", "")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrBlogIDOrVisitIDEmpty)
 	assert.False(t, isLiked)
-	assert.Contains(t, "BlogId or VisitId is empty", err.Error())
 
 	// モックが期待通りに呼び出されてないかを確認
 	mockBlogLikeRepository.AssertNotCalled(t, "IsBlogLiked", "1", "")
@@ -66,16 +64,36 @@ func TestService_IsBlogLiked_NotLike(t *testing.T) {
 	mockBlogLikeRepository := new(repositories_blogs_likes.MockBlogLikeRepository)
 	blogLikeService := NewBlogLikeService(mockBlogLikeRepository)
 
-	// モックの設定
-	mockBlogLikeRepository.On("IsBlogLiked", "1", "1").Return(false, errors.New("not found"))
+	// モックの設定（いいねが無い場合、リポジトリは false・エラーなしを返す）
+	mockBlogLikeRepository.On("IsBlogLiked", "1", "1").Return(false, nil)
 
 	// 実行
 	isLiked, err := blogLikeService.IsBlogLiked("1", "1")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.NoError(t, err)
 	assert.False(t, isLiked)
-	assert.Contains(t, "not found", err.Error())
+
+	// モックが期待通りに呼び出されたかを確認
+	mockBlogLikeRepository.AssertExpectations(t)
+}
+
+func TestService_IsBlogLiked_RepositoryError(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockBlogLikeRepository := new(repositories_blogs_likes.MockBlogLikeRepository)
+	blogLikeService := NewBlogLikeService(mockBlogLikeRepository)
+
+	// モックの設定
+	repoErr := errors.New("db error")
+	mockBlogLikeRepository.On("IsBlogLiked", "1", "1").Return(false, repoErr)
+
+	// 実行
+	isLiked, err := blogLikeService.IsBlogLiked("1", "1")
+
+	// エラーチェック（原因を辿れ、入力エラーとは区別される）
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrBlogIDOrVisitIDEmpty)
+	assert.False(t, isLiked)
 
 	// モックが期待通りに呼び出されたかを確認
 	mockBlogLikeRepository.AssertExpectations(t)

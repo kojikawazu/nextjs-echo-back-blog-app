@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"backend/middlewares"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,11 +11,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// newRoutesTestServer は本番と同じ IP 抽出設定でルーティングを設定した Echo を返す。
+// newRoutesTestServer は本番と同じ IP 抽出設定・エラーハンドラでルーティングを設定した Echo を返す。
 // レートリミットはハンドラより先に評価されるため、DB に到達しないリクエスト（不正ボディ・未認証）で検証できる。
 func newRoutesTestServer() *echo.Echo {
 	e := echo.New()
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	e.HTTPErrorHandler = middlewares.HTTPErrorHandler
 	SetupRoutes(e)
 	return e
 }

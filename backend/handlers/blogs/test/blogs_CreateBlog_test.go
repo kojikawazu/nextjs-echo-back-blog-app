@@ -1,6 +1,7 @@
 package handlers_blogs_test
 
 import (
+	"backend/apperrors"
 	handlers_blogs "backend/handlers/blogs"
 	"backend/models"
 	service_blogs "backend/services/blogs"
@@ -21,8 +22,9 @@ func TestHandler_CreateBlog(t *testing.T) {
 		name           string
 		requestBody    interface{}
 		setupMock      func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService)
-		expectedStatus int
-		expectedBody   string
+		expectedStatus int    // 正常系のみ
+		expectedBody   string // 正常系のみ
+		wantErr        error  // 期待するエラー（nil は正常系）
 	}{
 		{
 			name:        "正常系_全フィールド正常値でブログ作成成功",
@@ -37,66 +39,60 @@ func TestHandler_CreateBlog(t *testing.T) {
 			expectedBody:   `{"id":"","blog_user_id":"","title":"Test Title","github_url":"https://github.com","category":"Tech","description":"This is a test blog","tags":"Go","likes":0,"comment_cnt":0,"created_at":"0001-01-01T00:00:00Z","updated_at":"0001-01-01T00:00:00Z"}`,
 		},
 		{
-			name:        "準正常系_titleが空文字の場合400を返す",
+			name:        "準正常系_titleが空文字の場合ErrInvalidTitleを返す",
 			requestBody: map[string]string{"title": "", "githubUrl": "https://github.com", "category": "Tech", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "", "https://github.com", "Tech", "test", "Go").Return(nil, errors.New("invalid title"))
+				mockService.On("CreateBlog", "valid-user-id", "", "https://github.com", "Tech", "test", "Go").Return(nil, service_blogs.ErrInvalidTitle)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid title"}`,
+			wantErr: service_blogs.ErrInvalidTitle,
 		},
 		{
-			name:        "準正常系_githubUrlが空文字の場合400を返す",
+			name:        "準正常系_githubUrlが空文字の場合ErrInvalidGithubURLを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "", "category": "Tech", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "Test Title", "", "Tech", "test", "Go").Return(nil, errors.New("invalid githubUrl"))
+				mockService.On("CreateBlog", "valid-user-id", "Test Title", "", "Tech", "test", "Go").Return(nil, service_blogs.ErrInvalidGithubURL)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid githubUrl"}`,
+			wantErr: service_blogs.ErrInvalidGithubURL,
 		},
 		{
-			name:        "準正常系_categoryが空文字の場合400を返す",
+			name:        "準正常系_categoryが空文字の場合ErrInvalidCategoryを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "", "test", "Go").Return(nil, errors.New("invalid category"))
+				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "", "test", "Go").Return(nil, service_blogs.ErrInvalidCategory)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid category"}`,
+			wantErr: service_blogs.ErrInvalidCategory,
 		},
 		{
-			name:        "準正常系_descriptionが空文字の場合400を返す",
+			name:        "準正常系_descriptionが空文字の場合ErrInvalidDescriptionを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "Tech", "description": "", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "", "Go").Return(nil, errors.New("invalid description"))
+				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "", "Go").Return(nil, service_blogs.ErrInvalidDescription)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid description"}`,
+			wantErr: service_blogs.ErrInvalidDescription,
 		},
 		{
-			name:        "準正常系_tagsが空文字の場合400を返す",
+			name:        "準正常系_tagsが空文字の場合ErrInvalidTagsを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "Tech", "description": "test", "tags": ""},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "test", "").Return(nil, errors.New("invalid tags"))
+				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "test", "").Return(nil, service_blogs.ErrInvalidTags)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid tags"}`,
+			wantErr: service_blogs.ErrInvalidTags,
 		},
 		{
-			name:        "準正常系_認証Cookie取得に失敗した場合401を返す",
+			name:        "準正常系_認証Cookie取得に失敗した場合ErrAuthTokenMissingを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "Tech", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				mockCookie.On("GetAuthCookieValue", c, "token").Return("", errors.New("no cookie"))
 			},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `{"error":"Error getting cookie"}`,
+			wantErr: apperrors.ErrAuthTokenMissing,
 		},
 		{
-			name:        "準正常系_JWT解析に失敗した場合401を返す",
+			name:        "準正常系_JWT解析に失敗した場合ErrAuthTokenInvalidを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "Tech", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				token := "invalid-token"
@@ -104,27 +100,24 @@ func TestHandler_CreateBlog(t *testing.T) {
 				mockCookie.On("GetAuthCookieValue", c, "token").Return(token, nil)
 				mockCookie.On("GetUserIdFromToken", c, token).Return("", errors.New("invalid token"))
 			},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `{"error":"Error getting userId from token"}`,
+			wantErr: apperrors.ErrAuthTokenInvalid,
 		},
 		{
-			name:        "異常系_不正なJSONボディの場合400を返す",
+			name:        "異常系_不正なJSONボディの場合ErrInvalidRequestBodyを返す",
 			requestBody: nil,
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid request body"}`,
+			wantErr: apperrors.ErrInvalidRequestBody,
 		},
 		{
-			name:        "異常系_Serviceが予期しないエラーを返す場合500を返す",
+			name:        "異常系_Serviceが予期しないエラーを返す場合そのエラーを返す",
 			requestBody: map[string]string{"title": "Test Title", "githubUrl": "https://github.com", "category": "Tech", "description": "test", "tags": "Go"},
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
 				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "test", "Go").Return(nil, errors.New("db connection error"))
+				mockService.On("CreateBlog", "valid-user-id", "Test Title", "https://github.com", "Tech", "test", "Go").Return(nil, errServiceFailure)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Server error"}`,
+			wantErr: errServiceFailure,
 		},
 	}
 
@@ -155,10 +148,14 @@ func TestHandler_CreateBlog(t *testing.T) {
 			tt.setupMock(c, req, mockCookieUtils, mockBlogService)
 
 			err := handler.CreateBlog(c)
-			assert.NoError(t, err)
 
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			}
 
 			mockCookieUtils.AssertExpectations(t)
 			mockBlogService.AssertExpectations(t)

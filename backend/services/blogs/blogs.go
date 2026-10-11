@@ -3,10 +3,26 @@ package services_blogs
 import (
 	"backend/logger"
 	"backend/models"
+	repositories_blogs "backend/repositories/blogs"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/google/uuid"
 )
+
+// isValidUUID は値が UUID 形式かを判定する（DB に不正な形式の値を渡さないため）。
+//
+// 引数:
+//   - value: 判定する値
+//
+// 戻り値:
+//   - bool: UUID 形式であれば true
+func isValidUUID(value string) bool {
+	_, err := uuid.Parse(value)
+	return err == nil
+}
 
 // FetchBlogs は全ブログデータを取得する。
 //
@@ -24,14 +40,14 @@ func (s *BlogServiceImpl) FetchBlogs() ([]models.BlogData, error) {
 //
 // 戻り値:
 //   - []models.BlogData: 取得したブログデータの一覧
-//   - error: 取得に失敗した場合のエラー
+//   - error: userId が空・UUID 形式でない場合は ErrInvalidUserID、その他取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogsByUserId start...")
 
 	// バリデーション
-	if userId == "" {
+	if !isValidUUID(userId) {
 		logger.ErrorLog.Printf("invalid userId: %s", userId)
-		return nil, errors.New("invalid userId")
+		return nil, ErrInvalidUserID
 	}
 	logger.InfoLog.Println("Valid userId")
 
@@ -39,7 +55,7 @@ func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 	blogs, err := s.BlogRepository.FetchBlogsByUserId(userId)
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to fetch blogs: %v", err)
-		return nil, errors.New("blogs not found")
+		return nil, fmt.Errorf("fetch blogs by userId: %w", err)
 	}
 
 	logger.InfoLog.Printf("Fetched blogs successfully: %v", blogs)
@@ -53,22 +69,25 @@ func (s *BlogServiceImpl) FetchBlogsByUserId(userId string) ([]models.BlogData, 
 //
 // 戻り値:
 //   - *models.BlogData: 見つかったブログデータ
-//   - error: 取得に失敗した場合のエラー
+//   - error: id が空・UUID 形式でない場合は ErrInvalidID、不在の場合は ErrBlogNotFound、その他取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogById start...")
 
 	// バリデーション
-	if id == "" {
+	if !isValidUUID(id) {
 		logger.ErrorLog.Printf("invalid id: %s", id)
-		return nil, errors.New("invalid id")
+		return nil, ErrInvalidID
 	}
 	logger.InfoLog.Println("Valid id")
 
 	// リポジトリを呼び出してブログデータを取得
 	blog, err := s.BlogRepository.FetchBlogById(id)
 	if err != nil {
+		if errors.Is(err, repositories_blogs.ErrBlogNotFound) {
+			return nil, ErrBlogNotFound
+		}
 		logger.ErrorLog.Printf("Failed to fetch blog: %v", err)
-		return nil, errors.New("blog not found")
+		return nil, fmt.Errorf("fetch blog: %w", err)
 	}
 
 	logger.InfoLog.Printf("Fetched blog successfully: %v", blog)
@@ -87,34 +106,34 @@ func (s *BlogServiceImpl) FetchBlogById(id string) (*models.BlogData, error) {
 //
 // 戻り値:
 //   - *models.BlogData: 作成されたブログデータ
-//   - error: 作成に失敗した場合のエラー
+//   - error: 入力が不正な場合は ErrInvalidXxx、その他作成に失敗した場合のエラー
 func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("CreateBlog start...")
 
 	// バリデーション
 	if userId == "" {
 		logger.ErrorLog.Printf("invalid userId: %s", userId)
-		return nil, errors.New("invalid userId")
+		return nil, ErrInvalidUserID
 	}
 	if title == "" {
 		logger.ErrorLog.Printf("invalid title: %s", title)
-		return nil, errors.New("invalid title")
+		return nil, ErrInvalidTitle
 	}
 	if githubUrl == "" {
 		logger.ErrorLog.Printf("invalid githubUrl: %s", githubUrl)
-		return nil, errors.New("invalid githubUrl")
+		return nil, ErrInvalidGithubURL
 	}
 	if category == "" {
 		logger.ErrorLog.Printf("invalid category: %s", category)
-		return nil, errors.New("invalid category")
+		return nil, ErrInvalidCategory
 	}
 	if description == "" {
 		logger.ErrorLog.Printf("invalid description: %s", description)
-		return nil, errors.New("invalid description")
+		return nil, ErrInvalidDescription
 	}
 	if tags == "" {
 		logger.ErrorLog.Printf("invalid tags: %s", tags)
-		return nil, errors.New("invalid tags")
+		return nil, ErrInvalidTags
 	}
 	logger.InfoLog.Println("Valid input")
 
@@ -122,7 +141,7 @@ func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, descrip
 	blog, err := s.BlogRepository.CreateBlog(userId, title, githubUrl, category, description, tags)
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to create blog: %v", err)
-		return nil, errors.New("failed to create blog")
+		return nil, fmt.Errorf("create blog: %w", err)
 	}
 
 	logger.InfoLog.Printf("Created blog successfully: %v", blog)
@@ -141,42 +160,45 @@ func (s *BlogServiceImpl) CreateBlog(userId, title, githubUrl, category, descrip
 //
 // 戻り値:
 //   - *models.BlogData: 更新後のブログデータ
-//   - error: 更新に失敗した場合のエラー
+//   - error: 入力が不正な場合は ErrInvalidXxx、不在の場合は ErrBlogNotFound、その他更新に失敗した場合のエラー
 func (s *BlogServiceImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("UpdateBlog start...")
 
 	// バリデーション
-	if id == "" {
+	if !isValidUUID(id) {
 		logger.ErrorLog.Printf("invalid id: %s", id)
-		return nil, errors.New("invalid id")
+		return nil, ErrInvalidID
 	}
 	if title == "" {
 		logger.ErrorLog.Printf("invalid title: %s", title)
-		return nil, errors.New("invalid title")
+		return nil, ErrInvalidTitle
 	}
 	if githubUrl == "" {
 		logger.ErrorLog.Printf("invalid githubUrl: %s", githubUrl)
-		return nil, errors.New("invalid githubUrl")
+		return nil, ErrInvalidGithubURL
 	}
 	if category == "" {
 		logger.ErrorLog.Printf("invalid category: %s", category)
-		return nil, errors.New("invalid category")
+		return nil, ErrInvalidCategory
 	}
 	if description == "" {
 		logger.ErrorLog.Printf("invalid description: %s", description)
-		return nil, errors.New("invalid description")
+		return nil, ErrInvalidDescription
 	}
 	if tags == "" {
 		logger.ErrorLog.Printf("invalid tags: %s", tags)
-		return nil, errors.New("invalid tags")
+		return nil, ErrInvalidTags
 	}
 	logger.InfoLog.Println("Valid input")
 
 	// リポジトリを呼び出してブログデータを更新
 	blog, err := s.BlogRepository.UpdateBlog(id, title, githubUrl, category, description, tags)
 	if err != nil {
+		if errors.Is(err, repositories_blogs.ErrBlogNotFound) {
+			return nil, ErrBlogNotFound
+		}
 		logger.ErrorLog.Printf("Failed to update blog: %v", err)
-		return nil, errors.New("failed to update blog")
+		return nil, fmt.Errorf("update blog: %w", err)
 	}
 
 	logger.InfoLog.Printf("Updated blog successfully: %v", blog)
@@ -189,14 +211,14 @@ func (s *BlogServiceImpl) UpdateBlog(id, title, githubUrl, category, description
 //   - id: 削除対象のブログID
 //
 // 戻り値:
-//   - error: 削除に失敗した場合のエラー
+//   - error: id が空・UUID 形式でない場合は ErrInvalidID、その他削除に失敗した場合のエラー
 func (s *BlogServiceImpl) DeleteBlog(id string) error {
 	logger.InfoLog.Printf("DeleteBlog start...")
 
 	// バリデーション
-	if id == "" {
+	if !isValidUUID(id) {
 		logger.ErrorLog.Printf("invalid id: %s", id)
-		return errors.New("invalid id")
+		return ErrInvalidID
 	}
 	logger.InfoLog.Println("Valid id")
 
@@ -204,7 +226,7 @@ func (s *BlogServiceImpl) DeleteBlog(id string) error {
 	err := s.BlogRepository.DeleteBlog(id)
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to delete blog: %v", err)
-		return errors.New("failed to delete blog")
+		return fmt.Errorf("delete blog: %w", err)
 	}
 
 	logger.InfoLog.Println("Deleted blog successfully")
@@ -262,13 +284,13 @@ func (s *BlogServiceImpl) FetchBlogTags() ([]string, error) {
 //
 // 戻り値:
 //   - []models.BlogData: 取得した人気ブログデータの一覧
-//   - error: 取得に失敗した場合のエラー
+//   - error: count が 0 以下の場合は ErrInvalidCount、その他取得に失敗した場合のエラー
 func (s *BlogServiceImpl) FetchBlogPopular(count int) ([]models.BlogData, error) {
 
 	// バリデーション
 	if count <= 0 {
 		logger.ErrorLog.Printf("invalid count: %d", count)
-		return nil, errors.New("invalid count")
+		return nil, ErrInvalidCount
 	}
 	logger.InfoLog.Println("Valid count")
 
@@ -276,7 +298,7 @@ func (s *BlogServiceImpl) FetchBlogPopular(count int) ([]models.BlogData, error)
 	blogs, err := s.BlogRepository.FetchBlogPopular(count)
 	if err != nil {
 		logger.ErrorLog.Printf("Failed to fetch popular blogs: %v", err)
-		return nil, errors.New("failed to fetch popular blogs")
+		return nil, fmt.Errorf("fetch popular blogs: %w", err)
 	}
 
 	logger.InfoLog.Printf("Fetched popular blogs successfully: %v", blogs)

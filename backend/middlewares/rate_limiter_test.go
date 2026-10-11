@@ -21,10 +21,11 @@ type rateLimitRequest struct {
 	wantStatus int
 }
 
-// newRateLimitTestServer は本番と同じ IP 抽出設定の Echo にミドルウェアを適用した /test を持つサーバーを返す。
+// newRateLimitTestServer は本番と同じ IP 抽出設定・エラーハンドラの Echo にミドルウェアを適用した /test を持つサーバーを返す。
 func newRateLimitTestServer(m echo.MiddlewareFunc) *echo.Echo {
 	e := echo.New()
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	e.HTTPErrorHandler = HTTPErrorHandler
 	e.Use(m)
 	e.GET("/test", func(c echo.Context) error {
 		return c.String(http.StatusOK, "ok")
@@ -118,7 +119,7 @@ func TestNewRateLimiter(t *testing.T) {
 				rec := serve(e, http.MethodGet, "/test", r)
 				assert.Equal(t, r.wantStatus, rec.Code, "request #%d", i)
 				if r.wantStatus == http.StatusTooManyRequests {
-					assert.JSONEq(t, `{"error":"Too many requests"}`, rec.Body.String())
+					assert.JSONEq(t, `{"code":"TOO_MANY_REQUESTS","error":"Too many requests"}`, rec.Body.String())
 				}
 			}
 		})
@@ -167,6 +168,7 @@ func TestNewAuthRateLimiter(t *testing.T) {
 	newServer := func() *echo.Echo {
 		e := echo.New()
 		e.IPExtractor = echo.ExtractIPFromXFFHeader()
+		e.HTTPErrorHandler = HTTPErrorHandler
 		auth := NewAuthRateLimiter()
 		ok := func(c echo.Context) error { return c.String(http.StatusOK, "ok") }
 		e.POST("/login", ok, auth)
@@ -191,7 +193,7 @@ func TestNewAuthRateLimiter(t *testing.T) {
 		}
 		rec := serve(e, http.MethodPost, "/login", client)
 		assert.Equal(t, http.StatusTooManyRequests, rec.Code)
-		assert.JSONEq(t, `{"error":"Too many requests"}`, rec.Body.String())
+		assert.JSONEq(t, `{"code":"TOO_MANY_REQUESTS","error":"Too many requests"}`, rec.Body.String())
 	})
 
 	// 準正常系: ログインとユーザー更新はカウントを共有する（交互に試行しても回避できない）

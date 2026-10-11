@@ -113,6 +113,7 @@
 | ファイルパス | テスト対象 |
 |-------------|-----------|
 | `services/blogs/test/main_test.go` | TestMain（セットアップ） |
+| `services/blogs/test/helpers_test.go` | UUID 形式のテスト用 ID と、想定外エラー（sentinel ではなく原因を辿れる＝500）の検証ヘルパ |
 | `services/blogs/test/blogs_FetchBlogs_test.go` | 全ブログ取得 |
 | `services/blogs/test/blogs_FetchBlogById_test.go` | ブログID指定取得 |
 | `services/blogs/test/blogs_FetchBlogsByUserId_test.go` | ユーザーID指定取得 |
@@ -140,6 +141,7 @@
 | ファイルパス | テスト対象 |
 |-------------|-----------|
 | `handlers/blogs/test/main_test.go` | TestMain（セットアップ） |
+| `handlers/blogs/test/helpers_test.go` / `handlers/blog_likes/helpers_test.go` / `handlers/blog_comments/helpers_test.go` | エラー系の検証ヘルパ（戻り値が期待するエラーであること・レスポンス未書き込みであること） |
 | `handlers/blogs/test/blogs_FetchBlogs_test.go` | 全ブログ取得ハンドラ |
 | `handlers/blogs/test/blogs_FetchBlogById_test.go` | ブログID指定取得ハンドラ |
 | `handlers/blogs/test/blogs_FetchBlogsByUserId_test.go` | ユーザーID指定取得ハンドラ |
@@ -171,8 +173,10 @@
 | ファイルパス | テスト対象 |
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
-| `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー・JSON 出力・機密ヘッダ非記録） |
-| `middlewares/rate_limiter_test.go` | レートリミット: 上限内は通る・超過で 429 と `{"error":"Too many requests"}`・IP ごとに独立・`X-Forwarded-For` 左端の偽装で回避できない・XFF なし/解釈不能時は接続元で数える・ヘルスチェック除外・認証系の枠の共有と他エンドポイントへの非干渉。`SetupMiddlewares` の IP 抽出設定 |
+| `apperrors/apperrors_test.go` | sentinel が `errors.Is` で同一性判定されること（同じメッセージの別エラーとは一致しない）、`Wrap` が sentinel・原因の両方に一致すること |
+| `middlewares/error_handler_test.go` | `HTTPErrorHandler`: 各 Kind → ステータス（400/401/404/409/429/500）と統一エラーレスポンス、包まれた sentinel の判定、原因・Echo の独自メッセージ・想定外エラーの内容を本文に出さないこと、Echo の 404/405、HEAD、書き込み済みレスポンスを上書きしないこと、`SetupMiddlewares` 経由（ルート不在・panic を含む）で 1 回だけ書き込まれること |
+| `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー（4xx は WARN、5xx は ERROR）・JSON 出力・機密ヘッダ非記録） |
+| `middlewares/rate_limiter_test.go` | レートリミット: 上限内は通る・超過で 429 と `{"code":"TOO_MANY_REQUESTS","error":"Too many requests"}`・IP ごとに独立・`X-Forwarded-For` 左端の偽装で回避できない・XFF なし/解釈不能時は接続元で数える・ヘルスチェック除外・認証系の枠の共有と他エンドポイントへの非干渉。`SetupMiddlewares` の IP 抽出設定 |
 | `routes/routes_test.go` | 認証系レートリミットがログイン・ユーザー更新に適用され（カウント共有）、他のエンドポイントに影響しないこと |
 | `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
 | `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
@@ -415,8 +419,9 @@ if assert.ErrorAs(t, err, &pgErr) {
 |---------|------|
 | 正常系 | モックが正常データを返す場合の動作確認 |
 | 空リスト | モックが空リストを返す場合の動作確認 |
-| バリデーションエラー | 空文字や不正形式の入力に対するエラー確認 |
-| Repositoryエラー | モックがエラーを返す場合の動作確認 |
+| バリデーションエラー | 空文字や不正形式（UUID 形式でない ID 等）の入力で、対応する sentinel（`ErrInvalidID` 等）を返すことを `assert.ErrorIs` で確認（エラーメッセージの文字列比較はしない） |
+| 不在 | Repository の `ErrBlogNotFound` / `ErrUserNotFound` を Service の sentinel に変換すること |
+| Repositoryエラー | 想定外のエラーは sentinel に丸めず、原因を `errors.Is` で辿れること（ハンドラで 500 になる） |
 
 ### 6.3 Handler テスト（単体テスト）
 
@@ -424,7 +429,8 @@ if assert.ErrorAs(t, err, &pgErr) {
 
 - `net/http/httptest` を使用してHTTPリクエスト/レスポンスを検証する
 - Service モックとCookie モックを使用する
-- ステータスコード、レスポンスボディ、エラーメッセージを検証する
+- 正常系はステータスコードとレスポンスボディを検証する
+- エラー系は**ハンドラの戻り値**を `assert.ErrorIs` で検証する（ハンドラはエラーを return するだけで、ステータス・本文への変換は `middlewares.HTTPErrorHandler` が行う。変換は `middlewares/error_handler_test.go`、全体は E2E で検証する）
 
 #### テスト構造
 
@@ -462,10 +468,10 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | パターン | 検証内容 |
 |---------|---------|
 | 正常系 | ステータス200、レスポンスボディにデータ含有 |
-| エラー系 | ステータス400/401/404/500、エラーメッセージの確認 |
+| エラー系 | Service が返した sentinel（`ErrBlogNotFound` 等）・想定外エラーがそのまま返ること |
 | 空リスト | ステータス200、空配列 `[]` の確認 |
-| 認証エラー | Cookie未設定時の401レスポンス |
-| バリデーションエラー | 不正パラメータ時の400レスポンス |
+| 認証エラー | Cookie 未設定・トークン不正で `apperrors.ErrAuthTokenMissing` / `ErrAuthTokenInvalid` を返すこと |
+| バリデーションエラー | ボディ不正で `apperrors.ErrInvalidRequestBody`、不正パラメータで対応する sentinel を返すこと |
 
 ### 6.4 E2E テスト（API-E2E）
 
@@ -493,6 +499,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | `blogs_crud_test.go` | 正常系: 作成(201)→詳細→更新(200)→削除(204) / 準正常系: 未認証作成 → 401 |
 | `likes_comments_test.go` | 正常系: 訪問者ID発行→いいね作成/確認/削除、コメント一覧/作成(201) |
 | `users_test.go` | 正常系: ユーザー取得のレスポンスに password キーが含まれない（公開フィールドのみ） / 準正常系: 未認証のユーザー取得 → 401。ユーザー更新はアカウントを書き換えるため E2E では行わず、レスポンスの DTO はハンドラ UT で検証する |
+| `errors_test.go` | 準正常系: 統一エラーレスポンス `{"code","error"}`（他のキーを含まない）とステータス。ルート不在 404・ブログ不在 404・UUID 形式でない ID 400・count=0 400・ログイン欠落 400 / 誤パスワード 401・Cookie 無し 401・コメント欠落 400・不正な JSON 400・存在しないブログの更新 404・現パスワード誤りのユーザー更新 400（更新されず元のパスワードでログインできる）・二重いいね 409 |
 
 #### 主なエンドポイントの期待ステータス（E2E で確定）
 
@@ -501,8 +508,12 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | ログイン成功 / 失敗 / 欠落 | 200 / 401 / 400 |
 | ブログ作成（認証） / 未認証 | 201 / 401 |
 | ブログ更新 / 削除 | 200 / **204** |
-| ブログ詳細（存在しないID） | 404 |
-| いいね 作成 / 削除 / 状態確認 | 200 / 200 / 200 |
+| ブログ詳細（存在しないID / UUID 形式でない ID） | 404 / 400 |
+| ブログ更新（存在しないID） | 404 |
+| 人気ブログ（count=0） | 400 |
+| ユーザー更新（現パスワード誤り） | 400 |
+| いいね 作成 / 削除 / 状態確認 / 二重いいね | 200 / 200 / 200 / 409 |
+| 存在しないルート | 404 |
 | コメント 作成 / 一覧 | 201 / 200 |
 
 ---

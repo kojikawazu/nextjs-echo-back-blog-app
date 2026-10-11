@@ -188,10 +188,10 @@
 
 #### AC-002-07: ブログ削除失敗 - 無効なID
 
-- **前提条件**: ブログIDが空文字
+- **前提条件**: ブログIDが空文字、または UUID 形式でない
 - **期待結果**:
-  - ステータスコード `400 Bad Request` を返す
-- **補足**: 非空だがUUID形式でないIDの場合、Service層のバリデーションは通過するが、Repository層の `uuid.Parse` で弾かれる。このエラーはService層で `"failed to delete blog"` に変換されるため、`500 Internal Server Error` として返される（400にはならない）
+  - ステータスコード `400 Bad Request` を返す（コード `VALIDATION_ERROR`）
+- **補足**: #123 で Service 層に UUID 形式の検証を追加した（以前は UUID 形式でない ID が 500 になっていた）
 
 #### AC-002-08: 既知の制限事項 - 所有権チェック未実装
 
@@ -370,7 +370,7 @@
 
 - **前提条件**: 既にいいね済みのブログID
 - **期待結果**:
-  - ステータスコード `400 Bad Request` を返す
+  - ステータスコード `409 Conflict` を返す（コード `ALREADY_LIKED`。#123 で 400 から変更）
   - エラーメッセージ `"Blog is already liked"` を含む
 
 #### AC-005-07: いいね削除成功
@@ -490,8 +490,9 @@
 
 - **前提条件**: `password` がDBに保存されたパスワードと一致しない
 - **期待結果**:
-  - ステータスコード `500 Internal Server Error` を返す
-  - エラーメッセージ `"Failed to update user"` を含む
+  - ステータスコード `400 Bad Request` を返す（コード `INVALID_CURRENT_PASSWORD`。#123 で 500 から変更）
+  - エラーメッセージ `"Invalid current password"` を含む
+  - ユーザー情報は更新されない
 
 ---
 

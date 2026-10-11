@@ -44,9 +44,8 @@ func TestService_CreateBlogLike_InValidBlogId(t *testing.T) {
 	createdBlogLikeData, err := blogLikeService.CreateBlogLike("", "1")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrBlogIDOrVisitIDEmpty)
 	assert.Nil(t, createdBlogLikeData)
-	assert.Contains(t, "blogId or VisitId is empty", err.Error())
 
 	// モックの呼び出し確認
 	mockBlogLikeRepository.AssertNotCalled(t, "IsBlogLiked", "", "1")
@@ -62,9 +61,8 @@ func TestService_CreateBlogLike_InValidVisitId(t *testing.T) {
 	createdBlogLikeData, err := blogLikeService.CreateBlogLike("1", "")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrBlogIDOrVisitIDEmpty)
 	assert.Nil(t, createdBlogLikeData)
-	assert.Contains(t, "blogId or VisitId is empty", err.Error())
 
 	// モックの呼び出し確認
 	mockBlogLikeRepository.AssertNotCalled(t, "IsBlogLiked", "1", "")
@@ -83,9 +81,8 @@ func TestService_CreateBlogLike_AlreadyBlogLike(t *testing.T) {
 	createdBlogLikeData, err := blogLikeService.CreateBlogLike("1", "1")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrAlreadyLiked)
 	assert.Nil(t, createdBlogLikeData)
-	assert.Contains(t, "blog is already liked", err.Error())
 
 	// モックの呼び出し確認
 	mockBlogLikeRepository.AssertExpectations(t)
@@ -99,16 +96,39 @@ func TestService_CreateBlogLike_NotCreate(t *testing.T) {
 
 	// モックの設定
 	mockBlogLikeRepository.On("IsBlogLiked", "1", "1").Return(false, nil)
-	mockBlogLikeRepository.On("CreateBlogLike", "1", "1").Return(nil, errors.New("not created"))
+	repoErr := errors.New("not created")
+	mockBlogLikeRepository.On("CreateBlogLike", "1", "1").Return(nil, repoErr)
 
 	// 実行
 	createdBlogLikeData, err := blogLikeService.CreateBlogLike("1", "1")
 
-	// エラーチェック
-	assert.Error(t, err)
+	// エラーチェック（原因を辿れ、いいね済みとは区別される）
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrAlreadyLiked)
 	assert.Nil(t, createdBlogLikeData)
-	assert.Contains(t, "not created", err.Error())
 
 	// モックの呼び出し確認
 	mockBlogLikeRepository.AssertExpectations(t)
+}
+
+func TestService_CreateBlogLike_IsBlogLikedError(t *testing.T) {
+	// モックリポジトリをインスタンス化
+	mockBlogLikeRepository := new(repositories_blogs_likes.MockBlogLikeRepository)
+	blogLikeService := NewBlogLikeService(mockBlogLikeRepository)
+
+	// モックの設定（いいね済みの確認に失敗する）
+	repoErr := errors.New("db error")
+	mockBlogLikeRepository.On("IsBlogLiked", "1", "1").Return(false, repoErr)
+
+	// 実行
+	createdBlogLikeData, err := blogLikeService.CreateBlogLike("1", "1")
+
+	// エラーチェック（確認の失敗を無視して作成に進まない）
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrAlreadyLiked)
+	assert.Nil(t, createdBlogLikeData)
+
+	// モックの呼び出し確認
+	mockBlogLikeRepository.AssertExpectations(t)
+	mockBlogLikeRepository.AssertNotCalled(t, "CreateBlogLike", "1", "1")
 }

@@ -1,8 +1,10 @@
 package handlers_blog_users
 
 import (
+	"backend/apperrors"
 	"backend/dto"
 	utils "backend/utils/log"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -14,46 +16,26 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーを含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、id 不正は 400、ユーザー不在は 404、その他は 500、成功時は 200 で返す
+//   - error: 認証トークンの不在・不正は apperrors.ErrAuthTokenMissing / ErrAuthTokenInvalid、ユーザー不在は ErrUserNotFound、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogUsersHandler) FetchBlogUsers(c echo.Context) error {
 	utils.LogInfo(c, "Fetching user...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
-		utils.LogError(c, "Error getting cookie: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting cookie",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 
 	// JWTトークンを解析してユーザーIDを取得
 	userId, err := h.CookieUtils.GetUserIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting userId from token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting userId from token",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	// サービス層からユーザーデータを取得
 	user, err := h.UserService.FetchUserById(userId)
 	if err != nil {
-		switch err.Error() {
-		case "id is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Id is required",
-			})
-		case "user not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "User not found",
-			})
-		default:
-			utils.LogError(c, "Error fetching user: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to fetch user",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched user successfully")
@@ -66,26 +48,20 @@ func (h *BlogUsersHandler) FetchBlogUsers(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーと name/email/password/newPassword を含む JSON ボディ）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。クッキー取得/解析失敗は 401、不正入力は 400、ユーザー不在は 404、更新/トークン生成失敗は 500、成功時は 200 で返す
+//   - error: 認証トークンの不在・不正は apperrors.ErrAuthTokenMissing / ErrAuthTokenInvalid、不正入力は ErrXxx、現在のパスワード不一致は ErrInvalidCurrentPassword、ユーザー不在は ErrUserNotFound、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 	utils.LogInfo(c, "Updating user...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "token")
 	if err != nil {
-		utils.LogError(c, "Error getting cookie: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting cookie",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 
 	// JWTトークンを解析してユーザーIDを取得
 	userId, err := h.CookieUtils.GetUserIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting userId from token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Error getting userId from token",
-		})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	// JSONのリクエストボディからname, email, passwordを取得
@@ -99,54 +75,13 @@ func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 	// リクエストボディをバインド
 	var reqBody RequestBody
 	if err := c.Bind(&reqBody); err != nil {
-		utils.LogError(c, "Failed to bind request body: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
+		return apperrors.Wrap(apperrors.ErrInvalidRequestBody, err)
 	}
 
 	// サービス層からユーザーデータを更新
 	user, err := h.UserService.UpdateUser(userId, reqBody.Name, reqBody.Email, reqBody.Password, reqBody.NewPassword)
 	if err != nil {
-		switch err.Error() {
-		case "id is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "id is required",
-			})
-		case "name is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Name is required",
-			})
-		case "email is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Email is required",
-			})
-		case "password is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Password is required",
-			})
-		case "new password is required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "New password is required",
-			})
-		case "password too long":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Password is too long",
-			})
-		case "invalid email format":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid email format",
-			})
-		case "user not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "User not found",
-			})
-		default:
-			utils.LogError(c, "Error updating user: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to update user",
-			})
-		}
+		return err
 	}
 
 	// トークンの有効期限を1時間に設定
@@ -154,10 +89,7 @@ func (h *BlogUsersHandler) UpdateBlogUsers(c echo.Context) error {
 	// トークンの再作成
 	tokenString, err := h.CookieUtils.CreateToken(user)
 	if err != nil {
-		utils.LogError(c, "Error creating token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to create token",
-		})
+		return fmt.Errorf("create token: %w", err)
 	}
 	// トークンをクッキーに更新
 	h.CookieUtils.UpdateAuthCookie(c, tokenString, expirationTime)

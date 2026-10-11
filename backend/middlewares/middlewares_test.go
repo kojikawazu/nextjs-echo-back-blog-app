@@ -32,13 +32,13 @@ func TestNewRequestLogger(t *testing.T) {
 			wantLevel:  "INFO",
 		},
 		{
-			// 準正常系: echo.HTTPError（404）はエラーハンドラ適用後のステータスで記録される
+			// 準正常系: echo.HTTPError（404）はエラーハンドラ適用後のステータスで、クライアント起因として WARN で記録される
 			name: "http_error_logs_resolved_status",
 			handler: func(c echo.Context) error {
 				return echo.NewHTTPError(http.StatusNotFound, "not found")
 			},
 			wantStatus: http.StatusNotFound,
-			wantLevel:  "ERROR",
+			wantLevel:  "WARN",
 			wantError:  "code=404, message=not found",
 		},
 		{

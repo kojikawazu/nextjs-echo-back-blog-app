@@ -1,11 +1,13 @@
 package handlers_auth
 
 import (
+	"backend/apperrors"
 	"backend/config"
 	"backend/models"
 	utils_cookie "backend/utils/cookie"
 	utils "backend/utils/log"
 
+	"fmt"
 	"net/http"
 	"time"
 
@@ -19,7 +21,7 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（email/password を含む JSON ボディ）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。バインド/バリデーション失敗は 400、認証失敗は 401、トークン生成失敗等は 500 で返す
+//   - error: ボディ不正は apperrors.ErrInvalidRequestBody、入力不正は ErrXxx、認証失敗は ErrInvalidCredentials、トークン生成等の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *AuthHandler) Login(c echo.Context) error {
 	utils.LogInfo(c, "Logging in...")
 
@@ -32,38 +34,19 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	// リクエストボディをバインド
 	var reqBody RequestBody
 	if err := c.Bind(&reqBody); err != nil {
-		utils.LogError(c, "Failed to bind request body: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request body",
-		})
+		return apperrors.Wrap(apperrors.ErrInvalidRequestBody, err)
 	}
 
 	// バリデーション
 	err := h.AuthService.Login(reqBody.Email, reqBody.Password)
 	if err != nil {
-		switch err.Error() {
-		case "email and password are required":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Email and password are required",
-			})
-		case "invalid email format":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid email format",
-			})
-		default:
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "An error occurred",
-			})
-		}
+		return err
 	}
 
 	// サービス層からユーザーデータを取得
 	user, err := h.UserService.FetchUserByEmailAndPassword(reqBody.Email, reqBody.Password)
 	if err != nil {
-		utils.LogError(c, "Error fetching user: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{
-			"error": "Invalid credentials",
-		})
+		return err
 	}
 
 	// 認証成功
@@ -82,10 +65,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(config.JwtKey)
 	if err != nil {
-		utils.LogError(c, "Could not create JWT token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Could not create token",
-		})
+		return fmt.Errorf("create token: %w", err)
 	}
 	utils.LogInfo(c, "JWT token created successfully")
 
@@ -102,15 +82,14 @@ func (h *AuthHandler) Login(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーを含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン不在/解析失敗/無効時は 401、成功時はユーザー情報を 200 で返す
+//   - error: トークン不在は apperrors.ErrAuthTokenMissing、解析失敗・無効は ErrAuthTokenInvalid。成功時はユーザー情報を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	utils.LogInfo(c, "Checking authentication...")
 
 	// クッキーからJWTトークンを取得
 	cookie, err := c.Cookie("token")
 	if err != nil {
-		utils.LogError(c, "Token not found in cookies")
-		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Token not found"})
+		return apperrors.Wrap(apperrors.ErrAuthTokenMissing, err)
 	}
 	tokenString := cookie.Value
 
@@ -120,13 +99,11 @@ func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	})
 
 	if err != nil {
-		utils.LogError(c, "Failed to parse token: "+err.Error())
-		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token"})
+		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
 	}
 
 	if !token.Valid {
-		utils.LogError(c, "Invalid token")
-		return c.JSON(http.StatusUnauthorized, map[string]string{"message": "Invalid token"})
+		return apperrors.ErrAuthTokenInvalid
 	}
 
 	// 認証成功

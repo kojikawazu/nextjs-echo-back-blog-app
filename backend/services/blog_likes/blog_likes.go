@@ -2,7 +2,7 @@ package services_blog_likes
 
 import (
 	"backend/models"
-	"errors"
+	"fmt"
 	"log"
 )
 
@@ -13,14 +13,14 @@ import (
 //
 // 戻り値:
 //   - []models.BlogLikesData: 取得したいいねデータの一覧
-//   - error: 取得に失敗した場合のエラー
+//   - error: visitId が空の場合は ErrVisitIDEmpty、その他取得に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.BlogLikesData, error) {
 	log.Println("FetchBlogLikesByVisitId start...")
 
 	// バリデーション
 	if visitId == "" {
 		log.Println("VisitId is empty")
-		return nil, errors.New("visitId is empty")
+		return nil, ErrVisitIDEmpty
 	}
 
 	log.Println("validation passed")
@@ -28,7 +28,7 @@ func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.
 	// いいねデータを取得
 	blogLikes, err := s.BlogLikeRepository.FetchBlogLikesByVisitId(visitId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("fetch blog likes: %w", err)
 	}
 
 	return blogLikes, nil
@@ -42,21 +42,21 @@ func (s *BlogLikeServiceImpl) FetchBlogLikesByVisitId(visitId string) ([]models.
 //
 // 戻り値:
 //   - bool: いいねが存在する場合は true
-//   - error: 確認に失敗した場合のエラー
+//   - error: blogId・visitId が空の場合は ErrBlogIDOrVisitIDEmpty、その他確認に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")
 
 	// バリデーション
 	if blogId == "" || visitId == "" {
 		log.Println("BlogId or VisitId is empty")
-		return false, errors.New("BlogId or VisitId is empty")
+		return false, ErrBlogIDOrVisitIDEmpty
 	}
 	log.Println("validation passed")
 
 	// いいねデータが存在するか確認
 	isLiked, err := s.BlogLikeRepository.IsBlogLiked(blogId, visitId)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("check blog liked: %w", err)
 	}
 
 	return isLiked, nil
@@ -70,20 +70,23 @@ func (s *BlogLikeServiceImpl) IsBlogLiked(blogId, visitId string) (bool, error) 
 //
 // 戻り値:
 //   - *models.BlogLikesData: 作成されたいいねデータ
-//   - error: 作成に失敗した場合のエラー
+//   - error: blogId・visitId が空の場合は ErrBlogIDOrVisitIDEmpty、いいね済みの場合は ErrAlreadyLiked、その他作成に失敗した場合のエラー
 func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.BlogLikesData, error) {
 	log.Println("CreateBlogLike start...")
 
 	// バリデーション
 	if blogId == "" || visitId == "" {
 		log.Println("BlogId or VisitId is empty")
-		return nil, errors.New("blogId or VisitId is empty")
+		return nil, ErrBlogIDOrVisitIDEmpty
 	}
 	// ブログがいいねされているか確認
-	IsBlogLiked, _ := s.BlogLikeRepository.IsBlogLiked(blogId, visitId)
-	if IsBlogLiked {
+	isLiked, err := s.BlogLikeRepository.IsBlogLiked(blogId, visitId)
+	if err != nil {
+		return nil, fmt.Errorf("check blog liked: %w", err)
+	}
+	if isLiked {
 		log.Println("Blog is already liked")
-		return nil, errors.New("blog is already liked")
+		return nil, ErrAlreadyLiked
 	}
 
 	log.Println("validation passed")
@@ -91,7 +94,7 @@ func (s *BlogLikeServiceImpl) CreateBlogLike(blogId, visitId string) (*models.Bl
 	// いいねデータを作成
 	blogLike, err := s.BlogLikeRepository.CreateBlogLike(blogId, visitId)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create blog like: %w", err)
 	}
 
 	return blogLike, nil
@@ -111,7 +114,7 @@ func (s *BlogLikeServiceImpl) DeleteBlogLike(blogId, visitId string) error {
 	// いいねデータを削除
 	err := s.BlogLikeRepository.DeleteBlogLike(blogId, visitId)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete blog like: %w", err)
 	}
 
 	return nil

@@ -1,6 +1,13 @@
 package repositories_blogs
 
-import "backend/models"
+import (
+	"backend/models"
+	"errors"
+)
+
+// ErrBlogNotFound は該当するブログが存在しない場合のエラー。
+// DB ドライバ固有のエラー（pgx.ErrNoRows）を呼び出し側に漏らさないため、リポジトリ層で変換する。
+var ErrBlogNotFound = errors.New("blog not found")
 
 // BlogRepository はブログのデータアクセスを担うリポジトリインターフェース。
 type BlogRepository interface {
@@ -26,7 +33,7 @@ type BlogRepository interface {
 	//
 	// 戻り値:
 	//   - *models.BlogData: 取得したブログデータ
-	//   - error: 取得に失敗した場合のエラー
+	//   - error: 該当なしの場合は ErrBlogNotFound、その他取得に失敗した場合のエラー
 	FetchBlogById(id string) (*models.BlogData, error)
 
 	// CreateBlog はブログデータを作成する。
@@ -55,7 +62,7 @@ type BlogRepository interface {
 	//
 	// 戻り値:
 	//   - *models.BlogData: 更新後のブログデータ
-	//   - error: 更新に失敗した場合のエラー
+	//   - error: 該当なしの場合は ErrBlogNotFound、その他更新に失敗した場合のエラー
 	UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error)
 	// DeleteBlog はブログデータを削除する。
 	//

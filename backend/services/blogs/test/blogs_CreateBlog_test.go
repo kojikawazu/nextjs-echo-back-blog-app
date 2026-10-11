@@ -4,7 +4,6 @@ import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
 	services_blogs "backend/services/blogs"
-	"errors"
 	"testing"
 	"time"
 
@@ -16,7 +15,7 @@ func TestService_CreateBlog(t *testing.T) {
 	validInput := struct {
 		userId, title, githubURL, category, description, tags string
 	}{
-		userId: "user1", title: "Test Blog", githubURL: "https://github.com/user/repo",
+		userId: testUserID, title: "Test Blog", githubURL: "https://github.com/user/repo",
 		category: "Tech", description: "This is a test blog.", tags: "go, testing",
 	}
 
@@ -41,9 +40,8 @@ func TestService_CreateBlog(t *testing.T) {
 		description       string
 		tags              string
 		setupMock         func(m *repositories_blogs.MockBlogRepository)
-		wantErr           bool
-		wantErrMsg        string
-		expectRepoNotCall bool // バリデーションでリポジトリが呼ばれないケース
+		wantErr           error // 期待する sentinel（nil は正常系）
+		expectRepoNotCall bool  // バリデーションでリポジトリが呼ばれないケース
 	}{
 		{
 			name:        "正常系_全フィールド正常値でブログ作成成功",
@@ -56,7 +54,6 @@ func TestService_CreateBlog(t *testing.T) {
 			setupMock: func(m *repositories_blogs.MockBlogRepository) {
 				m.On("CreateBlog", validInput.userId, validInput.title, validInput.githubURL, validInput.category, validInput.description, validInput.tags).Return(&expectedBlog, nil)
 			},
-			wantErr: false,
 		},
 		{
 			name:              "準正常系_userIdが空文字の場合エラーを返す",
@@ -67,8 +64,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       validInput.description,
 			tags:              validInput.tags,
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid userId",
+			wantErr:           services_blogs.ErrInvalidUserID,
 			expectRepoNotCall: true,
 		},
 		{
@@ -80,8 +76,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       validInput.description,
 			tags:              validInput.tags,
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid title",
+			wantErr:           services_blogs.ErrInvalidTitle,
 			expectRepoNotCall: true,
 		},
 		{
@@ -93,8 +88,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       validInput.description,
 			tags:              validInput.tags,
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid githubUrl",
+			wantErr:           services_blogs.ErrInvalidGithubURL,
 			expectRepoNotCall: true,
 		},
 		{
@@ -106,8 +100,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       validInput.description,
 			tags:              validInput.tags,
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid category",
+			wantErr:           services_blogs.ErrInvalidCategory,
 			expectRepoNotCall: true,
 		},
 		{
@@ -119,8 +112,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       "",
 			tags:              validInput.tags,
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid description",
+			wantErr:           services_blogs.ErrInvalidDescription,
 			expectRepoNotCall: true,
 		},
 		{
@@ -132,8 +124,7 @@ func TestService_CreateBlog(t *testing.T) {
 			description:       validInput.description,
 			tags:              "",
 			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
-			wantErr:           true,
-			wantErrMsg:        "invalid tags",
+			wantErr:           services_blogs.ErrInvalidTags,
 			expectRepoNotCall: true,
 		},
 		{
@@ -145,10 +136,9 @@ func TestService_CreateBlog(t *testing.T) {
 			description: validInput.description,
 			tags:        validInput.tags,
 			setupMock: func(m *repositories_blogs.MockBlogRepository) {
-				m.On("CreateBlog", validInput.userId, validInput.title, validInput.githubURL, validInput.category, validInput.description, validInput.tags).Return(nil, errors.New("repository failure"))
+				m.On("CreateBlog", validInput.userId, validInput.title, validInput.githubURL, validInput.category, validInput.description, validInput.tags).Return(nil, errRepositoryFailure)
 			},
-			wantErr:    true,
-			wantErrMsg: "failed to create blog",
+			wantErr: errRepositoryFailure,
 		},
 	}
 
@@ -161,9 +151,13 @@ func TestService_CreateBlog(t *testing.T) {
 
 			blog, err := blogService.CreateBlog(tt.userId, tt.title, tt.githubURL, tt.category, tt.description, tt.tags)
 
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Equal(t, tt.wantErrMsg, err.Error())
+			if tt.wantErr != nil {
+				if tt.wantErr == errRepositoryFailure {
+					// 想定外エラーは sentinel に変換せず原因を保持する（500 になる）
+					assertInternalError(t, err, errRepositoryFailure)
+				} else {
+					assert.ErrorIs(t, err, tt.wantErr)
+				}
 				assert.Nil(t, blog)
 				if tt.expectRepoNotCall {
 					mockRepo.AssertNotCalled(t, "CreateBlog", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)

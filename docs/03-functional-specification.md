@@ -99,13 +99,15 @@
 
 #### エラーハンドリング
 
-| 条件 | HTTPステータス | エラーメッセージ |
-|------|---------------|-----------------|
-| リクエストボディ不正 | 400 | Invalid request body |
-| email/password空 | 400 | Email and password are required |
-| メール形式不正 | 400 | Invalid email format |
-| 認証失敗（ユーザー未発見・DB取得失敗を含む） | 401 | Invalid credentials |
-| トークン生成失敗 | 500 | Could not create token |
+| 条件 | HTTPステータス | コード | エラーメッセージ |
+|------|---------------|--------|-----------------|
+| リクエストボディ不正 | 400 | INVALID_REQUEST_BODY | Invalid request body |
+| email/password空 | 400 | VALIDATION_ERROR | Email and password are required |
+| メール形式不正 | 400 | VALIDATION_ERROR | Invalid email format |
+| 認証失敗（ユーザー未発見・パスワード不一致） | 401 | INVALID_CREDENTIALS | Invalid credentials |
+| ユーザー取得時の DB 障害・トークン生成失敗 | 500 | INTERNAL_ERROR | Internal server error |
+
+DB 障害は認証失敗（401）に丸めず 500 を返す（#123 で変更）。
 
 ### 1.3 認証確認処理詳細
 
@@ -118,11 +120,11 @@
 
 #### エラーハンドリング
 
-| 条件 | HTTPステータス | エラーメッセージ |
-|------|---------------|-----------------|
-| Cookieなし | 401 | Token not found |
-| トークン解析失敗 | 401 | Invalid token |
-| トークン無効 | 401 | Invalid token |
+| 条件 | HTTPステータス | コード | エラーメッセージ |
+|------|---------------|--------|-----------------|
+| Cookieなし | 401 | AUTH_TOKEN_MISSING | Authentication token is missing |
+| トークン解析失敗 | 401 | AUTH_TOKEN_INVALID | Authentication token is invalid |
+| トークン無効 | 401 | AUTH_TOKEN_INVALID | Authentication token is invalid |
 
 ### 1.4 ログアウト処理詳細
 
@@ -166,14 +168,18 @@
 
 #### バリデーションルール（Service層）
 
+不正な場合は 400 `VALIDATION_ERROR` を返す（`services/blogs/errors.go` の sentinel）。
+
 | フィールド | ルール | エラーメッセージ |
 |------------|--------|-----------------|
-| userId | 空文字でないこと | invalid userId |
-| title | 空文字でないこと | invalid title |
-| githubUrl | 空文字でないこと | invalid githubUrl |
-| category | 空文字でないこと | invalid category |
-| description | 空文字でないこと | invalid description |
-| tags | 空文字でないこと | invalid tags |
+| userId | 空文字でないこと | Invalid userId |
+| title | 空文字でないこと | Invalid title |
+| githubUrl | 空文字でないこと | Invalid githubUrl |
+| category | 空文字でないこと | Invalid category |
+| description | 空文字でないこと | Invalid description |
+| tags | 空文字でないこと | Invalid tags |
+
+ブログ ID・ユーザー ID をパスで受け取る操作（詳細取得・ユーザー別一覧・更新・削除）は、Service 層で UUID 形式を検証し、不正なら 400 `Invalid id` / `Invalid userId` を返す（DB に不正な形式の値を渡さない）。存在しない ID の詳細取得・更新は 404 `BLOG_NOT_FOUND`。
 
 #### バリデーションルール（Repository層）
 
@@ -303,7 +309,7 @@ ORDER BY b.created_at DESC
 
 認証不要。いいね数の多い順に指定件数のブログを取得する。
 
-**バリデーション（Service層）**: `count` が0以下の場合は `invalid count` エラー
+**バリデーション**: `count` が数値でない、または 0 以下の場合は 400 `VALIDATION_ERROR`（`Invalid count`）
 
 **SQLクエリ**: 返却フィールドは `id`, `blog_user_id`, `title`, `likes`, `created_at`, `updated_at` のみ（軽量レスポンス）。
 
@@ -395,7 +401,8 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
     | 1. バリデーション: blogId, visitId が空でないこと
     | 2. 重複チェック: IsBlogLiked(blogId, visitId)
     |    |
-    |    |-- 既にいいね済み → エラー "blog is already liked"
+    |    |-- 確認失敗 → エラー（500）
+    |    |-- 既にいいね済み → ErrAlreadyLiked（409）
     |    |-- 未いいね → 続行
     | 3. BlogLikeRepository.CreateBlogLike 呼び出し
     v
@@ -410,13 +417,13 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 
 #### エラーハンドリング
 
-| 条件 | HTTPステータス | エラーメッセージ |
-|------|---------------|-----------------|
-| visit-id-token Cookie取得失敗 | 500 | Failed to get visit id token |
-| visitId解析失敗 | 500 | Failed to get visit id |
-| blogId/visitId空 | 400 | BlogId or VisitId is empty |
-| 重複いいね | 400 | Blog is already liked |
-| DB挿入失敗 | 500 | Error creating blog like |
+| 条件 | HTTPステータス | コード | エラーメッセージ |
+|------|---------------|--------|-----------------|
+| visit-id-token Cookie取得失敗 | 500 | INTERNAL_ERROR | Internal server error |
+| visitId解析失敗 | 500 | INTERNAL_ERROR | Internal server error |
+| blogId/visitId空 | 400 | VALIDATION_ERROR | BlogId or VisitId is empty |
+| 重複いいね | 409 | ALREADY_LIKED | Blog is already liked |
+| いいね済み確認・DB挿入失敗 | 500 | INTERNAL_ERROR | Internal server error |
 
 ### 3.3 いいね削除フロー
 
@@ -458,12 +465,13 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
     | SELECT id FROM blog_likes WHERE blog_id = $1 AND visit_id = $2
     |
     |-- レコード存在 → {"isLiked": true}
-    |-- レコード不在 → {"isLiked": false}
+    |-- レコード不在（pgx.ErrNoRows）→ {"isLiked": false}（エラーではない）
+    |-- DB 障害 → エラー（500）
     v
 [レスポンス: 200 OK + {"isLiked": bool}]
 ```
 
-**設計ポイント**: エラー発生時（レコード未発見）でもステータスコードは `200 OK` で `{"isLiked": false}` を返す。
+**設計ポイント**: レコード不在は Repository 層で「いいねしていない」（`false`, エラーなし）として扱う。DB 障害などの失敗は `isLiked: false` に丸めず 500 を返す（#123 で変更。以前は失敗も 200 `{"isLiked": false}` だった）。
 
 ---
 
@@ -503,9 +511,9 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 
 | フィールド | ルール | エラーメッセージ | HTTPステータス |
 |------------|--------|-----------------|---------------|
-| blogId | 空文字でないこと | Invalid blogId | 400 |
-| guestUser | 空文字でないこと | Invalid guestUser | 400 |
-| comment | 空文字でないこと | Invalid comment | 400 |
+| blogId | 空文字でないこと | Invalid blogId | 400（VALIDATION_ERROR） |
+| guestUser | 空文字でないこと | Invalid guestUser | 400（VALIDATION_ERROR） |
+| comment | 空文字でないこと | Invalid comment | 400（VALIDATION_ERROR） |
 
 ### 4.2 コメント一覧取得フロー
 
@@ -582,7 +590,8 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
     |    - email: net/mail.ParseAddress による形式チェック
     | 2. 現パスワード検証:
     |    - FetchBlogUsersById(id) で現在のユーザー情報取得
-    |    - currentUser.Password（bcrypt ハッシュ）と password を照合し、不一致ならエラー
+    |    - ユーザー不在なら 404 USER_NOT_FOUND
+    |    - currentUser.Password（bcrypt ハッシュ）と password を照合し、不一致なら 400 INVALID_CURRENT_PASSWORD
     | 3. newPassword を bcrypt（cost 10）でハッシュ化（72 バイト超は 400 Password is too long）
     | 4. UserRepository.UpdateBlogUsers(id, name, email, newPasswordHash) 呼び出し
     v
@@ -597,15 +606,15 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 
 #### バリデーションルール
 
-| 順序 | フィールド | ルール | エラーメッセージ |
-|------|------------|--------|-----------------|
-| 1 | id | 空文字でないこと | id is required |
-| 2 | name | 空文字でないこと | name is required |
-| 3 | email | 空文字でないこと | email is required |
-| 4 | password | 空文字でないこと | password is required |
-| 5 | newPassword | 空文字でないこと | new password is required |
-| 6 | email | net/mail.ParseAddress形式 | invalid email format |
-| 7 | password | DB上の現パスワードと一致 | invalid current password |
+| 順序 | フィールド | ルール | ステータス / コード | エラーメッセージ |
+|------|------------|--------|-------------------|-----------------|
+| 1 | id | 空文字でないこと | 400 VALIDATION_ERROR | Id is required |
+| 2 | name | 空文字でないこと | 400 VALIDATION_ERROR | Name is required |
+| 3 | email | 空文字でないこと | 400 VALIDATION_ERROR | Email is required |
+| 4 | password | 空文字でないこと | 400 VALIDATION_ERROR | Password is required |
+| 5 | newPassword | 空文字でないこと | 400 VALIDATION_ERROR | New password is required |
+| 6 | email | net/mail.ParseAddress形式 | 400 VALIDATION_ERROR | Invalid email format |
+| 7 | password | DB上の現パスワードと一致 | 400 INVALID_CURRENT_PASSWORD | Invalid current password |
 
 **設計ポイント**: プロフィール更新時にJWTトークンを再発行する。これにより、ユーザー名やメールアドレスの変更がトークンのペイロードに即座に反映される。
 
@@ -671,21 +680,18 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 
 #### エラーレスポンス
 
-全てのエラーは以下の形式で返される:
+全てのエラー（ルート不在・レートリミット超過・panic を含む）は以下の統一形式で返される（#123）:
 
 ```json
 {
-  "error": "エラーメッセージ"
+  "code": "BLOG_NOT_FOUND",
+  "error": "Blog not found"
 }
 ```
 
-または認証確認系:
-
-```json
-{
-  "message": "エラーメッセージ"
-}
-```
+- `code` はクライアントが機械的に判定するための安定した識別子、`error` は人が読むためのメッセージ。コード一覧は [07-api-specification.md](07-api-specification.md)。
+- 500 は原因を本文に含めず、常に `{"code": "INTERNAL_ERROR", "error": "Internal server error"}` を返す。
+- ステータスと本文への変換は `middlewares.HTTPErrorHandler` に集約されている（[09-architecture-specification.md](09-architecture-specification.md) 2.3）。
 
 ### 6.4 CORS設定
 

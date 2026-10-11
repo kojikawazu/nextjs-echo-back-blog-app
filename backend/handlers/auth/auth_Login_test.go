@@ -1,6 +1,7 @@
 package handlers_auth
 
 import (
+	"backend/apperrors"
 	"backend/models"
 	services_auth "backend/services/auth"
 	services_users "backend/services/blog_users"
@@ -15,6 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// errUnexpected はサービス層の想定外エラー（DB 障害等）を表すテスト用エラー。
+var errUnexpected = errors.New("unexpected error")
+
 func TestHandler_Login(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -23,6 +27,8 @@ func TestHandler_Login(t *testing.T) {
 		setupMock      func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService)
 		expectedStatus int
 		expectedBody   string
+		wantErr        error // エラー系はハンドラの戻り値を検証する（ステータス・本文への変換は middlewares.HTTPErrorHandler）
+		wantNotErr     error // 戻り値が一致してはならない sentinel（nil のときは検証しない）
 	}{
 		{
 			name:        "正常系_正しいメールとパスワードでログイン成功",
@@ -40,63 +46,68 @@ func TestHandler_Login(t *testing.T) {
 			expectedBody:   `{"message":"Login successful"}`,
 		},
 		{
-			name:        "準正常系_メールが空文字の場合400を返す",
+			name:        "準正常系_メールが空文字の場合はErrEmailAndPasswordRequiredを返す",
 			requestBody: map[string]string{"email": "", "password": "password123"},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
-				mockAuth.On("Login", "", "password123").Return(errors.New("email and password are required"))
+				mockAuth.On("Login", "", "password123").Return(services_auth.ErrEmailAndPasswordRequired)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Email and password are required"}`,
+			wantErr: services_auth.ErrEmailAndPasswordRequired,
 		},
 		{
-			name:        "準正常系_パスワードが空文字の場合400を返す",
+			name:        "準正常系_パスワードが空文字の場合はErrEmailAndPasswordRequiredを返す",
 			requestBody: map[string]string{"email": "test@example.com", "password": ""},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
-				mockAuth.On("Login", "test@example.com", "").Return(errors.New("email and password are required"))
+				mockAuth.On("Login", "test@example.com", "").Return(services_auth.ErrEmailAndPasswordRequired)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Email and password are required"}`,
+			wantErr: services_auth.ErrEmailAndPasswordRequired,
 		},
 		{
-			name:        "準正常系_メールフォーマットが不正の場合400を返す",
+			name:        "準正常系_メールフォーマットが不正の場合はErrInvalidEmailFormatを返す",
 			requestBody: map[string]string{"email": "not-an-email", "password": "password123"},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
-				mockAuth.On("Login", "not-an-email", "password123").Return(errors.New("invalid email format"))
+				mockAuth.On("Login", "not-an-email", "password123").Return(services_auth.ErrInvalidEmailFormat)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid email format"}`,
+			wantErr: services_auth.ErrInvalidEmailFormat,
 		},
 		{
-			name:        "準正常系_認証失敗時に401を返す（ユーザー列挙対策）",
+			name:        "準正常系_認証失敗時はErrInvalidCredentialsを返す（ユーザー列挙対策）",
 			requestBody: map[string]string{"email": "notexist@example.com", "password": "password123"},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
 				mockAuth.On("Login", "notexist@example.com", "password123").Return(nil)
-				mockUser.On("FetchUserByEmailAndPassword", "notexist@example.com", "password123").Return(nil, errors.New("user not found"))
+				mockUser.On("FetchUserByEmailAndPassword", "notexist@example.com", "password123").Return(nil, services_users.ErrInvalidCredentials)
 			},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   `{"error":"Invalid credentials"}`,
+			wantErr: services_users.ErrInvalidCredentials,
 		},
 		{
-			name:        "異常系_AuthServiceが予期しないエラーを返す場合500を返す",
+			name:        "異常系_UserServiceの想定外エラーは認証失敗に丸めずそのまま返す",
 			requestBody: map[string]string{"email": "test@example.com", "password": "password123"},
 			contentType: echo.MIMEApplicationJSON,
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
-				mockAuth.On("Login", "test@example.com", "password123").Return(errors.New("unexpected error"))
+				mockAuth.On("Login", "test@example.com", "password123").Return(nil)
+				mockUser.On("FetchUserByEmailAndPassword", "test@example.com", "password123").Return(nil, errUnexpected)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"An error occurred"}`,
+			wantErr:    errUnexpected,
+			wantNotErr: services_users.ErrInvalidCredentials,
 		},
 		{
-			name:           "異常系_不正なJSONボディの場合400を返す",
-			requestBody:    nil,
-			contentType:    echo.MIMEApplicationJSON,
-			setupMock:      func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid request body"}`,
+			name:        "異常系_AuthServiceが予期しないエラーを返す場合はそのまま返す",
+			requestBody: map[string]string{"email": "test@example.com", "password": "password123"},
+			contentType: echo.MIMEApplicationJSON,
+			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
+				mockAuth.On("Login", "test@example.com", "password123").Return(errUnexpected)
+			},
+			wantErr: errUnexpected,
+		},
+		{
+			name:        "異常系_不正なJSONボディの場合はErrInvalidRequestBodyを返す",
+			requestBody: nil,
+			contentType: echo.MIMEApplicationJSON,
+			setupMock:   func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {},
+			wantErr:     apperrors.ErrInvalidRequestBody,
 		},
 	}
 
@@ -126,15 +137,21 @@ func TestHandler_Login(t *testing.T) {
 			tt.setupMock(mockAuthService, mockUserService)
 
 			handler := NewAuthHandler(mockUserService, mockAuthService)
-			handler.Login(c)
+			err := handler.Login(c)
 
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			if tt.expectedStatus == http.StatusOK {
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				if tt.wantNotErr != nil {
+					assert.NotErrorIs(t, err, tt.wantNotErr)
+				}
+				// エラー時はハンドラ自身でレスポンスを書かない
+				assert.False(t, c.Response().Committed)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
 				var resp map[string]string
 				assert.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 				assert.Equal(t, "Login successful", resp["message"])
-			} else {
-				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
 			}
 
 			mockAuthService.AssertExpectations(t)

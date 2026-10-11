@@ -3,7 +3,10 @@ package repositories_blog_likes
 import (
 	"backend/models"
 	"backend/supabase"
+	"errors"
 	"log"
+
+	"github.com/jackc/pgx/v4"
 )
 
 // FetchBlogLikesByVisitId は VisitId によっていいねデータを取得する。
@@ -56,7 +59,7 @@ func (r *BlogLikeRepositoryImpl) FetchBlogLikesByVisitId(visitId string) ([]mode
 //   - visitId: 確認対象の訪問者ID
 //
 // 戻り値:
-//   - bool: いいねが存在する場合は true
+//   - bool: いいねが存在する場合は true（存在しない場合は false でエラーなし）
 //   - error: 確認に失敗した場合のエラー
 func (r *BlogLikeRepositoryImpl) IsBlogLiked(blogId, visitId string) (bool, error) {
 	log.Println("IsBlogLiked start...")
@@ -74,6 +77,11 @@ func (r *BlogLikeRepositoryImpl) IsBlogLiked(blogId, visitId string) (bool, erro
 	// スキャンしていいねデータが存在するか確認
 	err := row.Scan(&id)
 	if err != nil {
+		// 該当なしは「いいねしていない」であり、エラーではない
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Println("Blog is not liked")
+			return false, nil
+		}
 		log.Printf("Failed to check if blog is liked: %v", err)
 		return false, err
 	}

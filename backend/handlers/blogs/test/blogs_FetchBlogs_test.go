@@ -5,7 +5,6 @@ import (
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,6 +22,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 		setupMock      func(mockService *service_blogs.MockBlogService)
 		expectedStatus int
 		checkBody      func(t *testing.T, body string)
+		wantErr        error // 期待するエラー（nil は正常系）
 	}{
 		{
 			name: "正常系_ブログ一覧を複数件取得成功",
@@ -49,14 +49,11 @@ func TestHandler_FetchBlogs(t *testing.T) {
 			},
 		},
 		{
-			name: "異常系_Serviceがエラーを返す場合500を返す",
+			name: "異常系_Serviceがエラーを返す場合そのエラーを返す",
 			setupMock: func(mockService *service_blogs.MockBlogService) {
-				mockService.On("FetchBlogs").Return(nil, errors.New("db connection error"))
+				mockService.On("FetchBlogs").Return(nil, errServiceFailure)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			checkBody: func(t *testing.T, body string) {
-				assert.JSONEq(t, `{"error":"Error fetching blogs"}`, body)
-			},
+			wantErr: errServiceFailure,
 		},
 	}
 
@@ -74,10 +71,14 @@ func TestHandler_FetchBlogs(t *testing.T) {
 			tt.setupMock(mockService)
 
 			err := handler.FetchBlogs(c)
-			assert.NoError(t, err)
 
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			tt.checkBody(t, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				tt.checkBody(t, rec.Body.String())
+			}
 
 			mockService.AssertExpectations(t)
 		})

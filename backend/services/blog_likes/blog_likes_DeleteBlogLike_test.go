@@ -30,14 +30,14 @@ func TestService_DeleteBlogLike_NoDelete(t *testing.T) {
 	mockBlogLikeRepository := new(repositories_blogs_likes.MockBlogLikeRepository)
 	blogLikeService := NewBlogLikeService(mockBlogLikeRepository)
 
-	mockBlogLikeRepository.On("DeleteBlogLike", "1", "1").Return(errors.New("Delete Error"))
+	repoErr := errors.New("Delete Error")
+	mockBlogLikeRepository.On("DeleteBlogLike", "1", "1").Return(repoErr)
 
 	// 実行
 	err := blogLikeService.DeleteBlogLike("1", "1")
 
 	// エラーチェック
-	assert.Error(t, err)
-	assert.Contains(t, "Delete Error", err.Error())
+	assert.ErrorIs(t, err, repoErr)
 
 	// モックが期待通りに呼び出されたかを確認
 	mockBlogLikeRepository.AssertExpectations(t)

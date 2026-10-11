@@ -3,7 +3,6 @@ package handlers_blog_comments
 import (
 	"backend/models"
 	services_comments "backend/services/blog_comments"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,6 +21,7 @@ func TestHandler_FetchCommentsByBlogId(t *testing.T) {
 		setupMock      func(mockService *services_comments.MockCommentService)
 		expectedStatus int
 		checkBody      func(t *testing.T, body string)
+		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
 	}{
 		{
 			name:   "正常系_ブログIDに紐づくコメント一覧を取得成功",
@@ -51,37 +51,21 @@ func TestHandler_FetchCommentsByBlogId(t *testing.T) {
 			},
 		},
 		{
-			name:   "準正常系_blogIdが不正の場合400を返す",
-			blogId: "1",
+			name:   "準正常系_blogIdが空の場合400を返す",
+			blogId: "",
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("invalid blogId"))
+				mockService.On("FetchCommentsByBlogId", "").Return(nil, services_comments.ErrInvalidBlogID)
 			},
-			expectedStatus: http.StatusBadRequest,
-			checkBody: func(t *testing.T, body string) {
-				assert.JSONEq(t, `{"error":"Invalid blogId"}`, body)
-			},
+			wantErr: services_comments.ErrInvalidBlogID,
 		},
 		{
-			name:   "準正常系_コメントが見つからない場合404を返す",
+			// 取得の失敗を 404（コメント不在）として返さない
+			name:   "異常系_Serviceがエラーを返す場合500を返す",
 			blogId: "1",
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("comments not found"))
+				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errService)
 			},
-			expectedStatus: http.StatusNotFound,
-			checkBody: func(t *testing.T, body string) {
-				assert.JSONEq(t, `{"error":"Comments not found"}`, body)
-			},
-		},
-		{
-			name:   "異常系_Serviceが予期しないエラーを返す場合500を返す",
-			blogId: "1",
-			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("FetchCommentsByBlogId", "1").Return(nil, errors.New("db connection error"))
-			},
-			expectedStatus: http.StatusInternalServerError,
-			checkBody: func(t *testing.T, body string) {
-				assert.JSONEq(t, `{"error":"Error fetching comments"}`, body)
-			},
+			wantErr: errService,
 		},
 	}
 
@@ -100,10 +84,13 @@ func TestHandler_FetchCommentsByBlogId(t *testing.T) {
 			tt.setupMock(mockCommentService)
 
 			err := handler.FetchCommentsByBlogId(c)
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			tt.checkBody(t, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				tt.checkBody(t, rec.Body.String())
+			}
 
 			mockCommentService.AssertExpectations(t)
 		})

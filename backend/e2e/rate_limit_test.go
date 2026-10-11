@@ -32,7 +32,7 @@ func TestE2E_Login_RateLimited(t *testing.T) {
 	resp := doJSONFrom(t, client, clientIP, http.MethodPost, "/api/users/login", wrongLogin)
 	assert.Equal(t, http.StatusTooManyRequests, resp.StatusCode)
 	decodeBody(t, resp, &body)
-	assert.Equal(t, "Too many requests", body["error"])
+	assert.Equal(t, map[string]string{"code": "TOO_MANY_REQUESTS", "error": "Too many requests"}, body)
 }
 
 // 準正常系: 上限に達した送信元でも、正しいパスワードでのログインは通らない（総当たりの途中で正解しても弾く）。

@@ -4,23 +4,19 @@ import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
 	services_blogs "backend/services/blogs"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestService_FetchBlogsByUserId(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// ブログが存在する場合
+	// ブログが存在する場合のモックデータ
 	mockBlogData := []models.BlogData{
 		{
 			ID:         "1",
-			BlogUserId: "1",
+			BlogUserId: testUserID,
 			Title:      "title1",
 			GithubUrl:  "https://github.com/user/repo1",
 			Category:   "Category1",
@@ -30,7 +26,7 @@ func TestService_FetchBlogsByUserId(t *testing.T) {
 		},
 		{
 			ID:         "2",
-			BlogUserId: "2",
+			BlogUserId: testUserID,
 			Title:      "title2",
 			GithubUrl:  "https://github.com/user/repo2",
 			Category:   "Category2",
@@ -39,54 +35,71 @@ func TestService_FetchBlogsByUserId(t *testing.T) {
 			UpdatedAt:  time.Now(),
 		},
 	}
-	mockBlogRepository.On("FetchBlogsByUserId", "1").Return(mockBlogData, nil)
 
-	// サービス層メソッドの実行
-	blogs, err := blogService.FetchBlogsByUserId("1")
+	tests := []struct {
+		name              string
+		userId            string
+		setupMock         func(m *repositories_blogs.MockBlogRepository)
+		wantLen           int
+		wantErr           error // 期待する sentinel（nil は正常系）
+		wantInternal      bool  // 想定外エラー（sentinel に変換されず原因を保持する）
+		expectRepoNotCall bool  // バリデーションでリポジトリが呼ばれないケース
+	}{
+		{
+			name:   "正常系_ユーザーのブログ一覧を返す",
+			userId: testUserID,
+			setupMock: func(m *repositories_blogs.MockBlogRepository) {
+				m.On("FetchBlogsByUserId", testUserID).Return(mockBlogData, nil)
+			},
+			wantLen: 2,
+		},
+		{
+			name:              "準正常系_userIdが空文字の場合ErrInvalidUserIDを返す",
+			userId:            "",
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           services_blogs.ErrInvalidUserID,
+			expectRepoNotCall: true,
+		},
+		{
+			name:              "準正常系_userIdがUUID形式でない場合ErrInvalidUserIDを返す",
+			userId:            "1",
+			setupMock:         func(m *repositories_blogs.MockBlogRepository) {},
+			wantErr:           services_blogs.ErrInvalidUserID,
+			expectRepoNotCall: true,
+		},
+		{
+			name:   "異常系_Repositoryがエラーを返す場合は原因を保持した想定外エラーを返す",
+			userId: testUserID,
+			setupMock: func(m *repositories_blogs.MockBlogRepository) {
+				m.On("FetchBlogsByUserId", testUserID).Return(nil, errRepositoryFailure)
+			},
+			wantInternal: true,
+		},
+	}
 
-	// エラーチェック
-	assert.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockRepo := new(repositories_blogs.MockBlogRepository)
+			blogService := services_blogs.NewBlogService(mockRepo)
+			tt.setupMock(mockRepo)
 
-	// データが期待通りか確認
-	assert.NotNil(t, blogs)
-	assert.Len(t, blogs, 2)
+			blogs, err := blogService.FetchBlogsByUserId(tt.userId)
 
-	// モックが期待通りに呼び出されたかを確認
-	mockBlogRepository.AssertExpectations(t)
-}
-
-func TestService_FetchBlogsByUserId_InvalidCases(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// サービス層メソッドの実行
-	_, err := blogService.FetchBlogsByUserId("")
-
-	// エラーチェック
-	assert.Error(t, err)
-	assert.Equal(t, "invalid userId", err.Error())
-
-	// モックが期待通りに呼び出されたかを確認
-	mockBlogRepository.AssertExpectations(t)
-}
-
-func TestService_FetchBlogsByUserId_NotUser(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockBlogRepository := new(repositories_blogs.MockBlogRepository)
-	blogService := services_blogs.NewBlogService(mockBlogRepository)
-
-	// "blog not found" エラーメッセージを返すように設定
-	mockBlogRepository.On("FetchBlogsByUserId", "2").Return(nil, errors.New("blog not found"))
-
-	// サービス層メソッドの実行
-	blogs, err := blogService.FetchBlogsByUserId("2")
-
-	// エラーチェック
-	assert.Error(t, err)
-	assert.Nil(t, blogs)
-	assert.Equal(t, "blogs not found", err.Error())
-
-	// モックが期待通りに呼び出されたかを確認
-	mockBlogRepository.AssertExpectations(t)
+			switch {
+			case tt.wantInternal:
+				assertInternalError(t, err, errRepositoryFailure)
+				assert.Nil(t, blogs)
+			case tt.wantErr != nil:
+				assert.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, blogs)
+			default:
+				assert.NoError(t, err)
+				assert.Len(t, blogs, tt.wantLen)
+			}
+			if tt.expectRepoNotCall {
+				mockRepo.AssertNotCalled(t, "FetchBlogsByUserId", mock.Anything)
+			}
+			mockRepo.AssertExpectations(t)
+		})
+	}
 }

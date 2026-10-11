@@ -4,7 +4,6 @@ import (
 	"backend/models"
 	services_blogs_likes "backend/services/blog_likes"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,6 +18,7 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 		setupMock      func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService)
 		expectedStatus int
 		expectedBody   string
+		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
 	}{
 		{
 			name: "正常系_訪問IDに紐づくいいね一覧を取得成功",
@@ -44,10 +44,9 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 		{
 			name: "準正常系_visit-id-token Cookieがない場合500を返す",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
-				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errors.New("no cookie"))
+				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to get visit id token"}`,
+			wantErr: errNoCookie,
 		},
 		{
 			name: "準正常系_visitId取得に失敗した場合500を返す",
@@ -55,19 +54,17 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 				token := "mocked-token"
 				req.AddCookie(&http.Cookie{Name: "visit-id-token", Value: token})
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return(token, nil)
-				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errors.New("no visit id"))
+				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errParseToken)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to get visit id"}`,
+			wantErr: errParseToken,
 		},
 		{
 			name: "異常系_Serviceがエラーを返す場合500を返す",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("FetchBlogLikesByVisitId", "valid-visit-id").Return(nil, errors.New("db error"))
+				mockService.On("FetchBlogLikesByVisitId", "valid-visit-id").Return(nil, errService)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Error fetching blog likes by visit id"}`,
+			wantErr: errService,
 		},
 	}
 
@@ -85,10 +82,13 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 			tt.setupMock(c, req, mockCookieUtils, mockService)
 
 			err := handler.FetchBlogLikesByVisitId(c)
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			}
 
 			mockCookieUtils.AssertExpectations(t)
 			mockService.AssertExpectations(t)

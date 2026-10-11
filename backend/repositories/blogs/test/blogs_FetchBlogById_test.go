@@ -35,9 +35,21 @@ func TestRepository_FetchBlogById_ErrorCase(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Nil(t, blog)
+	// 形式不正は「不在」ではないため ErrBlogNotFound に変換しない
+	assert.NotErrorIs(t, err, repositories_blogs.ErrBlogNotFound)
 
 	var pgErr *pgconn.PgError
 	if assert.ErrorAs(t, err, &pgErr) {
 		assert.Equal(t, "22P02", pgErr.Code)
 	}
+}
+
+// 準正常系: 存在しない UUID の場合は pgx.ErrNoRows ではなく ErrBlogNotFound を返す（ドライバ固有のエラーを漏らさない）。
+func TestRepository_FetchBlogById_NotFound(t *testing.T) {
+	repo := repositories_blogs.NewBlogRepository()
+
+	blog, err := repo.FetchBlogById(notExistBlogID)
+
+	assert.ErrorIs(t, err, repositories_blogs.ErrBlogNotFound)
+	assert.Nil(t, blog)
 }

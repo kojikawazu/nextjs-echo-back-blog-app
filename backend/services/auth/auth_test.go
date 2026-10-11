@@ -1,43 +1,58 @@
 package services_auth
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestService_Login_Success(t *testing.T) {
-	// モックの作成
-	mockAuthService := new(MockAuthService)
+// TestService_Login はログイン入力のバリデーションを検証する。
+func TestService_Login(t *testing.T) {
+	tests := []struct {
+		name     string
+		email    string
+		password string
+		wantErr  error
+	}{
+		{
+			// 正常系: メール形式が正しく、パスワードがあればエラーなし
+			name:     "valid_input",
+			email:    "test@example.com",
+			password: "password123",
+			wantErr:  nil,
+		},
+		{
+			// 準正常系: メールアドレスが空
+			name:     "empty_email",
+			email:    "",
+			password: "password123",
+			wantErr:  ErrEmailAndPasswordRequired,
+		},
+		{
+			// 準正常系: パスワードが空
+			name:     "empty_password",
+			email:    "test@example.com",
+			password: "",
+			wantErr:  ErrEmailAndPasswordRequired,
+		},
+		{
+			// 準正常系: メール形式の不正
+			name:     "invalid_email_format",
+			email:    "invalid-email",
+			password: "password123",
+			wantErr:  ErrInvalidEmailFormat,
+		},
+	}
 
-	// 期待する入力と出力の設定
-	email := "test@example.com"
-	password := "password123"
-	mockAuthService.On("Login", email, password).Return(nil)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := NewAuthService().Login(tt.email, tt.password)
 
-	// テスト対象の関数呼び出し
-	err := mockAuthService.Login(email, password)
-
-	// アサーション
-	assert.NoError(t, err)
-	mockAuthService.AssertExpectations(t)
-}
-
-func TestService_Login_Failure(t *testing.T) {
-	// モックの作成
-	mockAuthService := new(MockAuthService)
-
-	// 期待する入力と出力の設定
-	email := "test@example.com"
-	password := "wrongpassword"
-	mockAuthService.On("Login", email, password).Return(errors.New("invalid credentials"))
-
-	// テスト対象の関数呼び出し
-	err := mockAuthService.Login(email, password)
-
-	// アサーション
-	assert.Error(t, err)
-	assert.Equal(t, "invalid credentials", err.Error())
-	mockAuthService.AssertExpectations(t)
+			if tt.wantErr == nil {
+				assert.NoError(t, err)
+				return
+			}
+			assert.ErrorIs(t, err, tt.wantErr)
+		})
+	}
 }

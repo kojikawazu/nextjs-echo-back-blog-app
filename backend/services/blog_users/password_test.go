@@ -38,13 +38,13 @@ func TestHashPassword(t *testing.T) {
 	assert.NotEqual(t, hash, hash2, "ソルトにより同じパスワードでも別のハッシュになる")
 }
 
-// 準正常系: 72 バイトちょうどはハッシュ化でき、73 バイトは errPasswordTooLong になる。
+// 準正常系: 72 バイトちょうどはハッシュ化でき、73 バイトは ErrPasswordTooLong になる。
 func TestHashPassword_Length(t *testing.T) {
 	_, err := hashPassword(strings.Repeat("a", 72))
 	assert.NoError(t, err)
 
 	hash, err := hashPassword(strings.Repeat("a", 73))
-	assert.ErrorIs(t, err, errPasswordTooLong)
+	assert.ErrorIs(t, err, ErrPasswordTooLong)
 	assert.Empty(t, hash)
 }
 

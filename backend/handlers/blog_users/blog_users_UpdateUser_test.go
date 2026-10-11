@@ -1,6 +1,7 @@
 package handlers_blog_users
 
 import (
+	"backend/apperrors"
 	"backend/models"
 	services_users "backend/services/blog_users"
 	utils_cookie "backend/utils/cookie"
@@ -76,463 +77,175 @@ func TestHandler_UpdateUser(t *testing.T) {
 	mockCookieUtils.AssertExpectations(t)
 }
 
-func TestHandler_UpdateUser_NotToken(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("", errors.New("no cookie"))
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Error getting cookie")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertNotCalled(t, "UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "new-password")
-}
-
-func TestHandler_UpdateUser_NotUserId(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックの振る舞いを設定
-	mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("mocked-token", nil)
-	mockCookieUtils.On("GetUserIdFromToken", c, "mocked-token").Return("", errors.New("no user id"))
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusUnauthorized, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Error getting userId from token")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertNotCalled(t, "UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "new-password")
-}
-
-func TestHandler_UpdateUser_InvalidName(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "", "john@example.com", "password", "new-password").Return(nil, errors.New("name is required"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Name is required")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_InvalidEmail01(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "", "password", "new-password").Return(nil, errors.New("email is required"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Email is required")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_InvalidEmail02(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "test",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "test", "password", "new-password").Return(nil, errors.New("invalid email format"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid email format")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_InvalidPassword(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "", "new-password").Return(nil, errors.New("password is required"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Password is required")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_InvalidNewPassword(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "").Return(nil, errors.New("new password is required"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "New password is required")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_InvalidUser(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "new-password").Return(nil, errors.New("user not found"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusNotFound, rec.Code)
-	assert.Contains(t, rec.Body.String(), "User not found")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-func TestHandler_UpdateUser_NotUpdated(t *testing.T) {
-	// Echoのセットアップ
-	e := echo.New()
-
-	// JSONデータを作成
-	requestBody := map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": "new-password",
-	}
-
-	// JSONデータをエンコード
-	jsonData, err := json.Marshal(requestBody)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
-
-	// モックデータの設定
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "new-password").Return(nil, errors.New("server error"))
-
-	// モッククッキーを設定
-	SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// ハンドラーを実行
-	err = handler.UpdateBlogUsers(c)
-
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Failed to update user")
-
-	// モックが期待通りに呼び出されたかを確認
-	mockCookieUtils.AssertExpectations(t)
-	mockUserService.AssertExpectations(t)
-}
-
-// 準正常系: 新しいパスワードが長すぎる（bcrypt の 72 バイト超）場合は 400 を返す。
-func TestHandler_UpdateUser_NewPasswordTooLong(t *testing.T) {
-	e := echo.New()
-
+// TestHandler_UpdateUser_Errors はユーザー更新の失敗時にハンドラが返すエラーを検証する。
+// ステータス・本文への変換は middlewares.HTTPErrorHandler の責務のため、ここでは戻り値の sentinel を検証する。
+func TestHandler_UpdateUser_Errors(t *testing.T) {
+	errUnexpected := errors.New("server error")
+	validBody := `{"name":"John Doe","email":"john@example.com","password":"password","newPassword":"new-password"}`
 	longPassword := strings.Repeat("a", 73)
-	jsonData, err := json.Marshal(map[string]string{
-		"name":        "John Doe",
-		"email":       "john@example.com",
-		"password":    "password",
-		"newPassword": longPassword,
-	})
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
+	mockUser := &models.BlogUsersData{ID: "valid-user-id", Name: "John Doe", Email: "john@example.com"}
+
+	// serviceReturns は認証クッキーが有効で、UpdateUser が err を返すモック設定を作る。
+	serviceReturns := func(name, email, password, newPassword string, err error) func(echo.Context, *http.Request, *utils_cookie.MockCookieUtils, *services_users.MockUserService) {
+		return func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService) {
+			SetMockBlogCookies(c, req, mockCookieUtils)
+			mockUserService.On("UpdateUser", "valid-user-id", name, email, password, newPassword).Return(nil, err)
+		}
+	}
+	bodyOf := func(name, email, password, newPassword string) string {
+		b, err := json.Marshal(map[string]string{"name": name, "email": email, "password": password, "newPassword": newPassword})
+		if err != nil {
+			t.Fatalf("Failed to marshal JSON: %v", err)
+		}
+		return string(b)
 	}
 
-	req := httptest.NewRequest(http.MethodPut, "/api/users/update", bytes.NewReader(jsonData))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
+	tests := []struct {
+		name          string
+		body          string
+		setupMock     func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService)
+		wantErr       error
+		expectService bool
+	}{
+		{
+			// 準正常系: 認証クッキーが無い → ErrAuthTokenMissing
+			name: "token_missing",
+			body: validBody,
+			setupMock: func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService) {
+				mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("", errors.New("no cookie"))
+			},
+			wantErr: apperrors.ErrAuthTokenMissing,
+		},
+		{
+			// 準正常系: トークンからユーザー ID を取得できない → ErrAuthTokenInvalid
+			name: "token_invalid",
+			body: validBody,
+			setupMock: func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService) {
+				mockCookieUtils.On("GetAuthCookieValue", c, "token").Return("mocked-token", nil)
+				mockCookieUtils.On("GetUserIdFromToken", c, "mocked-token").Return("", errors.New("no user id"))
+			},
+			wantErr: apperrors.ErrAuthTokenInvalid,
+		},
+		{
+			// 準正常系: JSON として解釈できないボディ → ErrInvalidRequestBody
+			name: "invalid_body",
+			body: "{invalid json}",
+			setupMock: func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService) {
+				SetMockBlogCookies(c, req, mockCookieUtils)
+			},
+			wantErr: apperrors.ErrInvalidRequestBody,
+		},
+		{
+			// 準正常系: name が空
+			name:          "name_required",
+			body:          bodyOf("", "john@example.com", "password", "new-password"),
+			setupMock:     serviceReturns("", "john@example.com", "password", "new-password", services_users.ErrNameRequired),
+			wantErr:       services_users.ErrNameRequired,
+			expectService: true,
+		},
+		{
+			// 準正常系: email が空
+			name:          "email_required",
+			body:          bodyOf("John Doe", "", "password", "new-password"),
+			setupMock:     serviceReturns("John Doe", "", "password", "new-password", services_users.ErrEmailRequired),
+			wantErr:       services_users.ErrEmailRequired,
+			expectService: true,
+		},
+		{
+			// 準正常系: email の形式が不正
+			name:          "invalid_email_format",
+			body:          bodyOf("John Doe", "test", "password", "new-password"),
+			setupMock:     serviceReturns("John Doe", "test", "password", "new-password", services_users.ErrInvalidEmailFormat),
+			wantErr:       services_users.ErrInvalidEmailFormat,
+			expectService: true,
+		},
+		{
+			// 準正常系: 現在のパスワードが空
+			name:          "password_required",
+			body:          bodyOf("John Doe", "john@example.com", "", "new-password"),
+			setupMock:     serviceReturns("John Doe", "john@example.com", "", "new-password", services_users.ErrPasswordRequired),
+			wantErr:       services_users.ErrPasswordRequired,
+			expectService: true,
+		},
+		{
+			// 準正常系: 新しいパスワードが空
+			name:          "new_password_required",
+			body:          bodyOf("John Doe", "john@example.com", "password", ""),
+			setupMock:     serviceReturns("John Doe", "john@example.com", "password", "", services_users.ErrNewPasswordRequired),
+			wantErr:       services_users.ErrNewPasswordRequired,
+			expectService: true,
+		},
+		{
+			// 準正常系: 新しいパスワードが 72 バイトを超える
+			name:          "new_password_too_long",
+			body:          bodyOf("John Doe", "john@example.com", "password", longPassword),
+			setupMock:     serviceReturns("John Doe", "john@example.com", "password", longPassword, services_users.ErrPasswordTooLong),
+			wantErr:       services_users.ErrPasswordTooLong,
+			expectService: true,
+		},
+		{
+			// 準正常系: 現在のパスワード不一致
+			name:          "invalid_current_password",
+			body:          validBody,
+			setupMock:     serviceReturns("John Doe", "john@example.com", "password", "new-password", services_users.ErrInvalidCurrentPassword),
+			wantErr:       services_users.ErrInvalidCurrentPassword,
+			expectService: true,
+		},
+		{
+			// 準正常系: ユーザー不在
+			name:          "user_not_found",
+			body:          validBody,
+			setupMock:     serviceReturns("John Doe", "john@example.com", "password", "new-password", services_users.ErrUserNotFound),
+			wantErr:       services_users.ErrUserNotFound,
+			expectService: true,
+		},
+		{
+			// 異常系: サービスの想定外エラーをそのまま返す（500 への変換は HTTPErrorHandler）
+			name:          "unexpected_error",
+			body:          validBody,
+			setupMock:     serviceReturns("John Doe", "john@example.com", "password", "new-password", errUnexpected),
+			wantErr:       errUnexpected,
+			expectService: true,
+		},
+		{
+			// 異常系: 更新後のトークン再作成に失敗した場合は原因を辿れる形で返す
+			name: "create_token_error",
+			body: validBody,
+			setupMock: func(c echo.Context, req *http.Request, mockCookieUtils *utils_cookie.MockCookieUtils, mockUserService *services_users.MockUserService) {
+				SetMockBlogCookies(c, req, mockCookieUtils)
+				mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", "new-password").Return(mockUser, nil)
+				mockCookieUtils.On("GetAuthCookieExpirationTime").Return(time.Now().Add(1 * time.Hour))
+				mockCookieUtils.On("CreateToken", mockUser).Return("", errUnexpected)
+			},
+			wantErr:       errUnexpected,
+			expectService: true,
+		},
+	}
 
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockUserService := new(services_users.MockUserService)
-	handler := NewBlogUsersHandler(mockUserService, mockCookieUtils)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodPut, "/api/users/update", strings.NewReader(tt.body))
+			req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
 
-	mockUserService.On("UpdateUser", "valid-user-id", "John Doe", "john@example.com", "password", longPassword).Return(nil, errors.New("password too long"))
-	SetMockBlogCookies(c, req, mockCookieUtils)
+			mockCookieUtils := new(utils_cookie.MockCookieUtils)
+			mockUserService := new(services_users.MockUserService)
+			tt.setupMock(c, req, mockCookieUtils, mockUserService)
 
-	err = handler.UpdateBlogUsers(c)
+			err := NewBlogUsersHandler(mockUserService, mockCookieUtils).UpdateBlogUsers(c)
 
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.JSONEq(t, `{"error":"Password is too long"}`, rec.Body.String())
-	mockUserService.AssertExpectations(t)
+			assert.ErrorIs(t, err, tt.wantErr)
+			// エラー時はハンドラ自身でレスポンスを書かず、クッキーも更新しない
+			assert.False(t, c.Response().Committed)
+			mockCookieUtils.AssertNotCalled(t, "UpdateAuthCookie", mock.Anything, mock.Anything, mock.Anything)
+			mockCookieUtils.AssertExpectations(t)
+			if tt.expectService {
+				mockUserService.AssertExpectations(t)
+			} else {
+				mockUserService.AssertNotCalled(t, "UpdateUser", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			}
+		})
+	}
 }

@@ -3,6 +3,7 @@ package handlers_blog_likes
 import (
 	"backend/dto"
 	utils "backend/utils/log"
+	"fmt"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -14,34 +15,25 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーを含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン取得/解析やデータ取得失敗時は 500、成功時は 200 で返す
+//   - error: 訪問者トークンの取得/解析やデータ取得の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog likes by visit id...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
 	if err != nil {
-		utils.LogError(c, "Error getting visit id token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id token",
-		})
+		return fmt.Errorf("get visit id token: %w", err)
 	}
 	// JWTトークンを解析して訪問IDを取得
 	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting visit id: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id",
-		})
+		return fmt.Errorf("get visit id: %w", err)
 	}
 
 	// VisitIDに紐づくいいねデータを取得
 	blogLikesData, err := h.BlogLikeService.FetchBlogLikesByVisitId(visitId)
 	if err != nil {
-		utils.LogError(c, "Error fetching blog likes by visit id: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error fetching blog likes by visit id",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Blog likes fetched successfully")
@@ -55,7 +47,7 @@ func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（既存の visit-id-token クッキーがあれば利用）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン生成失敗時は 500、生成成功または既存時は 200 で返す
+//   - error: トークン生成の失敗はエラー（500）。生成成功または既存時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	utils.LogInfo(c, "Generating visitor id...")
 
@@ -78,10 +70,7 @@ func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 	// Visit用トークンの作成
 	tokenString, err := h.CookieUtils.CreateVisitIdToken()
 	if err != nil {
-		utils.LogError(c, "Error creating visitor token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to create visitor token",
-		})
+		return fmt.Errorf("create visitor token: %w", err)
 	}
 	//  Visit用トークンをクッキーに保存
 	h.CookieUtils.AddVisitIdCoookie(c, tokenString, expirationTime)
@@ -98,25 +87,19 @@ func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン取得/解析失敗時は 500、それ以外は isLiked を 200 で返す
+//   - error: 訪問者トークンの取得/解析や確認の失敗はエラー（500）、blogId が空は ErrBlogIDOrVisitIDEmpty。成功時は isLiked を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	utils.LogInfo(c, "Checking if blog is liked...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
 	if err != nil {
-		utils.LogError(c, "Error getting visit id token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id token",
-		})
+		return fmt.Errorf("get visit id token: %w", err)
 	}
 	// JWTトークンを解析して訪問IDを取得
 	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting visit id: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id",
-		})
+		return fmt.Errorf("get visit id: %w", err)
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -125,13 +108,10 @@ func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	// いいねデータが存在するか確認
 	isLiked, err := h.BlogLikeService.IsBlogLiked(blogId, visitId)
 	if err != nil {
-		utils.LogInfo(c, "Blog like not found")
-		return c.JSON(http.StatusOK, map[string]bool{
-			"isLiked": isLiked,
-		})
+		return err
 	}
 
-	utils.LogInfo(c, "Blog like found")
+	utils.LogInfo(c, "Checked blog like")
 	return c.JSON(http.StatusOK, map[string]bool{
 		"isLiked": isLiked,
 	})
@@ -143,25 +123,19 @@ func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン取得/解析失敗は 500、空値やいいね済みは 400、成功時は 200 で返す
+//   - error: 訪問者トークンの取得/解析の失敗はエラー（500）、空値は ErrBlogIDOrVisitIDEmpty、いいね済みは ErrAlreadyLiked。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog like...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
 	if err != nil {
-		utils.LogError(c, "Error getting visit id token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id token",
-		})
+		return fmt.Errorf("get visit id token: %w", err)
 	}
 	// JWTトークンを解析して訪問IDを取得
 	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting visit id: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id",
-		})
+		return fmt.Errorf("get visit id: %w", err)
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -170,21 +144,7 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	// いいねデータを作成
 	createdBlogLikeData, err := h.BlogLikeService.CreateBlogLike(blogId, visitId)
 	if err != nil {
-		switch err.Error() {
-		case "BlogId or VisitId is empty":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "BlogId or VisitId is empty",
-			})
-		case "blog is already liked":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Blog is already liked",
-			})
-		default:
-			utils.LogError(c, "Error creating blog like: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error creating blog like",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Blog like created successfully")
@@ -197,25 +157,19 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。トークン取得/解析や削除失敗時は 500、成功時は 200 で返す
+//   - error: 訪問者トークンの取得/解析や削除の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog like...")
 
 	// クッキーからJWTトークンを取得
 	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
 	if err != nil {
-		utils.LogError(c, "Error getting visit id token: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id token",
-		})
+		return fmt.Errorf("get visit id token: %w", err)
 	}
 	// JWTトークンを解析して訪問IDを取得
 	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
 	if err != nil {
-		utils.LogError(c, "Error getting visit id: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Failed to get visit id",
-		})
+		return fmt.Errorf("get visit id: %w", err)
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -224,10 +178,7 @@ func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	// いいねデータを削除
 	err = h.BlogLikeService.DeleteBlogLike(blogId, visitId)
 	if err != nil {
-		utils.LogError(c, "Error deleting blog like: "+err.Error())
-		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "Error deleting blog like",
-		})
+		return err
 	}
 
 	utils.LogInfo(c, "Blog like deleted successfully")

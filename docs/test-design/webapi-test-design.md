@@ -242,7 +242,7 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 
 | # | テストケース | 入力 | 期待結果 | テスト種別 | 優先度 |
 |---|---|---|---|---|---|
-| A-1 | Serviceがエラーを返す → 500 | Service エラー | 500, `{"error":"Error fetching blogs"}` | Unit | High |
+| A-1 | Serviceがエラーを返す → 500 | Service エラー | 500, `{"code":"INTERNAL_ERROR","error":"Internal server error"}` | Unit | High |
 
 #### CreateBlog テストケース（追加分）
 

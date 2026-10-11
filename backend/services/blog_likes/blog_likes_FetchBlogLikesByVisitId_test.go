@@ -50,9 +50,8 @@ func TestService_FetchBlogLikesByVisitId_InvalidVisitId(t *testing.T) {
 	blogLikesData, err := blogLikeService.FetchBlogLikesByVisitId("")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrVisitIDEmpty)
 	assert.Nil(t, blogLikesData)
-	assert.Contains(t, "visitId is empty", err.Error())
 
 	// モックの呼び出しを確認
 	mockBlogLikeRepository.AssertNotCalled(t, "FetchBlogLikesByVisitId", "")
@@ -64,15 +63,15 @@ func TestService_FetchBlogLikesByVisitId_NoData(t *testing.T) {
 	blogLikeService := NewBlogLikeService(mockBlogLikeRepository)
 
 	// モックの設定
-	mockBlogLikeRepository.On("FetchBlogLikesByVisitId", "1").Return(nil, errors.New("no data"))
+	repoErr := errors.New("no data")
+	mockBlogLikeRepository.On("FetchBlogLikesByVisitId", "1").Return(nil, repoErr)
 
 	// 実行
 	blogLikesData, err := blogLikeService.FetchBlogLikesByVisitId("1")
 
 	// エラーチェック
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, repoErr)
 	assert.Nil(t, blogLikesData)
-	assert.Contains(t, "no data", err.Error())
 
 	// モックが期待通りに呼び出されたかを確認
 	mockBlogLikeRepository.AssertExpectations(t)

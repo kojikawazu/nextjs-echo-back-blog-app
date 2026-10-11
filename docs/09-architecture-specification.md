@@ -8,6 +8,7 @@
 - [2. レイヤーアーキテクチャ](#2-レイヤーアーキテクチャ)
   - [2.1 レイヤー構成図](#21-レイヤー構成図)
   - [2.2 データフロー](#22-データフロー)
+  - [2.3 エラーハンドリング](#23-エラーハンドリング)
 - [3. DIパターン（依存性注入）](#3-diパターン依存性注入)
   - [3.1 インターフェース設計](#31-インターフェース設計)
   - [3.2 ドメイン別インターフェース](#32-ドメイン別インターフェース)
@@ -99,6 +100,8 @@
 │  ・Logger（リクエストログ）                            │
 │  ・Recover（パニックリカバリ）                          │
 │  ・CORS（クロスオリジン制御）                           │
+│  ・RateLimiter（レートリミット）                        │
+│  ・HTTPErrorHandler（エラー → ステータス・統一形式）     │
 └──────────────────────┬──────────────────────────────┘
                        │
                        ▼
@@ -107,8 +110,8 @@
 │  ・HTTPリクエストのパース（パスパラメータ、ボディ）      │
 │  ・Cookie/JWT トークンの取得                          │
 │  ・Service 呼び出し                                   │
-│  ・HTTPレスポンスの生成（ステータスコード、JSON）        │
-│  ・エラーハンドリング（エラーメッセージとステータス変換） │
+│  ・成功レスポンスの生成（ステータスコード、DTO）         │
+│  ・エラーはそのまま return（変換しない）                 │
 └──────────────────────┬──────────────────────────────┘
                        │  Interface (依存性逆転)
                        ▼
@@ -117,7 +120,7 @@
 │  ・入力バリデーション（空文字、メール形式）              │
 │  ・ビジネスロジック（タグ分割、重複チェック等）          │
 │  ・Repository 呼び出し                                │
-│  ・エラーの変換とログ出力                              │
+│  ・sentinel error（apperrors）の返却とログ出力          │
 └──────────────────────┬──────────────────────────────┘
                        │  Interface (依存性逆転)
                        ▼
@@ -127,6 +130,7 @@
 │  ・Supabase（PostgreSQL）への接続プール管理             │
 │  ・結果のスキャンとモデルへのマッピング                  │
 │  ・JOINによるいいね数・コメント数の集計                  │
+│  ・pgx.ErrNoRows → ErrXxxNotFound への変換              │
 └──────────────────────┬──────────────────────────────┘
                        │  pgx/v4 pgxpool
                        ▼
@@ -148,7 +152,31 @@
 5. HandlerがServiceの対応メソッドを呼び出す
 6. Serviceが入力バリデーションを実行後、Repositoryを呼び出す
 7. RepositoryがSQLを実行しデータを取得/変更
-8. 結果がService → Handler → クライアントへ返却される
+8. 結果がService → Handler → クライアントへ返却される（エラー時は 2.3 のとおり HTTPErrorHandler が変換して返す）
+
+### 2.3 エラーハンドリング
+
+エラーレスポンスの構造・ステータスの決定は `middlewares.HTTPErrorHandler`（`e.HTTPErrorHandler`）の 1 か所に集約する（#123）。ハンドラは `c.JSON` でエラーを書かず、エラーを `return` するだけにする。
+
+```
+Repository ── pgx.ErrNoRows を ErrBlogNotFound / ErrUserNotFound に変換（ドライバ固有のエラーを漏らさない）
+    │
+Service ───── 入力不正・不在・競合などを sentinel（apperrors.Error）で返す。想定外は fmt.Errorf("...: %w") で包む
+    │
+Handler ───── return err（Cookie 不在/不正・bind 失敗は apperrors.Wrap(ErrAuthTokenMissing 等, 原因) を返す）
+    │
+HTTPErrorHandler ── errors.As で apperrors.Error を取り出し、Kind → ステータス、Code・Message → 本文
+```
+
+| 項目 | 内容 |
+|------|------|
+| エラー定義 | `apperrors` パッケージ。`Kind`（HTTP 非依存の分類）・`Code`（クライアント向けの安定した識別子）・`Message` を持つ。共通の sentinel（`ErrInvalidRequestBody` / `ErrAuthTokenMissing` / `ErrAuthTokenInvalid` / `ErrTooManyRequests`）を定義 |
+| ドメインのエラー | 各 `services/<domain>/errors.go` に sentinel を定義（例: `services_blogs.ErrBlogNotFound`）。判定は `errors.Is`（メッセージの文字列比較をしない） |
+| Kind → ステータス | `KindInvalid` 400 / `KindUnauthorized` 401 / `KindNotFound` 404 / `KindConflict` 409 / `KindTooManyRequests` 429 / `KindInternal`・その他 500 |
+| レスポンス本文 | `dto.ErrorResponse`（`{"code": "...", "error": "..."}`）。コード一覧は [07-api-specification.md](07-api-specification.md) |
+| Echo 由来のエラー | `echo.HTTPError`（ルート不在 404・405 等）の 4xx はステータス名からコードを生成（`NOT_FOUND` 等）。メッセージはステータス名とし、独自メッセージは返さない |
+| 想定外のエラー | 500 `{"code":"INTERNAL_ERROR","error":"Internal server error"}`。原因は本文に含めず、アクセスログの `error` に記録する |
+| ログ | アクセスログ（`HandleError: true`）がエラー全体（原因を含む）を記録する。4xx は WARN、5xx は ERROR。HTTPErrorHandler は書き込み済み（`Committed`）なら何もしない（アクセスログ経由で処理済みのエラーが再度渡されるため） |
 
 ---
 
@@ -290,7 +318,8 @@ CommentRepository ──> CommentService ─────────┘──> C
 
 | ミドルウェア | 設定内容 |
 |-------------|---------|
-| Logger | リクエストログの自動出力 |
+| HTTPErrorHandler | `e.HTTPErrorHandler` に設定。エラーを統一エラーレスポンスに変換する（2.3 参照） |
+| Logger | リクエストログの自動出力（エラー時は 4xx を WARN、5xx を ERROR で記録） |
 | Recover | パニック時の自動リカバリ |
 | CORS | `ALLOWED_ORIGINS` 環境変数で許可オリジンを制御。AllowCredentials: true |
 | RateLimiter（全体） | クライアント IP 単位で毎秒 20 件・瞬間 60 件まで（ヘルスチェック `GET /` を除く）。CORS の後に置き、429 にも CORS ヘッダを付ける |
@@ -393,7 +422,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
-| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO の UT を実行。DB を必要としない |
+| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO・エラー定義（apperrors）の UT を実行。DB を必要としない |
 | `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
@@ -562,10 +591,15 @@ backend/
 ├── go.sum                           # 依存関係ロックファイル
 ├── Dockerfile                       # マルチステージDockerビルド
 │
+├── apperrors/
+│   ├── apperrors.go                 # エラーの分類（Kind）・コード・共通 sentinel（2.3 参照）
+│   └── apperrors_test.go            # errors.Is / Wrap の UT
+│
 ├── config/
 │   └── config.go                    # JWT鍵・環境判定の設定
 │
 ├── dto/                             # レスポンス DTO。モデルを直接返さない（JSON タグは DTO 側で管理）
+│   ├── error.go                     # ErrorResponse（統一エラーレスポンス）
 │   ├── blog_users.go                # UserResponse（パスワードを含めない）
 │   ├── blogs.go                     # BlogResponse
 │   ├── blog_likes.go                # BlogLikeResponse
@@ -576,8 +610,10 @@ backend/
 │   └── logger.go                    # ログレベル設定（Info/Error/Warn/Debug/Test）
 │
 ├── middlewares/
-│   ├── middlewares.go               # Echo ミドルウェア設定（IPExtractor/RequestLogger/Recover/CORS/RateLimiter）
+│   ├── middlewares.go               # Echo ミドルウェア設定（HTTPErrorHandler/IPExtractor/RequestLogger/Recover/CORS/RateLimiter）
 │   ├── middlewares_test.go          # アクセスログミドルウェアの UT
+│   ├── error_handler.go             # HTTPErrorHandler（エラー → ステータス・統一エラーレスポンス）
+│   ├── error_handler_test.go        # エラー変換の UT
 │   ├── rate_limiter.go              # レートリミット（全体・認証系）
 │   └── rate_limiter_test.go         # レートリミット・IP 抽出の UT
 │
@@ -644,11 +680,13 @@ backend/
 │   ├── auth/
 │   │   ├── auth.go                 # AuthService インターフェース
 │   │   ├── auth_impl.go            # Login バリデーション実装
+│   │   ├── errors.go               # サービスが返す sentinel error
 │   │   ├── auth_mock.go            # モック
 │   │   └── auth_test.go            # Service テスト
 │   ├── blog_users/
 │   │   ├── blog_users.go           # UserService インターフェース
 │   │   ├── blog_users_impl.go      # FetchUser, UpdateUser 等（不正な入力でテスト）
+│   │   ├── errors.go               # サービスが返す sentinel error
 │   │   ├── blog_users_mock.go      # モック
 │   │   ├── blog_users_FetchUserById_test.go
 │   │   ├── blog_users_FetchUserByEmailAndPassword_test.go
@@ -656,6 +694,7 @@ backend/
 │   ├── blogs/
 │   │   ├── blogs.go                # BlogService インターフェース
 │   │   ├── blogs_impl.go           # ビジネスロジック実装
+│   │   ├── errors.go               # サービスが返す sentinel error
 │   │   ├── blogs_mock.go           # モック
 │   │   ├── blogs_testing_setup.go  # テストセットアップ
 │   │   └── test/                   # Service テスト群
@@ -672,6 +711,7 @@ backend/
 │   ├── blog_likes/
 │   │   ├── blog_likes.go           # BlogLikeService インターフェース
 │   │   ├── blog_likes_impl.go      # いいねロジック実装
+│   │   ├── errors.go               # サービスが返す sentinel error
 │   │   ├── blog_likes_mock.go      # モック
 │   │   ├── blog_likes_FetchBlogLikesByVisitId_test.go
 │   │   ├── blog_likes_IsBlogLiked_test.go
@@ -680,6 +720,7 @@ backend/
 │   └── blog_comments/
 │       ├── blog_comments.go        # CommentService インターフェース
 │       ├── blog_comments_impl.go   # コメントロジック実装
+│       ├── errors.go               # サービスが返す sentinel error
 │       ├── blog_comments_mock.go   # モック
 │       ├── blog_comments_FetchCommentsByBlogId_test.go
 │       └── blog_comments_CreateComment_test.go
@@ -747,7 +788,10 @@ backend/
 │   ├── auth_flow_test.go           # ログイン→認証確認→ログアウト
 │   ├── blogs_read_test.go          # ブログ参照系
 │   ├── blogs_crud_test.go          # ブログ CRUD（認証あり）
-│   └── likes_comments_test.go      # いいね/コメントフロー
+│   ├── likes_comments_test.go      # いいね/コメントフロー
+│   ├── users_test.go               # ユーザー取得（パスワード非露出）
+│   ├── rate_limit_test.go          # レートリミット
+│   └── errors_test.go              # 統一エラーレスポンス・ステータス
 │
 ├── utils/                           # ユーティリティ
 │   ├── cookie/
@@ -866,7 +910,7 @@ go run main.go
 cd backend
 
 # 単体テスト（UT / DB 不要・全 mock）
-go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/...
+go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/...
 
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

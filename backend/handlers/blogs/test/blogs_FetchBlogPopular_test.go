@@ -5,7 +5,6 @@ import (
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func TestHandler_FetchBlogPopular(t *testing.T) {
@@ -70,99 +68,66 @@ func TestHandler_FetchBlogPopular(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// userIdが空の場合の異常系
-func TestHandler_FetchBlogPopular_EmptyCount(t *testing.T) {
-	e := echo.New()
+// TestHandler_FetchBlogPopular_Errors はサービス層・パスパラメータの検証で失敗した場合に、ハンドラがエラーを返す（レスポンスは書き込まない）ことを検証する。
+func TestHandler_FetchBlogPopular_Errors(t *testing.T) {
+	tests := []struct {
+		name      string
+		param     string
+		setupMock func(mockService *service_blogs.MockBlogService)
+		wantErr   error
+	}{
+		{
+			name:  "準正常系_countが空文字の場合サービスを呼ばずErrInvalidCountを返す",
+			param: "",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				// 数値変換に失敗するためサービスは呼ばれない
+			},
+			wantErr: service_blogs.ErrInvalidCount,
+		},
+		{
+			name:  "準正常系_countが数値でない場合サービスを呼ばずErrInvalidCountを返す",
+			param: "abc",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				// 数値変換に失敗するためサービスは呼ばれない
+			},
+			wantErr: service_blogs.ErrInvalidCount,
+		},
+		{
+			name:  "準正常系_countが0以下の場合ErrInvalidCountを返す",
+			param: "0",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				mockService.On("FetchBlogPopular", 0).Return(nil, service_blogs.ErrInvalidCount)
+			},
+			wantErr: service_blogs.ErrInvalidCount,
+		},
+		{
+			name:  "異常系_Serviceが予期しないエラーを返す場合そのエラーを返す",
+			param: "1",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				mockService.On("FetchBlogPopular", 1).Return(nil, errServiceFailure)
+			},
+			wantErr: errServiceFailure,
+		},
+	}
 
-	// パスパラメータが空のリクエストを作成
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/popular/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを空に設定
-	c.SetParamNames("count")
-	c.SetParamValues("")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/api/blogs/popular/"+tt.param, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("count")
+			c.SetParamValues(tt.param)
 
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
+			mockCookieUtils := new(utils_cookie.MockCookieUtils)
+			mockService := new(service_blogs.MockBlogService)
+			handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
+			tt.setupMock(mockService)
 
-	// モックサービスの設定（ブログが見つからない場合）
-	mockService.On("FetchBlogPopular", 0).Return(nil, errors.New("invalid count"))
+			err := handler.FetchBlogPopular(c)
 
-	// ハンドラーを実行
-	err := handler.FetchBlogPopular(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid count")
-
-	// モックの呼び出しがないことを確認
-	mockService.AssertNotCalled(t, "FetchBlogPopular", mock.Anything)
-}
-
-// ブログが見つからない場合の異常系
-func TestHandler_FetchBlogPopular_BlogNotFound(t *testing.T) {
-	e := echo.New()
-
-	// パスパラメータとして count を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/popular/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-
-	// パスパラメータを設定
-	c.SetParamNames("count")
-	c.SetParamValues("1")
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
-
-	// モックサービスの設定（ブログが見つからない場合）
-	mockService.On("FetchBlogPopular", 1).Return(nil, errors.New("blog not found"))
-
-	// ハンドラーを実行
-	err := handler.FetchBlogPopular(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusNotFound, rec.Code)
-	assert.Contains(t, rec.Body.String(), "blog not found")
-
-	// モックの呼び出しを検証
-	mockService.AssertExpectations(t)
-}
-
-// サービス層でエラーが発生した場合の異常系
-func TestHandler_FetchBlogPopular_ServiceError(t *testing.T) {
-	e := echo.New()
-
-	// パスパラメータとして count を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/popular/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("count")
-	c.SetParamValues("1")
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
-
-	// モックサービスの設定（一般的なエラーが発生した場合）
-	mockService.On("FetchBlogPopular", 1).Return(nil, errors.New("Error fetching popular blogs"))
-
-	// ハンドラーを実行
-	err := handler.FetchBlogPopular(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Error fetching popular blogs")
-
-	// モックの呼び出しを検証
-	mockService.AssertExpectations(t)
+			assertHandlerError(t, err, rec, tt.wantErr)
+			mockService.AssertExpectations(t)
+		})
+	}
 }

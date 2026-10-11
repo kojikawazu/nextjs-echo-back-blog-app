@@ -3,6 +3,7 @@ package middlewares
 import (
 	"io"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
 
@@ -10,11 +11,14 @@ import (
 	"github.com/labstack/echo/v4/middleware"
 )
 
-// SetupMiddlewares は Echo にロガー・リカバリー・CORS・レートリミットの各ミドルウェアを設定する。
+// SetupMiddlewares は Echo に統一エラーハンドラと、ロガー・リカバリー・CORS・レートリミットの各ミドルウェアを設定する。
 //
 // 引数:
 //   - e: ミドルウェアを設定する対象の Echo インスタンス
 func SetupMiddlewares(e *echo.Echo) {
+	// エラーレスポンスを統一形式（dto.ErrorResponse）で返す
+	e.HTTPErrorHandler = HTTPErrorHandler
+
 	// クライアント IP は X-Forwarded-For の右端（Cloud Run のフロントエンドが付与した値）から取る。
 	// 既定の c.RealIP() は左端を使うため、ヘッダの偽装でレートリミットを回避できてしまう。
 	e.IPExtractor = echo.ExtractIPFromXFFHeader()
@@ -84,8 +88,13 @@ func newRequestLogger(w io.Writer) echo.MiddlewareFunc {
 				slog.Int64("bytes_out", v.ResponseSize),
 			}
 			if v.Error != nil {
+				// クライアント起因（4xx）は WARN、サーバー起因（5xx）は ERROR で記録する
+				level := slog.LevelError
+				if v.Status < http.StatusInternalServerError {
+					level = slog.LevelWarn
+				}
 				attrs = append(attrs, slog.String("error", v.Error.Error()))
-				logger.LogAttrs(c.Request().Context(), slog.LevelError, "request", attrs...)
+				logger.LogAttrs(c.Request().Context(), level, "request", attrs...)
 				return nil
 			}
 			logger.LogAttrs(c.Request().Context(), slog.LevelInfo, "request", attrs...)

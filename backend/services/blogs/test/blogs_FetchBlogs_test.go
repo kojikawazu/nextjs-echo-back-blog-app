@@ -4,7 +4,6 @@ import (
 	"backend/models"
 	repositories_blogs "backend/repositories/blogs"
 	services_blogs "backend/services/blogs"
-	"errors"
 	"testing"
 	"time"
 
@@ -15,11 +14,10 @@ func TestService_FetchBlogs(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name       string
-		setupMock  func(m *repositories_blogs.MockBlogRepository)
-		wantLen    int
-		wantErr    bool
-		wantErrMsg string
+		name      string
+		setupMock func(m *repositories_blogs.MockBlogRepository)
+		wantLen   int
+		wantErr   bool
 	}{
 		{
 			name: "正常系_ブログ一覧を複数件取得成功",
@@ -43,10 +41,9 @@ func TestService_FetchBlogs(t *testing.T) {
 		{
 			name: "異常系_Repositoryがエラーを返す場合エラーを返す",
 			setupMock: func(m *repositories_blogs.MockBlogRepository) {
-				m.On("FetchBlogs").Return(nil, errors.New("db connection error"))
+				m.On("FetchBlogs").Return(nil, errRepositoryFailure)
 			},
-			wantErr:    true,
-			wantErrMsg: "db connection error",
+			wantErr: true,
 		},
 	}
 
@@ -60,10 +57,8 @@ func TestService_FetchBlogs(t *testing.T) {
 			blogs, err := blogService.FetchBlogs()
 
 			if tt.wantErr {
-				assert.Error(t, err)
-				if tt.wantErrMsg != "" {
-					assert.Equal(t, tt.wantErrMsg, err.Error())
-				}
+				// 想定外エラーは sentinel に変換せず原因を保持する（500 になる）
+				assertInternalError(t, err, errRepositoryFailure)
 				assert.Nil(t, blogs)
 			} else {
 				assert.NoError(t, err)

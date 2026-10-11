@@ -61,7 +61,7 @@ func TestHandler_AuthPipeline(t *testing.T) {
 		checkRec := httptest.NewRecorder()
 		checkCtx := e.NewContext(checkReq, checkRec)
 
-		handler.CheckAuth(checkCtx)
+		assert.NoError(t, handler.CheckAuth(checkCtx))
 		assert.Equal(t, http.StatusOK, checkRec.Code)
 		assert.JSONEq(t, `{"message":"Authenticated","user_id":"user123","username":"Test User","email":"test@example.com"}`, checkRec.Body.String())
 
