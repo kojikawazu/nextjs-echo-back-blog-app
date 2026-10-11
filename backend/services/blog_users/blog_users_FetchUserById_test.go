@@ -36,46 +36,65 @@ func TestService_FetchUserById(t *testing.T) {
 	mockUserRepository.AssertExpectations(t)
 }
 
-func TestService_FetchUserById_InvalidId(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockUserRepository := new(repositories_users.MockUserRepository)
-	userService := NewUserService(mockUserRepository)
+// TestService_FetchUserById_Errors は FetchUserById の入力不正・取得失敗時の振る舞いを検証する。
+func TestService_FetchUserById_Errors(t *testing.T) {
+	errConnection := errors.New("connection refused")
 
-	// モックの挙動を設定
-	mockUserRepository.On("FetchBlogUsersById", "").Return(nil, errors.New("user not found"))
+	tests := []struct {
+		name         string
+		id           string
+		setup        func(m *repositories_users.MockUserRepository)
+		wantErr      error
+		wantNotErr   error
+		expectCalled bool
+	}{
+		{
+			// 準正常系: id が空の場合はリポジトリを呼ばずに ErrIDRequired を返す
+			name:    "empty_id",
+			id:      "",
+			setup:   func(m *repositories_users.MockUserRepository) {},
+			wantErr: ErrIDRequired,
+		},
+		{
+			// 準正常系: ユーザー不在はリポジトリの ErrUserNotFound をサービスの ErrUserNotFound（404）に変換する
+			name: "user_not_found",
+			id:   "123",
+			setup: func(m *repositories_users.MockUserRepository) {
+				m.On("FetchBlogUsersById", "123").Return(nil, repositories_users.ErrUserNotFound)
+			},
+			wantErr:      ErrUserNotFound,
+			expectCalled: true,
+		},
+		{
+			// 異常系: リポジトリの想定外エラーは原因を辿れる形で返し、不在（404）には丸めない
+			name: "repository_error",
+			id:   "123",
+			setup: func(m *repositories_users.MockUserRepository) {
+				m.On("FetchBlogUsersById", "123").Return(nil, errConnection)
+			},
+			wantErr:      errConnection,
+			wantNotErr:   ErrUserNotFound,
+			expectCalled: true,
+		},
+	}
 
-	// サービス層メソッドの実行
-	user, err := userService.FetchUserById("")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockUserRepository := new(repositories_users.MockUserRepository)
+			tt.setup(mockUserRepository)
 
-	// エラーチェック
-	assert.Error(t, err)
+			user, err := NewUserService(mockUserRepository).FetchUserById(tt.id)
 
-	// データが期待通りか確認
-	assert.Nil(t, user)
-	assert.Equal(t, "id is required", err.Error())
-
-	// モックが期待通りに呼びだされていないかを確認
-	mockUserRepository.AssertNotCalled(t, "FetchBlogUsersById", "")
-}
-
-func TestService_FetchUserById_NotUser(t *testing.T) {
-	// モックリポジトリをインスタンス化
-	mockUserRepository := new(repositories_users.MockUserRepository)
-	userService := NewUserService(mockUserRepository)
-
-	// モックの挙動を設定
-	mockUserRepository.On("FetchBlogUsersById", "123").Return(nil, errors.New("failed to fetch user"))
-
-	// サービス層メソッドの実行
-	user, err := userService.FetchUserById("123")
-
-	// エラーチェック
-	assert.Error(t, err)
-
-	// データが期待通りか確認
-	assert.Nil(t, user)
-	assert.Equal(t, "failed to fetch user", err.Error())
-
-	// モックが期待通りに呼び出されたかを確認
-	mockUserRepository.AssertExpectations(t)
+			assert.Nil(t, user)
+			assert.ErrorIs(t, err, tt.wantErr)
+			if tt.wantNotErr != nil {
+				assert.NotErrorIs(t, err, tt.wantNotErr)
+			}
+			if tt.expectCalled {
+				mockUserRepository.AssertExpectations(t)
+			} else {
+				mockUserRepository.AssertNotCalled(t, "FetchBlogUsersById", tt.id)
+			}
+		})
+	}
 }

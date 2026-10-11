@@ -20,7 +20,7 @@ type BlogLikeRepository interface {
 	//   - visitId: 確認対象の訪問者ID
 	//
 	// 戻り値:
-	//   - bool: いいねが存在する場合は true
+	//   - bool: いいねが存在する場合は true（存在しない場合は false でエラーなし）
 	//   - error: 確認に失敗した場合のエラー
 	IsBlogLiked(blogId, visitId string) (bool, error)
 	// CreateBlogLike はいいねデータを作成する。

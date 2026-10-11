@@ -13,9 +13,6 @@ const passwordHashCost = bcrypt.DefaultCost
 // ユーザー不在でも照合 1 回分の時間をかけ、応答時間からメールアドレスの登録有無を推測されにくくする。
 const dummyPasswordHash = "$2a$10$0bbn8l3eXgr2GAHKWg4wgOGj4zjkBbcliA/igMQUDS.8ayp1Vrdxa"
 
-// errPasswordTooLong は bcrypt が扱える長さ（72 バイト）を超えるパスワードのエラー。
-var errPasswordTooLong = errors.New("password too long")
-
 // hashPassword はパスワードを bcrypt でハッシュ化する。
 //
 // 引数:
@@ -23,12 +20,12 @@ var errPasswordTooLong = errors.New("password too long")
 //
 // 戻り値:
 //   - string: bcrypt ハッシュ
-//   - error: 72 バイト超の場合は errPasswordTooLong、その他ハッシュ化に失敗した場合のエラー
+//   - error: 72 バイト超の場合は ErrPasswordTooLong、その他ハッシュ化に失敗した場合のエラー
 func hashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
-			return "", errPasswordTooLong
+			return "", ErrPasswordTooLong
 		}
 		return "", err
 	}

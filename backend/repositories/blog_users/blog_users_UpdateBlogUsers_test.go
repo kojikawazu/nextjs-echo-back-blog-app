@@ -37,12 +37,12 @@ func TestRepository_UpdateBlogUsers(t *testing.T) {
 	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(stored.Password), []byte(testPasswd)))
 }
 
-// 準正常系: 存在しないIDでの更新は該当行なし（no rows）でエラーになる。
+// 準正常系: 存在しないIDでの更新は該当行なし（pgx.ErrNoRows）を ErrUserNotFound に変換して返す。
 func TestRepository_UpdateBlogUsers_NotFound(t *testing.T) {
 	repo := NewBlogUsersRepository()
 
 	user, err := repo.UpdateBlogUsers("00000000-0000-0000-0000-000000000000", "name", "email@example.com", "$2a$10$notarealhashnotarealhashnotarealhashnotarealhashnot")
 
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, ErrUserNotFound)
 	assert.Nil(t, user)
 }

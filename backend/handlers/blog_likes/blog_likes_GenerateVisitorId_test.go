@@ -3,7 +3,6 @@ package handlers_blog_likes
 import (
 	services_blogs_likes "backend/services/blog_likes"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,12 +18,13 @@ func TestHandler_GenerateVisitorId(t *testing.T) {
 		setupMock      func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils)
 		expectedStatus int
 		expectedBody   string
+		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
 	}{
 		{
 			name: "正常系_VisitIDが存在しない場合新規生成してCookieをセット",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils) {
 				// Cookieなし → GetAuthCookieValue がエラー
-				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errors.New("no cookie"))
+				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 				expirationTime := time.Now().Add(1 * time.Hour)
 				mockCookie.On("GetAuthCookieExpirationTime").Return(expirationTime)
 				mockCookie.On("CreateVisitIdToken").Return("new-visit-token", nil)
@@ -47,13 +47,12 @@ func TestHandler_GenerateVisitorId(t *testing.T) {
 		{
 			name: "異常系_トークン生成に失敗した場合500を返す",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils) {
-				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errors.New("no cookie"))
+				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 				expirationTime := time.Now().Add(1 * time.Hour)
 				mockCookie.On("GetAuthCookieExpirationTime").Return(expirationTime)
-				mockCookie.On("CreateVisitIdToken").Return("", errors.New("token generation failed"))
+				mockCookie.On("CreateVisitIdToken").Return("", errCreateToken)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to create visitor token"}`,
+			wantErr: errCreateToken,
 		},
 	}
 
@@ -71,10 +70,13 @@ func TestHandler_GenerateVisitorId(t *testing.T) {
 			tt.setupMock(c, req, mockCookieUtils)
 
 			err := handler.GenerateVisitorId(c)
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			}
 
 			mockCookieUtils.AssertExpectations(t)
 		})

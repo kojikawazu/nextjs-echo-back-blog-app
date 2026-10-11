@@ -53,16 +53,13 @@ func TestService_CreateComment_InvalidBlogId(t *testing.T) {
 	guestUser := "guestUser1"
 	comment := "comment1"
 
-	// モックの設定
-	mockCommentRepo.On("CreateComment", blogId, guestUser, comment).Return(nil, errors.New("invalid blogId"))
-
 	// テスト対象メソッドの呼び出し
 	blog, err := commentService.CreateComment(blogId, guestUser, comment)
 
 	// アサーション
 	assert.Error(t, err)
 	assert.Nil(t, blog)
-	assert.Equal(t, "invalid blogId", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidBlogID)
 
 	// モックの期待通りの呼び出しを検証
 	mockCommentRepo.AssertNotCalled(t, "CreateComment", blogId, guestUser, comment)
@@ -78,16 +75,13 @@ func TestService_CreateComment_InvalidGuestUser(t *testing.T) {
 	guestUser := ""
 	comment := "comment1"
 
-	// モックの設定
-	mockCommentRepo.On("CreateComment", blogId, guestUser, comment).Return(nil, errors.New("invalid guestUser"))
-
 	// テスト対象メソッドの呼び出し
 	blog, err := commentService.CreateComment(blogId, guestUser, comment)
 
 	// アサーション
 	assert.Error(t, err)
 	assert.Nil(t, blog)
-	assert.Equal(t, "invalid guestUser", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidGuestUser)
 
 	// モックの期待通りの呼び出しを検証
 	mockCommentRepo.AssertNotCalled(t, "CreateComment", blogId, guestUser, comment)
@@ -103,16 +97,13 @@ func TestService_CreateComment_InvalidComment(t *testing.T) {
 	guestUser := "guestUser1"
 	comment := ""
 
-	// モックの設定
-	mockCommentRepo.On("CreateComment", blogId, guestUser, comment).Return(nil, errors.New("invalid comment"))
-
 	// テスト対象メソッドの呼び出し
 	blog, err := commentService.CreateComment(blogId, guestUser, comment)
 
 	// アサーション
 	assert.Error(t, err)
 	assert.Nil(t, blog)
-	assert.Equal(t, "invalid comment", err.Error())
+	assert.ErrorIs(t, err, ErrInvalidComment)
 
 	// モックの期待通りの呼び出しを検証
 	mockCommentRepo.AssertNotCalled(t, "CreateComment", blogId, guestUser, comment)
@@ -129,7 +120,8 @@ func TestService_CreateComment_NotCreate(t *testing.T) {
 	comment := "comment1"
 
 	// モックの設定
-	mockCommentRepo.On("CreateComment", blogId, guestUser, comment).Return(nil, errors.New("failed to create comment"))
+	repoErr := errors.New("db error")
+	mockCommentRepo.On("CreateComment", blogId, guestUser, comment).Return(nil, repoErr)
 
 	// テスト対象メソッドの呼び出し
 	blog, err := commentService.CreateComment(blogId, guestUser, comment)
@@ -137,7 +129,9 @@ func TestService_CreateComment_NotCreate(t *testing.T) {
 	// アサーション
 	assert.Error(t, err)
 	assert.Nil(t, blog)
-	assert.Equal(t, "failed to create comment", err.Error())
+	// 原因（リポジトリのエラー）を辿れ、入力エラーの sentinel には該当しない（= 500 になる）
+	assert.ErrorIs(t, err, repoErr)
+	assert.NotErrorIs(t, err, ErrInvalidBlogID)
 
 	// モックの期待通りの呼び出しを検証
 	mockCommentRepo.AssertExpectations(t)

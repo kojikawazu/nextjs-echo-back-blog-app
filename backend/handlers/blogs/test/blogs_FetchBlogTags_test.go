@@ -4,7 +4,6 @@ import (
 	handlers_blogs "backend/handlers/blogs"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -82,15 +81,13 @@ func TestHandler_FetchTags_ErrorCase(t *testing.T) {
 	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
 
 	// モックデータの設定
-	mockService.On("FetchBlogTags").Return(nil, errors.New("some error occurred"))
+	mockService.On("FetchBlogTags").Return(nil, errServiceFailure)
 
 	// ハンドラーを実行
 	err := handler.FetchBlogTags(c)
 
-	// ステータスコードとレスポンス内容の確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Error fetching tags")
+	// サービスのエラーをそのまま返し、レスポンスは書き込まない（500 への変換は HTTPErrorHandler）
+	assertHandlerError(t, err, rec, errServiceFailure)
 
 	// モックの呼び出しを検証
 	mockService.AssertExpectations(t)

@@ -65,11 +65,41 @@
 
 ### 共通エラーレスポンス形式
 
+エラーレスポンスは全エンドポイントで次の形式に統一する（`dto.ErrorResponse`、#123）。
+
 ```json
 {
-  "error": "エラーメッセージ"
+  "code": "BLOG_NOT_FOUND",
+  "error": "Blog not found"
 }
 ```
+
+| フィールド | 型 | 説明 |
+|-----------|------|------|
+| code | string | クライアントが機械的に判定するための安定した識別子（一度公開したら変更しない） |
+| error | string | 人が読むためのメッセージ |
+
+- ハンドラは HTTP ステータスや本文を組み立てず、エラー（`apperrors` の sentinel）を返す。ステータス・本文への変換は `middlewares.HTTPErrorHandler` に集約している。サービス層のエラーは文字列比較ではなく `errors.Is` で判定する。
+- **500 は内部情報を出さない**。原因に関わらず常に `{"code": "INTERNAL_ERROR", "error": "Internal server error"}` を返し、エラーの詳細はアクセスログ（`error` 属性）にのみ記録する。
+- Echo 自身が返すエラー（存在しないルート・許可されていないメソッド等）も同じ形式で返す。コードは HTTP ステータス名から生成する（例: `NOT_FOUND`・`METHOD_NOT_ALLOWED`）。メッセージはステータス名（`Not Found` 等）で、Echo の内部メッセージは返さない。
+- フロントエンド（BFF）はエラー本文を解釈せず、ステータスコード（`response.ok` / `status`）で判定している（#123 の調査結果）。本文の形式変更はフロントエンドに影響しないが、ステータスコードの変更は影響する。
+
+#### エラーコード一覧
+
+| コード | ステータス | 意味 |
+|--------|-----------|------|
+| `VALIDATION_ERROR` | 400 | 入力値の不正（どの項目かはメッセージで示す。例: `Invalid title`） |
+| `INVALID_REQUEST_BODY` | 400 | リクエストボディのパース（バインド）に失敗 |
+| `INVALID_CURRENT_PASSWORD` | 400 | ユーザー更新時、現在のパスワードが一致しない |
+| `AUTH_TOKEN_MISSING` | 401 | 認証トークン（token Cookie）が存在しない |
+| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが不正・期限切れ |
+| `INVALID_CREDENTIALS` | 401 | ログイン失敗（ユーザー不在・パスワード不一致を区別しない） |
+| `BLOG_NOT_FOUND` | 404 | 該当するブログが存在しない |
+| `USER_NOT_FOUND` | 404 | 該当するユーザーが存在しない |
+| `ALREADY_LIKED` | 409 | 既にいいね済み |
+| `TOO_MANY_REQUESTS` | 429 | レートリミット超過 |
+| `INTERNAL_ERROR` | 500 | サーバー内部のエラー（想定外のエラーを含む） |
+| `NOT_FOUND` / `METHOD_NOT_ALLOWED` 等 | 404 / 405 等 | Echo 由来のエラー（ステータス名から生成） |
 
 ### レートリミット
 
@@ -77,6 +107,7 @@
 
 ```json
 {
+  "code": "TOO_MANY_REQUESTS",
   "error": "Too many requests"
 }
 ```
@@ -158,17 +189,16 @@ Service is running
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid request body` | リクエストボディのパースに失敗 |
-| 400 Bad Request | `Email and password are required` | email または password が空 |
-| 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
-| 401 Unauthorized | `Invalid credentials` | `FetchUserByEmailAndPassword` がエラーを返した場合（ユーザー未存在、DB取得失敗を含む全てのエラー） |
-| 429 Too Many Requests | `Too many requests` | 認証系レートリミット超過（`PUT /api/users/update` と共有。5 回/分） |
-| 500 Internal Server Error | `An error occurred` | AuthService.Loginバリデーションで未定義のエラーが発生（現行実装では到達しない） |
-| 500 Internal Server Error | `Could not create token` | JWTトークン生成に失敗 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `INVALID_REQUEST_BODY` | `Invalid request body` | リクエストボディのパースに失敗 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Email and password are required` | email または password が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid email format` | メールアドレスの形式が不正 |
+| 401 Unauthorized | `INVALID_CREDENTIALS` | `Invalid credentials` | ユーザーが存在しない、またはパスワードが一致しない（どちらかは区別しない） |
+| 429 Too Many Requests | `TOO_MANY_REQUESTS` | `Too many requests` | 認証系レートリミット超過（`PUT /api/users/update` と共有。5 回/分） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー、JWT トークン生成に失敗 |
 
-> **注意**: Handler層（`handlers/auth/auth_impl.go` の `Login`）は `FetchUserByEmailAndPassword` からのエラーを原因に関わらず一律401 `Invalid credentials` として返す。ユーザー未存在もDB接続エラーも区別せず認証失敗（401）に丸める実装のため、DB障害時にも401が返される。
+> DB 障害は認証失敗（401）に丸めず 500 を返す（#123 で変更。以前は原因に関わらず 401 だった）。
 
 ---
 
@@ -200,10 +230,12 @@ Cookieに含まれるJWTトークンの有効性を検証する。
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 401 Unauthorized | `Token not found` | Cookieにトークンが存在しない |
-| 401 Unauthorized | `Invalid token` | トークンの解析失敗または無効 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+
+> #123 以前は本文のキーが `message`（`{"message": "Token not found"}` 等）だったが、共通エラーレスポンス形式に統一した。
 
 ---
 
@@ -267,14 +299,13 @@ JWTトークンからユーザーIDを取得し、そのユーザーの詳細情
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Id is required` | IDが空 |
-| 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
-| 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
-| 500 Internal Server Error | `Failed to fetch user` | DB取得エラー（ユーザー未存在の場合も含む） |
-
-> **注意**: Handler層には `404 User not found` の分岐が存在するが、Service層がRepository層のエラーを一律 `"failed to fetch user"` に変換するため、現行実装では404が返ることはない。
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Id is required` | トークンから取得したユーザー ID が空 |
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 404 Not Found | `USER_NOT_FOUND` | `User not found` | トークンのユーザーが存在しない（#123 で 500 から変更） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
 
@@ -325,25 +356,24 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid request body` | リクエストボディのパースに失敗 |
-| 400 Bad Request | `id is required` | IDが空 |
-| 400 Bad Request | `Name is required` | name が空 |
-| 400 Bad Request | `Email is required` | email が空 |
-| 400 Bad Request | `Password is required` | password が空 |
-| 400 Bad Request | `New password is required` | newPassword が空 |
-| 400 Bad Request | `Password is too long` | newPassword が 72 バイトを超える（bcrypt の上限） |
-| 400 Bad Request | `Invalid email format` | メールアドレスの形式が不正 |
-| 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
-| 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
-| 429 Too Many Requests | `Too many requests` | 認証系レートリミット超過（`POST /api/users/login` と共有。5 回/分） |
-| 500 Internal Server Error | `Failed to update user` | DB更新エラー、ユーザー検証失敗、現パスワード不一致 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `INVALID_REQUEST_BODY` | `Invalid request body` | リクエストボディのパースに失敗 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Id is required` | トークンから取得したユーザー ID が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Name is required` | name が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Email is required` | email が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Password is required` | password が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `New password is required` | newPassword が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid email format` | メールアドレスの形式が不正 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Password is too long` | newPassword が 72 バイトを超える（bcrypt の上限） |
+| 400 Bad Request | `INVALID_CURRENT_PASSWORD` | `Invalid current password` | 現在のパスワードが一致しない（#123 で 500 から変更） |
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 404 Not Found | `USER_NOT_FOUND` | `User not found` | トークンのユーザーが存在しない（#123 で 500 から変更） |
+| 429 Too Many Requests | `TOO_MANY_REQUESTS` | `Too many requests` | 認証系レートリミット超過（`POST /api/users/login` と共有。5 回/分） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得・更新エラー、パスワードのハッシュ化失敗、トークン再作成に失敗 |
 
 > 新しいパスワードは bcrypt でハッシュ化して保存する。現在のパスワードは保存済みのハッシュと照合する（#120）。
-| 500 Internal Server Error | `Failed to create token` | トークン再作成に失敗 |
-
-> **注意**: Handler層には `404 User not found` の分岐が存在するが、Service層は `"failed to validate user"` や `"invalid current password"` を返すため、これらのエラーはHandler側の `"user not found"` 条件に一致せず、全てdefaultの500に落ちる。
 
 ---
 
@@ -382,9 +412,9 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Error fetching blogs` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
 
@@ -427,12 +457,12 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid userId` | userId が空 |
-| 500 Internal Server Error | `Error fetching blogs` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid userId` | userId が空、または UUID 形式でない（#123 で UUID 形式の検証を追加。以前は DB エラーとして 500） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
-> **注意**: 該当ユーザーのブログが0件の場合、エラーではなく `200 OK` で空配列 `[]` が返される。Handler層には `404 Blog not found` の分岐が存在するが、Service層が返すエラー文字列 `"blogs not found"` と一致しないため（単数形/複数形の不一致）、この分岐は到達不能である。
+> **注意**: 該当ユーザーのブログが 0 件の場合はエラーではなく `200 OK` を返す（404 にはしない。本文は「7. データモデル」の 0 件時の扱いを参照）。
 
 ---
 
@@ -473,11 +503,11 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid id` | id が空 |
-| 404 Not Found | `Blog not found` | 該当ブログが存在しない |
-| 500 Internal Server Error | `Error fetching blog` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid id` | id が空、または UUID 形式でない（#123 で 404 から変更） |
+| 404 Not Found | `BLOG_NOT_FOUND` | `Blog not found` | 該当ブログが存在しない |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー（#123 で 404 から変更。以前は DB 障害も 404 だった） |
 
 ---
 
@@ -500,9 +530,9 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Error fetching categories` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
 
@@ -525,9 +555,9 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Error fetching tags` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
 
@@ -572,13 +602,12 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid count` | count がint変換不可（非数値文字列） |
-| 404 Not Found | `blog not found` | Service層が `"blog not found"` を含むエラーを返した場合（Handlerが `strings.Contains` で判定） |
-| 500 Internal Server Error | `Error fetching popular blogs` | 上記以外のDB取得エラー、またはcount<=0（Service層が `"invalid count"` を返すが "blog not found" を含まないためdefault分岐で500となる） |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid count` | count が数値でない、または 0 以下（0 以下は #123 で 500 から変更） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
-> **注意**: 該当ブログが0件の場合、エラーではなく `200 OK` で空配列 `[]` が返される。count<=0のバリデーションエラーはService層で検出されるが、Handler層にこのケース用の400分岐がないため500として返される。
+> **注意**: 該当ブログが 0 件の場合はエラーではなく `200 OK` を返す（404 にはしない）。
 
 ---
 
@@ -633,18 +662,18 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid request body` | リクエストボディのパースに失敗 |
-| 400 Bad Request | `Invalid userId` | userId が空 |
-| 400 Bad Request | `Invalid title` | title が空 |
-| 400 Bad Request | `Invalid githubUrl` | githubUrl が空 |
-| 400 Bad Request | `Invalid category` | category が空 |
-| 400 Bad Request | `Invalid description` | description が空 |
-| 400 Bad Request | `Invalid tags` | tags が空 |
-| 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
-| 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
-| 500 Internal Server Error | `Failed to create blog` | DB作成エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `INVALID_REQUEST_BODY` | `Invalid request body` | リクエストボディのパースに失敗 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid userId` | トークンから取得したユーザー ID が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid title` | title が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid githubUrl` | githubUrl が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid category` | category が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid description` | description が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid tags` | tags が空 |
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 作成エラー |
 
 ---
 
@@ -705,18 +734,19 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid request body` | リクエストボディのパースに失敗 |
-| 400 Bad Request | `Invalid id` | id が空 |
-| 400 Bad Request | `Invalid title` | title が空 |
-| 400 Bad Request | `Invalid githubUrl` | githubUrl が空 |
-| 400 Bad Request | `Invalid category` | category が空 |
-| 400 Bad Request | `Invalid description` | description が空 |
-| 400 Bad Request | `Invalid tags` | tags が空 |
-| 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
-| 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
-| 500 Internal Server Error | `Failed to update blog` | DB更新エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `INVALID_REQUEST_BODY` | `Invalid request body` | リクエストボディのパースに失敗 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid id` | id が空、または UUID 形式でない（#123 で UUID 形式の検証を追加。以前は DB エラーとして 500） |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid title` | title が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid githubUrl` | githubUrl が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid category` | category が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid description` | description が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid tags` | tags が空 |
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 404 Not Found | `BLOG_NOT_FOUND` | `Blog not found` | 該当ブログが存在しない（#123 で 500 から変更） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 更新エラー |
 
 ---
 
@@ -743,14 +773,14 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid id` | id が空文字 |
-| 401 Unauthorized | `Error getting cookie` | Cookieの取得に失敗 |
-| 401 Unauthorized | `Error getting userId from token` | トークンからユーザーID取得に失敗 |
-| 500 Internal Server Error | `Failed to delete blog` | DB削除エラー、または非空の不正UUID形式 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid id` | id が空、または UUID 形式でない（#123 で UUID 形式の検証を Service 層に移動。以前は 500） |
+| 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 削除エラー |
 
-> **注意**: Service層は `id == ""` のみを400として検出する。非空だがUUID形式でない文字列は、Service層のバリデーションを通過しRepository層の `uuid.Parse` で弾かれるが、Service層がそのエラーを `"failed to delete blog"` に変換するため、Handlerでは500として返される。
+> **注意**: 存在しない（UUID 形式は正しい）ID の削除はエラーにせず `204 No Content` を返す（冪等な削除として扱う）。
 
 ---
 
@@ -784,11 +814,11 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Failed to get visit id token` | visit-id-token Cookieの取得に失敗 |
-| 500 Internal Server Error | `Failed to get visit id` | 訪問者IDの取得に失敗 |
-| 500 Internal Server Error | `Error fetching blog likes by visit id` | DB取得エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `VisitId is empty` | トークンから取得した訪問者 ID が空 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | visit-id-token Cookie の取得、または訪問者 ID の取得（トークン解析）に失敗（401 ではなく 500 のまま。#148 で扱う） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
 
@@ -823,9 +853,9 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Failed to create visitor token` | トークン生成に失敗 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | トークン生成に失敗 |
 
 ---
 
@@ -864,12 +894,13 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Failed to get visit id token` | visit-id-token Cookieの取得に失敗 |
-| 500 Internal Server Error | `Failed to get visit id` | 訪問者IDの取得に失敗 |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `BlogId or VisitId is empty` | blogId または訪問者 ID が空 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | visit-id-token Cookie の取得、または訪問者 ID の取得（トークン解析）に失敗（401 ではなく 500 のまま。#148 で扱う） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 確認エラー（#123 で変更。以前は DB 障害も `200 OK` の `{"isLiked": false}` に握り潰していた） |
 
-> **注意**: いいね判定（`IsBlogLiked`）でService層がエラーを返した場合も、500にはならず `200 OK` で `{"isLiked": false}` を返す（いいね未登録を正常系として扱う実装のため、DB障害も同様に握り潰される）。500はvisit-id-token Cookieの取得・トークン解析に失敗した場合のみ。
+> いいねが存在しない場合はエラーではなく `200 OK` で `{"isLiked": false}` を返す（Repository 層が「該当なし」をエラーではなく `false` として返す）。
 
 ---
 
@@ -904,13 +935,12 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `BlogId or VisitId is empty` | blogId または visitId が空 |
-| 400 Bad Request | `Blog is already liked` | 既にいいね済み |
-| 500 Internal Server Error | `Failed to get visit id token` | visit-id-token Cookieの取得に失敗 |
-| 500 Internal Server Error | `Failed to get visit id` | 訪問者IDの取得に失敗 |
-| 500 Internal Server Error | `Error creating blog like` | DB作成エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `BlogId or VisitId is empty` | blogId または訪問者 ID が空（#123 で 500 から変更） |
+| 409 Conflict | `ALREADY_LIKED` | `Blog is already liked` | 既にいいね済み（#123 で 400 から変更） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | visit-id-token Cookie の取得、または訪問者 ID の取得（トークン解析）に失敗（401 ではなく 500 のまま。#148 で扱う） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | いいね済みかの確認、または DB 作成エラー |
 
 ---
 
@@ -941,11 +971,10 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 500 Internal Server Error | `Failed to get visit id token` | visit-id-token Cookieの取得に失敗 |
-| 500 Internal Server Error | `Failed to get visit id` | 訪問者IDの取得に失敗 |
-| 500 Internal Server Error | `Error deleting blog like` | DB削除エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | visit-id-token Cookie の取得、または訪問者 ID の取得（トークン解析）に失敗（401 ではなく 500 のまま。#148 で扱う） |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 削除エラー |
 
 ---
 
@@ -984,12 +1013,12 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Invalid blogId` | blogId が空 |
-| 404 Not Found | `Comments not found` | DBクエリエラー発生時（Service層がRepository層のエラーを一律 `"comments not found"` に変換するため、Handlerの404分岐に到達する） |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid blogId` | blogId が空 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー（#123 で 404 から変更。以前は DB 障害を 404 `Comments not found` で返していた） |
 
-> **注意**: 該当ブログにコメントが0件の場合、エラーではなく `200 OK` で空配列 `[]` が返される。DBクエリ自体が失敗した場合は、Service層が `"comments not found"` を返すためHandlerの404分岐に到達し、500ではなく404が返る。Handlerのdefault 500分岐（`Error fetching comments`）は、現行のService実装では到達しない。
+> **注意**: 該当ブログにコメントが 0 件の場合はエラーではなく `200 OK` を返す（404 にはしない）。
 
 ---
 
@@ -1034,13 +1063,13 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 
 **エラー時**
 
-| ステータス | エラーメッセージ | 条件 |
-|-----------|----------------|------|
-| 400 Bad Request | `Error binding request` | リクエストボディのパースに失敗 |
-| 400 Bad Request | `Invalid blogId` | blogId が空 |
-| 400 Bad Request | `Invalid guestUser` | guestUser が空 |
-| 400 Bad Request | `Invalid comment` | comment が空 |
-| 500 Internal Server Error | `Failed to create comment` | DB作成エラー |
+| ステータス | コード | エラーメッセージ | 条件 |
+|-----------|--------|----------------|------|
+| 400 Bad Request | `INVALID_REQUEST_BODY` | `Invalid request body` | リクエストボディのパースに失敗 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid blogId` | blogId が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid guestUser` | guestUser が空 |
+| 400 Bad Request | `VALIDATION_ERROR` | `Invalid comment` | comment が空 |
+| 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 作成エラー |
 
 ---
 

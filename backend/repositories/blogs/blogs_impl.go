@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v4"
 )
 
 // FetchBlogs は全ブログデータを取得する。
@@ -177,7 +178,7 @@ func (r *BlogRepositoryImpl) FetchBlogsByUserId(userId string) ([]models.BlogDat
 //
 // 戻り値:
 //   - *models.BlogData: 取得したブログデータ
-//   - error: 取得に失敗した場合のエラー
+//   - error: 該当なしの場合は ErrBlogNotFound、その他取得に失敗した場合のエラー
 func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("FetchBlogById start...")
 
@@ -222,6 +223,10 @@ func (r *BlogRepositoryImpl) FetchBlogById(id string) (*models.BlogData, error) 
 	)
 
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.InfoLog.Printf("Blog not found: id=%s", id)
+			return nil, ErrBlogNotFound
+		}
 		logger.ErrorLog.Printf("Failed to fetch blog: %v", err)
 		return nil, err
 	}
@@ -301,7 +306,7 @@ func (r *BlogRepositoryImpl) CreateBlog(userId, title, githubUrl, category, desc
 //
 // 戻り値:
 //   - *models.BlogData: 更新後のブログデータ
-//   - error: 更新に失敗した場合のエラー
+//   - error: 該当なしの場合は ErrBlogNotFound、その他更新に失敗した場合のエラー
 func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, description, tags string) (*models.BlogData, error) {
 	logger.InfoLog.Printf("UpdateBlog start...")
 
@@ -356,6 +361,10 @@ func (r *BlogRepositoryImpl) UpdateBlog(id, title, githubUrl, category, descript
 	blog.Likes = int8(likeCount)
 	blog.CommentCnt = int8(commentCnt)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			logger.InfoLog.Printf("Blog not found: id=%s", id)
+			return nil, ErrBlogNotFound
+		}
 		logger.ErrorLog.Printf("Failed to update blog: %v", err)
 		return nil, err
 	}

@@ -28,7 +28,7 @@ type BlogUsersRepository interface {
 	//
 	// 戻り値:
 	//   - *models.BlogUsersData: 取得したユーザー情報
-	//   - error: 取得に失敗した場合のエラー
+	//   - error: 該当なしの場合は ErrUserNotFound、その他取得に失敗した場合のエラー
 	FetchBlogUsersById(id string) (*models.BlogUsersData, error)
 	// UpdateBlogUsers はユーザー情報を更新する。
 	//
@@ -40,7 +40,7 @@ type BlogUsersRepository interface {
 	//
 	// 戻り値:
 	//   - *models.BlogUsersData: 更新後のユーザー情報
-	//   - error: 更新に失敗した場合のエラー
+	//   - error: 該当なしの場合は ErrUserNotFound、その他更新に失敗した場合のエラー
 	UpdateBlogUsers(id, name, email, passwordHash string) (*models.BlogUsersData, error)
 }
 

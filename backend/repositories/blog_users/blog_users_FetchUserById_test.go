@@ -28,12 +28,23 @@ func TestRepository_FetchUserById(t *testing.T) {
 	assert.Equal(t, testEmail, user.Email)
 }
 
-// 準正常系: 空文字IDはUUID変換不可でエラーになり、ユーザーは返らない。
+// 準正常系: 存在しないIDは該当行なし（pgx.ErrNoRows）を ErrUserNotFound に変換して返す。
+func TestRepository_FetchUserById_NotFound(t *testing.T) {
+	repo := NewBlogUsersRepository()
+
+	user, err := repo.FetchBlogUsersById("00000000-0000-0000-0000-000000000000")
+
+	assert.ErrorIs(t, err, ErrUserNotFound)
+	assert.Nil(t, user)
+}
+
+// 異常系: 空文字IDはUUID変換不可でエラーになり、ユーザーは返らない。不在（ErrUserNotFound）とは区別する。
 func TestRepository_FetchUserById_InvalidId(t *testing.T) {
 	repo := NewBlogUsersRepository()
 
 	user, err := repo.FetchBlogUsersById("")
 
 	assert.Error(t, err)
+	assert.NotErrorIs(t, err, ErrUserNotFound)
 	assert.Nil(t, user)
 }

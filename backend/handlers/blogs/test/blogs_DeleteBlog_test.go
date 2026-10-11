@@ -1,6 +1,7 @@
 package handlers_blogs_test
 
 import (
+	"backend/apperrors"
 	handlers_blogs "backend/handlers/blogs"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
@@ -14,129 +15,84 @@ import (
 )
 
 func TestHandler_DeleteBlog(t *testing.T) {
-	e := echo.New()
+	tests := []struct {
+		name      string
+		id        string
+		setupMock func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService)
+		wantErr   error // 期待するエラー（nil は正常系）
+	}{
+		{
+			name: "正常系_ブログ削除成功で204を返す",
+			id:   "123",
+			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
+				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
+				mockService.On("DeleteBlog", "123").Return(nil)
+			},
+		},
+		{
+			name: "準正常系_idが不正な場合ErrInvalidIDを返す",
+			id:   "",
+			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
+				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
+				mockService.On("DeleteBlog", "").Return(service_blogs.ErrInvalidID)
+			},
+			wantErr: service_blogs.ErrInvalidID,
+		},
+		{
+			name: "準正常系_認証Cookie取得に失敗した場合ErrAuthTokenMissingを返す",
+			id:   "123",
+			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
+				mockCookie.On("GetAuthCookieValue", c, "token").Return("", errors.New("no cookie"))
+			},
+			wantErr: apperrors.ErrAuthTokenMissing,
+		},
+		{
+			name: "準正常系_JWT解析に失敗した場合ErrAuthTokenInvalidを返す",
+			id:   "123",
+			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
+				mockCookie.On("GetAuthCookieValue", c, "token").Return("invalid-token", nil)
+				mockCookie.On("GetUserIdFromToken", c, "invalid-token").Return("", errors.New("invalid token"))
+			},
+			wantErr: apperrors.ErrAuthTokenInvalid,
+		},
+		{
+			name: "異常系_Serviceが予期しないエラーを返す場合そのエラーを返す",
+			id:   "123",
+			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *service_blogs.MockBlogService) {
+				handlers_blogs.SetMockBlogCookies(c, req, mockCookie)
+				mockService.On("DeleteBlog", "123").Return(errServiceFailure)
+			},
+			wantErr: errServiceFailure,
+		},
+	}
 
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodDelete, "/blogs/delete/123", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("id")
-	c.SetParamValues("123")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodDelete, "/api/blogs/delete/"+tt.id, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("id")
+			c.SetParamValues(tt.id)
 
-	// サービスとハンドラーをモックする
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockBlogService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
+			mockCookieUtils := new(utils_cookie.MockCookieUtils)
+			mockBlogService := new(service_blogs.MockBlogService)
+			handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
 
-	// モックの振る舞いを設定
-	mockBlogService.On("DeleteBlog", "123").Return(nil, nil)
+			tt.setupMock(c, req, mockCookieUtils, mockBlogService)
 
-	// モッククッキーを設定
-	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
+			err := handler.DeleteBlog(c)
 
-	// テストを実行
-	err := handler.DeleteBlog(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusNoContent, rec.Code)
-	assert.Empty(t, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, http.StatusNoContent, rec.Code)
+				assert.Empty(t, rec.Body.String())
+			}
 
-	// モックの呼び出しを確認
-	mockBlogService.AssertExpectations(t)
-}
-
-func TestHandler_DeleteBlog_InvalidId(t *testing.T) {
-	e := echo.New()
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodDelete, "/blogs/delete/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("id")
-	c.SetParamValues("")
-
-	// サービスとハンドラーをモックする
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockBlogService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
-
-	// モックの振る舞いを設定
-	mockBlogService.On("DeleteBlog", "").Return(errors.New("invalid id"))
-
-	// モッククッキーを設定
-	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// テストを実行
-	err := handler.DeleteBlog(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.JSONEq(t, `{"error":"Invalid id"}`, rec.Body.String())
-
-	// モックの呼び出しを確認
-	mockBlogService.AssertExpectations(t)
-}
-
-func TestHandler_DeleteBlog_NoDelete(t *testing.T) {
-	e := echo.New()
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodDelete, "/blogs/delete/123", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("id")
-	c.SetParamValues("123")
-
-	// サービスとハンドラーをモックする
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockBlogService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
-
-	// モックの振る舞いを設定
-	mockBlogService.On("DeleteBlog", "123").Return(errors.New("failed to delete blog"))
-
-	// モッククッキーを設定
-	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// テストを実行
-	err := handler.DeleteBlog(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.JSONEq(t, `{"error":"Failed to delete blog"}`, rec.Body.String())
-
-	// モックの呼び出しを確認
-	mockBlogService.AssertExpectations(t)
-}
-
-func TestHandler_DeleteBlog_ServerError(t *testing.T) {
-	e := echo.New()
-
-	// リクエストを作成
-	req := httptest.NewRequest(http.MethodDelete, "/blogs/delete/123", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("id")
-	c.SetParamValues("123")
-
-	// サービスとハンドラーをモックする
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockBlogService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockBlogService, mockCookieUtils)
-
-	// モックの振る舞いを設定
-	mockBlogService.On("DeleteBlog", "123").Return(errors.New("server error"))
-
-	// モッククッキーを設定
-	handlers_blogs.SetMockBlogCookies(c, req, mockCookieUtils)
-
-	// テストを実行
-	err := handler.DeleteBlog(c)
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.JSONEq(t, `{"error":"Server error"}`, rec.Body.String())
-
-	// モックの呼び出しを確認
-	mockBlogService.AssertExpectations(t)
+			mockCookieUtils.AssertExpectations(t)
+			mockBlogService.AssertExpectations(t)
+		})
+	}
 }

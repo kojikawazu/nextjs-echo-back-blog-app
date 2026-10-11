@@ -1,6 +1,7 @@
 package handlers_blog_comments
 
 import (
+	"backend/apperrors"
 	"backend/dto"
 	utils "backend/utils/log"
 	"net/http"
@@ -14,7 +15,7 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（パスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。不正な blogId は 400、コメント不在は 404、その他は 500 で返す
+//   - error: 不正な blogId は ErrInvalidBlogID、その他の失敗はエラー。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching comments by blogId...")
 
@@ -24,21 +25,7 @@ func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 	// サービス層からブログIDでコメントデータを取得
 	comments, err := h.CommentService.FetchCommentsByBlogId(blogId)
 	if err != nil {
-		switch err.Error() {
-		case "invalid blogId":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid blogId",
-			})
-		case "comments not found":
-			return c.JSON(http.StatusNotFound, map[string]string{
-				"error": "Comments not found",
-			})
-		default:
-			utils.LogError(c, "Error fetching comments: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error fetching comments",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Fetched comments successfully")
@@ -51,7 +38,7 @@ func (h *CommentHandler) FetchCommentsByBlogId(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（blogId/guestUser/comment を含む JSON ボディ）
 //
 // 戻り値:
-//   - error: レスポンス書き込みエラー。バインド失敗や不正な入力は 400、作成失敗は 500、成功時は 201 で返す
+//   - error: ボディ不正は apperrors.ErrInvalidRequestBody、不正入力は ErrInvalidXxx、その他の失敗はエラー。成功時は 201 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *CommentHandler) CreateComment(c echo.Context) error {
 	utils.LogInfo(c, "Creating comment...")
 
@@ -62,38 +49,13 @@ func (h *CommentHandler) CreateComment(c echo.Context) error {
 		Comment   string `json:"comment"`
 	})
 	if err := c.Bind(req); err != nil {
-		utils.LogError(c, "Error binding request: "+err.Error())
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Error binding request",
-		})
+		return apperrors.Wrap(apperrors.ErrInvalidRequestBody, err)
 	}
 
 	// サービス層からコメントデータを新規作成
 	newComment, err := h.CommentService.CreateComment(req.BlogId, req.GuestUser, req.Comment)
 	if err != nil {
-		switch err.Error() {
-		case "invalid blogId":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid blogId",
-			})
-		case "invalid guestUser":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid guestUser",
-			})
-		case "invalid comment":
-			return c.JSON(http.StatusBadRequest, map[string]string{
-				"error": "Invalid comment",
-			})
-		case "failed to create comment":
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Failed to create comment",
-			})
-		default:
-			utils.LogError(c, "Error creating comment: "+err.Error())
-			return c.JSON(http.StatusInternalServerError, map[string]string{
-				"error": "Error creating comment",
-			})
-		}
+		return err
 	}
 
 	utils.LogInfo(c, "Created comment successfully")

@@ -5,7 +5,6 @@ import (
 	"backend/models"
 	service_blogs "backend/services/blogs"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -68,95 +67,50 @@ func TestHandler_FetchBlogsByUserId(t *testing.T) {
 	mockService.AssertExpectations(t)
 }
 
-// userIdが空の場合の異常系
-func TestHandler_FetchBlogsByUserId_EmptyUserId(t *testing.T) {
-	e := echo.New()
-	// パスパラメータが空のリクエストを作成
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを空に設定
-	c.SetParamNames("userId")
-	c.SetParamValues("")
+// TestHandler_FetchBlogsByUserId_Errors はサービス層・パスパラメータの検証で失敗した場合に、ハンドラがエラーを返す（レスポンスは書き込まない）ことを検証する。
+func TestHandler_FetchBlogsByUserId_Errors(t *testing.T) {
+	tests := []struct {
+		name      string
+		param     string
+		setupMock func(mockService *service_blogs.MockBlogService)
+		wantErr   error
+	}{
+		{
+			name:  "準正常系_userIdが不正な場合ErrInvalidUserIDを返す",
+			param: "",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				mockService.On("FetchBlogsByUserId", "").Return(nil, service_blogs.ErrInvalidUserID)
+			},
+			wantErr: service_blogs.ErrInvalidUserID,
+		},
+		{
+			name:  "異常系_Serviceが予期しないエラーを返す場合そのエラーを返す",
+			param: "1",
+			setupMock: func(mockService *service_blogs.MockBlogService) {
+				mockService.On("FetchBlogsByUserId", "1").Return(nil, errServiceFailure)
+			},
+			wantErr: errServiceFailure,
+		},
+	}
 
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
+			req := httptest.NewRequest(http.MethodGet, "/api/blogs/user/"+tt.param, nil)
+			rec := httptest.NewRecorder()
+			c := e.NewContext(req, rec)
+			c.SetParamNames("userId")
+			c.SetParamValues(tt.param)
 
-	// モックサービスの設定（ブログが見つからない場合）
-	mockService.On("FetchBlogsByUserId", "").Return(nil, errors.New("invalid userId"))
+			mockCookieUtils := new(utils_cookie.MockCookieUtils)
+			mockService := new(service_blogs.MockBlogService)
+			handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
+			tt.setupMock(mockService)
 
-	// ハンドラーを実行
-	err := handler.FetchBlogsByUserId(c)
+			err := handler.FetchBlogsByUserId(c)
 
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusBadRequest, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Invalid userId")
-
-	// サービス層のメソッドが呼ばれたことを確認
-	mockService.AssertExpectations(t)
-}
-
-// ブログが見つからない場合の異常系
-func TestHandler_FetchBlogsByUserId_BlogNotFound(t *testing.T) {
-	e := echo.New()
-	// パスパラメータとして userId を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("userId")
-	c.SetParamValues("1")
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
-
-	// モックサービスの設定（ブログが見つからない場合）
-	mockService.On("FetchBlogsByUserId", "1").Return(nil, errors.New("blog not found"))
-
-	// ハンドラーを実行
-	err := handler.FetchBlogsByUserId(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusNotFound, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Blog not found")
-
-	// サービス層のメソッドが呼ばれたことを確認
-	mockService.AssertExpectations(t)
-}
-
-// サービス層でエラーが発生した場合の異常系
-func TestHandler_FetchBlogsByUserId_ServiceError(t *testing.T) {
-	e := echo.New()
-	// パスパラメータとして userId を指定する
-	req := httptest.NewRequest(http.MethodGet, "/api/blog/user/1", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	// パスパラメータを設定
-	c.SetParamNames("userId")
-	c.SetParamValues("1")
-
-	// モックサービスをインスタンス化
-	mockCookieUtils := new(utils_cookie.MockCookieUtils)
-	mockService := new(service_blogs.MockBlogService)
-	handler := handlers_blogs.NewBlogHandler(mockService, mockCookieUtils)
-
-	// モックサービスの設定（一般的なエラーが発生した場合）
-	mockService.On("FetchBlogsByUserId", "1").Return(nil, errors.New("some internal error"))
-
-	// ハンドラーを実行
-	err := handler.FetchBlogsByUserId(c)
-
-	// ステータスコードとレスポンスの確認
-	assert.NoError(t, err)
-	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Error fetching blog")
-
-	// サービス層のメソッドが呼ばれたことを確認
-	mockService.AssertExpectations(t)
+			assertHandlerError(t, err, rec, tt.wantErr)
+			mockService.AssertExpectations(t)
+		})
+	}
 }

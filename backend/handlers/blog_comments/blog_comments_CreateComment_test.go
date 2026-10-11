@@ -1,11 +1,11 @@
 package handlers_blog_comments
 
 import (
+	"backend/apperrors"
 	"backend/models"
 	services_comments "backend/services/blog_comments"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,6 +21,7 @@ func TestHandler_CreateComment(t *testing.T) {
 		setupMock      func(mockService *services_comments.MockCommentService)
 		expectedStatus int
 		expectedBody   string
+		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
 	}{
 		{
 			name:        "正常系_コメント作成成功",
@@ -40,53 +41,39 @@ func TestHandler_CreateComment(t *testing.T) {
 			name:        "準正常系_blogIdが空文字の場合400を返す",
 			requestBody: map[string]string{"blogId": "", "guestUser": "guestUser1", "comment": "comment1"},
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("CreateComment", "", "guestUser1", "comment1").Return(nil, errors.New("invalid blogId"))
+				mockService.On("CreateComment", "", "guestUser1", "comment1").Return(nil, services_comments.ErrInvalidBlogID)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid blogId"}`,
+			wantErr: services_comments.ErrInvalidBlogID,
 		},
 		{
 			name:        "準正常系_guestUserが空文字の場合400を返す",
 			requestBody: map[string]string{"blogId": "1", "guestUser": "", "comment": "comment1"},
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("CreateComment", "1", "", "comment1").Return(nil, errors.New("invalid guestUser"))
+				mockService.On("CreateComment", "1", "", "comment1").Return(nil, services_comments.ErrInvalidGuestUser)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid guestUser"}`,
+			wantErr: services_comments.ErrInvalidGuestUser,
 		},
 		{
 			name:        "準正常系_commentが空文字の場合400を返す",
 			requestBody: map[string]string{"blogId": "1", "guestUser": "guestUser1", "comment": ""},
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("CreateComment", "1", "guestUser1", "").Return(nil, errors.New("invalid comment"))
+				mockService.On("CreateComment", "1", "guestUser1", "").Return(nil, services_comments.ErrInvalidComment)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Invalid comment"}`,
+			wantErr: services_comments.ErrInvalidComment,
 		},
 		{
-			name:        "異常系_コメント作成に失敗した場合500を返す",
+			name:        "異常系_Serviceがエラーを返す場合500を返す",
 			requestBody: map[string]string{"blogId": "1", "guestUser": "guestUser1", "comment": "comment1"},
 			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("CreateComment", "1", "guestUser1", "comment1").Return(nil, errors.New("failed to create comment"))
+				mockService.On("CreateComment", "1", "guestUser1", "comment1").Return(nil, errService)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to create comment"}`,
+			wantErr: errService,
 		},
 		{
-			name:        "異常系_Serviceが予期しないエラーを返す場合500を返す",
-			requestBody: map[string]string{"blogId": "1", "guestUser": "guestUser1", "comment": "comment1"},
-			setupMock: func(mockService *services_comments.MockCommentService) {
-				mockService.On("CreateComment", "1", "guestUser1", "comment1").Return(nil, errors.New("server error"))
-			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Error creating comment"}`,
-		},
-		{
-			name:           "異常系_不正なJSONボディの場合400を返す",
-			requestBody:    nil,
-			setupMock:      func(mockService *services_comments.MockCommentService) {},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Error binding request"}`,
+			name:        "異常系_不正なJSONボディの場合400を返す",
+			requestBody: nil,
+			setupMock:   func(mockService *services_comments.MockCommentService) {},
+			wantErr:     apperrors.ErrInvalidRequestBody,
 		},
 	}
 
@@ -116,10 +103,13 @@ func TestHandler_CreateComment(t *testing.T) {
 			tt.setupMock(mockCommentService)
 
 			err := handler.CreateComment(c)
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			}
 
 			mockCommentService.AssertExpectations(t)
 		})

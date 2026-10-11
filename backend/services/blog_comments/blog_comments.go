@@ -2,7 +2,7 @@ package services_blog_comments
 
 import (
 	"backend/models"
-	"errors"
+	"fmt"
 	"log"
 )
 
@@ -13,14 +13,14 @@ import (
 //
 // 戻り値:
 //   - []models.BlogCommentsData: 取得したコメントデータの一覧
-//   - error: 取得に失敗した場合のエラー
+//   - error: blogId が空の場合は ErrInvalidBlogID、その他取得に失敗した場合のエラー
 func (s *CommentServiceImpl) FetchCommentsByBlogId(blogId string) ([]models.BlogCommentsData, error) {
 	log.Printf("FetchCommentsByBlogId start...")
 
 	// バリデーション
 	if blogId == "" {
 		log.Printf("invalid blogId: %s", blogId)
-		return nil, errors.New("invalid blogId")
+		return nil, ErrInvalidBlogID
 	}
 	log.Println("Valid blogId")
 
@@ -28,7 +28,7 @@ func (s *CommentServiceImpl) FetchCommentsByBlogId(blogId string) ([]models.Blog
 	comments, err := s.CommentRepository.FetchCommentsByBlogId(blogId)
 	if err != nil {
 		log.Printf("Failed to fetch comments: %v", err)
-		return nil, errors.New("comments not found")
+		return nil, fmt.Errorf("fetch comments: %w", err)
 	}
 
 	log.Printf("Fetched comments successfully: %v", comments)
@@ -44,22 +44,22 @@ func (s *CommentServiceImpl) FetchCommentsByBlogId(blogId string) ([]models.Blog
 //
 // 戻り値:
 //   - *models.BlogCommentsData: 作成されたコメントデータ
-//   - error: 作成に失敗した場合のエラー
+//   - error: 入力が不正な場合は ErrInvalidXxx、その他作成に失敗した場合のエラー
 func (s *CommentServiceImpl) CreateComment(blogId, guestUser, comment string) (*models.BlogCommentsData, error) {
 	log.Printf("CreateComment start...")
 
 	// バリデーション
 	if blogId == "" {
 		log.Printf("invalid blogId: %s", blogId)
-		return nil, errors.New("invalid blogId")
+		return nil, ErrInvalidBlogID
 	}
 	if guestUser == "" {
 		log.Printf("invalid guestUser: %s", guestUser)
-		return nil, errors.New("invalid guestUser")
+		return nil, ErrInvalidGuestUser
 	}
 	if comment == "" {
 		log.Printf("invalid comment: %s", comment)
-		return nil, errors.New("invalid comment")
+		return nil, ErrInvalidComment
 	}
 	log.Println("Valid blogId, guestUser and comment")
 
@@ -67,7 +67,7 @@ func (s *CommentServiceImpl) CreateComment(blogId, guestUser, comment string) (*
 	newComment, err := s.CommentRepository.CreateComment(blogId, guestUser, comment)
 	if err != nil {
 		log.Printf("Failed to create comment: %v", err)
-		return nil, errors.New("failed to create comment")
+		return nil, fmt.Errorf("create comment: %w", err)
 	}
 
 	log.Printf("Created comment successfully: %v", newComment)

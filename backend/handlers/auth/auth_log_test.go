@@ -22,6 +22,9 @@ const (
 	logTestPassword = "plain-secret-password"
 )
 
+// errLogTestUnexpected はサービス層の想定外エラーを表すテスト用エラー。
+var errLogTestUnexpected = errors.New("unexpected error")
+
 // captureHandlerLogs は logger の INFO / ERROR 出力をバッファへ差し替え、テスト終了時に復元する。
 func captureHandlerLogs(t *testing.T) *bytes.Buffer {
 	t.Helper()
@@ -45,6 +48,7 @@ func newLoginContext(body string) (echo.Context, *httptest.ResponseRecorder) {
 }
 
 // TestHandler_Login_DoesNotLogCredentials はログイン時のログにメールアドレス・パスワードが残らないことを検証する。
+// 失敗時のエラーはアクセスログ（middlewares.newRequestLogger）に記録されるため、返したエラーの文字列も検証する。
 func TestHandler_Login_DoesNotLogCredentials(t *testing.T) {
 	body := `{"email":"` + logTestEmail + `","password":"` + logTestPassword + `"}`
 
@@ -52,6 +56,7 @@ func TestHandler_Login_DoesNotLogCredentials(t *testing.T) {
 		name           string
 		setupMock      func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService)
 		expectedStatus int
+		wantErr        error
 		wantLog        string
 	}{
 		{
@@ -74,18 +79,18 @@ func TestHandler_Login_DoesNotLogCredentials(t *testing.T) {
 			name: "invalid_credentials",
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
 				mockAuth.On("Login", logTestEmail, logTestPassword).Return(nil)
-				mockUser.On("FetchUserByEmailAndPassword", logTestEmail, logTestPassword).Return(nil, errors.New("user not found"))
+				mockUser.On("FetchUserByEmailAndPassword", logTestEmail, logTestPassword).Return(nil, services_users.ErrInvalidCredentials)
 			},
-			expectedStatus: http.StatusUnauthorized,
-			wantLog:        "Error fetching user: user not found",
+			wantErr: services_users.ErrInvalidCredentials,
+			wantLog: "Logging in...",
 		},
 		{
 			// 異常系: 想定外エラー時のログにも資格情報が残らない
 			name: "unexpected_error",
 			setupMock: func(mockAuth *services_auth.MockAuthService, mockUser *services_users.MockUserService) {
-				mockAuth.On("Login", logTestEmail, logTestPassword).Return(errors.New("unexpected error"))
+				mockAuth.On("Login", logTestEmail, logTestPassword).Return(errLogTestUnexpected)
 			},
-			expectedStatus: http.StatusInternalServerError,
+			wantErr: errLogTestUnexpected,
 		},
 	}
 
@@ -98,8 +103,16 @@ func TestHandler_Login_DoesNotLogCredentials(t *testing.T) {
 			mockUser := new(services_users.MockUserService)
 			tt.setupMock(mockAuth, mockUser)
 
-			assert.NoError(t, NewAuthHandler(mockUser, mockAuth).Login(c))
-			assert.Equal(t, tt.expectedStatus, rec.Code)
+			err := NewAuthHandler(mockUser, mockAuth).Login(c)
+			if tt.wantErr != nil {
+				assert.ErrorIs(t, err, tt.wantErr)
+				// 返したエラーはアクセスログに出るため、資格情報を含めない
+				assert.NotContains(t, err.Error(), logTestEmail)
+				assert.NotContains(t, err.Error(), logTestPassword)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+			}
 
 			logs := buf.String()
 			assert.NotContains(t, logs, logTestEmail)

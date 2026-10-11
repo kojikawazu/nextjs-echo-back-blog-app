@@ -4,7 +4,6 @@ import (
 	"backend/models"
 	services_blogs_likes "backend/services/blog_likes"
 	utils_cookie "backend/utils/cookie"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -20,6 +19,7 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 		setupMock      func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService)
 		expectedStatus int
 		expectedBody   string
+		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
 	}{
 		{
 			name:   "正常系_いいね作成成功",
@@ -40,29 +40,26 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, errors.New("BlogId or VisitId is empty"))
+				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, services_blogs_likes.ErrBlogIDOrVisitIDEmpty)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"BlogId or VisitId is empty"}`,
+			wantErr: services_blogs_likes.ErrBlogIDOrVisitIDEmpty,
 		},
 		{
-			name:   "準正常系_すでにいいね済みの場合400を返す",
+			name:   "準正常系_すでにいいね済みの場合409を返す",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, errors.New("blog is already liked"))
+				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, services_blogs_likes.ErrAlreadyLiked)
 			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   `{"error":"Blog is already liked"}`,
+			wantErr: services_blogs_likes.ErrAlreadyLiked,
 		},
 		{
 			name:   "準正常系_visit-id-token Cookieがない場合500を返す",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
-				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errors.New("no cookie"))
+				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to get visit id token"}`,
+			wantErr: errNoCookie,
 		},
 		{
 			name:   "準正常系_visitId取得に失敗した場合500を返す",
@@ -71,20 +68,18 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 				token := "mocked-token"
 				req.AddCookie(&http.Cookie{Name: "visit-id-token", Value: token})
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return(token, nil)
-				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errors.New("parse error"))
+				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errParseToken)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Failed to get visit id"}`,
+			wantErr: errParseToken,
 		},
 		{
 			name:   "異常系_Serviceが予期しないエラーを返す場合500を返す",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				SetMockBlogCookies(c, req, mockCookie)
-				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, errors.New("db connection error"))
+				mockService.On("CreateBlogLike", "blog-1", "valid-visit-id").Return(nil, errService)
 			},
-			expectedStatus: http.StatusInternalServerError,
-			expectedBody:   `{"error":"Error creating blog like"}`,
+			wantErr: errService,
 		},
 	}
 
@@ -104,10 +99,13 @@ func TestHandler_CreateBlogLike(t *testing.T) {
 			tt.setupMock(c, req, mockCookieUtils, mockService)
 
 			err := handler.CreateBlogLike(c)
-			assert.NoError(t, err)
-
-			assert.Equal(t, tt.expectedStatus, rec.Code)
-			assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			if tt.wantErr != nil {
+				assertHandlerError(t, err, rec, tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedStatus, rec.Code)
+				assert.JSONEq(t, tt.expectedBody, rec.Body.String())
+			}
 
 			mockCookieUtils.AssertExpectations(t)
 			mockService.AssertExpectations(t)

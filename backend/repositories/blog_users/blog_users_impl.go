@@ -61,7 +61,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersByEmail(email string) (*models.B
 //
 // 戻り値:
 //   - *models.BlogUsersData: 取得したユーザー情報
-//   - error: 取得に失敗した場合のエラー
+//   - error: 該当なしの場合は ErrUserNotFound、その他取得に失敗した場合のエラー
 func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUsersData, error) {
 	log.Println("Fetching user from Supabase by ID")
 
@@ -86,7 +86,11 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUse
 		&user.UpdatedAt,
 	)
 	if err != nil {
-		log.Printf("User not found or failed to fetch user: %v", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Println("User not found")
+			return nil, ErrUserNotFound
+		}
+		log.Printf("Failed to fetch user: %v", err)
 		return nil, err
 	}
 
@@ -104,7 +108,7 @@ func (r *BlogUsersRepositoryImpl) FetchBlogUsersById(id string) (*models.BlogUse
 //
 // 戻り値:
 //   - *models.BlogUsersData: 更新後のユーザー情報
-//   - error: 更新に失敗した場合のエラー
+//   - error: 該当なしの場合は ErrUserNotFound、その他更新に失敗した場合のエラー
 func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, passwordHash string) (*models.BlogUsersData, error) {
 	log.Println("Updating user in Supabase")
 
@@ -128,6 +132,10 @@ func (r *BlogUsersRepositoryImpl) UpdateBlogUsers(id, name, email, passwordHash 
 		&user.UpdatedAt,
 	)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Println("User not found")
+			return nil, ErrUserNotFound
+		}
 		log.Printf("Failed to update user: %v", err)
 		return nil, err
 	}

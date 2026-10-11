@@ -1,7 +1,7 @@
 package middlewares
 
 import (
-	"net/http"
+	"backend/apperrors"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -27,12 +27,6 @@ const (
 	// healthCheckPath はレートリミットの対象外とするヘルスチェックのパス
 	healthCheckPath = "/"
 )
-
-// errTooManyRequests は上限超過時のレスポンス。既存のエラーレスポンス形式 {"error": "..."} に合わせる。
-var errTooManyRequests = &echo.HTTPError{
-	Code:    http.StatusTooManyRequests,
-	Message: map[string]string{"error": "Too many requests"},
-}
 
 // newAPIRateLimiter は全エンドポイント共通のレートリミットミドルウェアを返す（ヘルスチェックは対象外）。
 //
@@ -75,7 +69,7 @@ func newRateLimiter(r rate.Limit, burst int, skipper middleware.Skipper) echo.Mi
 			ExpiresIn: rateLimiterExpiresIn,
 		}),
 		DenyHandler: func(c echo.Context, identifier string, err error) error {
-			return errTooManyRequests
+			return apperrors.ErrTooManyRequests
 		},
 	})
 }
