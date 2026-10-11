@@ -18,5 +18,5 @@ Go + Echo フレームワークで構築されたブログWebアプリケーシ�
 | coding-standards.md | 全体 | コーディング規約（Go 1.25・go mod・golangci-lint/gofmt） |
 | error-handling.md | 全体 | エラーハンドリング方針（バリデーション・HTTP ステータス・統一レスポンス） |
 | security.md | 全体 | セキュリティ方針（認証・CORS・インジェクション対策・シークレット管理） |
-| api.md | backend/** | Go + Echo API 設計・レイヤー分離（Handler/Service/Repository） |
+| api.md | backend/** | Go + Echo API 設計・レイヤー分離（Handler/Service/Repository）・ディレクトリ構成・レスポンス DTO・sentinel error |
 | database.md | backend/** | DB 方針（監査列の DB 側自動化・timestamptz 統一・スキーマ同期） |
