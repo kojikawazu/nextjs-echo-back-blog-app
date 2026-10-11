@@ -85,7 +85,9 @@
 
 ## 2. レイヤーアーキテクチャ
 
-本プロジェクトはクリーンアーキテクチャに基づく3層構成を採用している。各層はインターフェースを介して疎結合に接続されている。
+本プロジェクトはクリーンアーキテクチャの考え方（インターフェースによる依存性逆転）に基づくレイヤード構成（Handler → Service → Repository の 3 層）を採用している。各層はインターフェースを介して疎結合に接続されている。
+
+ディレクトリ・層の責務の規定は [`.claude/rules/api.md`](../.claude/rules/api.md) を正とする。Command / Query の分離や `internal/` によるパッケージの隠蔽は、現在の規模（4 テーブル・CRUD 中心）では採用せず、規模が大きくなった時点で再検討する（#125）。
 
 ### 2.1 レイヤー構成図
 
@@ -726,9 +728,6 @@ backend/
 │       └── blog_comments_CreateComment_test.go
 │
 ├── repositories/                    # Repository層（データアクセス）
-│   ├── auth/
-│   │   ├── auth.go                 # （未使用の可能性あり）
-│   │   └── auth_impl.go
 │   ├── blog_users/
 │   │   ├── blog_users.go           # BlogUsersRepository インターフェース
 │   │   ├── blog_users_impl.go      # SQL実装
