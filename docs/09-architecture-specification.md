@@ -303,7 +303,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 | 環境変数 | godotenv | v1.5.1 | .env ファイル読み込み |
 | UUID | google/uuid | v1.6.0 | UUID生成・バリデーション |
 | テスト | testify | v1.9.0 | アサーション・モック |
-| 暗号化 | golang.org/x/crypto | v0.52.0 | `bcrypt` でパスワードのハッシュ化・照合を行う（`services/blog_users/password.go`。#120） |
+| 暗号化 | golang.org/x/crypto | v0.54.0 | `bcrypt` でパスワードのハッシュ化・照合を行う（`services/blog_users/password.go`。#120） |
 
 ### 4.2 インフラストラクチャ
 

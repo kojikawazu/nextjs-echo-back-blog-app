@@ -194,6 +194,11 @@
   - プール設定を `newPoolConfig` に切り出し UT で固定。CI の UT 対象に `./supabase/...` を追加
   - 残: testcontainers 更新（#154）
 
+- [x] **testcontainers-go の更新（#154）**
+  - 対応: `testcontainers-go` と postgres モジュールを v0.35.0 から v0.44.0 へ更新。Docker クライアントが `github.com/moby/moby/client` へ移り、Dependabot アラート 5 件（high 2・medium 2・low 1）の対象だった `github.com/docker/docker` が依存から消えた
+  - testcontainers 自体はテスト専用（`//go:build integration || e2e`）で本番バイナリに含まれない。ただし依存解決（MVS）により、本番バイナリに入る `golang.org/x/crypto`（v0.52.0 → v0.54.0）・`x/net`・`x/sys`・`x/text`・`x/sync` もマイナー版が上がる。コードの変更は不要
+  - これで親 issue #151 のサブ issue はすべて対応済み
+
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし
   - 対応: Echo の`middleware.CSRF`の導入、またはカスタムCSRFトークン実装
