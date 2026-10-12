@@ -188,6 +188,12 @@
   - 影響: デプロイ前に発行された `aud` なしのトークンは無効になる（オーナーは 1 回再ログイン、訪問者 ID は再発行）
   - 残: pgx v5 移行（#153）、testcontainers 更新（#154）。親 issue #151
 
+- [x] **pgx の v5 移行（#153）**
+  - 対応: `jackc/pgx/v4` v4.18.3（保守終了。依存の `pgproto3/v2` に DoS の high アラート、修正版なし）を `pgx/v5` v5.11.0 へ移行。`pgconn`・`pgtype`・`pgproto3/v2`・`puddle` v1 が依存から消えた
+  - Simple Protocol は維持（`DefaultQueryExecMode = QueryExecModeSimpleProtocol`）。Supabase の pooler で Prepared Statement が競合しないため。ドル引用符とプレースホルダの取り違え（low アラート）は v5.9.2 以上で修正済み
+  - プール設定を `newPoolConfig` に切り出し UT で固定。CI の UT 対象に `./supabase/...` を追加
+  - 残: testcontainers 更新（#154）
+
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし
   - 対応: Echo の`middleware.CSRF`の導入、またはカスタムCSRFトークン実装

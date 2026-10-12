@@ -1,5 +1,7 @@
 # pgx v4 理解向上レポート
 
+> **注記（2026-10）**: 本プロジェクトは pgx v5（v5.11.0）へ移行済み（#153）。v4 は保守終了しており、Dependabot アラート（pgproto3/v2 の DoS など）に修正版が無いため。本レポートは v4 時代の実装を題材にした記録として残す。v5 での主な変更点は `pgxpool.ConnectConfig` → `pgxpool.NewWithConfig`、`PreferSimpleProtocol = true` → `DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol`、`pgconn` が `pgx/v5/pgconn` に統合されたこと。
+
 本レポートは、Go言語のPostgreSQLドライバー **pgx v4** について、本プロジェクト（nextjs-echo-back-blog-app）の実装を題材に技術理解を深めるためのドキュメントである。
 
 ---

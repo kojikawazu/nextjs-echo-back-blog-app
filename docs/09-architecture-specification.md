@@ -134,7 +134,7 @@
 │  ・JOINによるいいね数・コメント数の集計                  │
 │  ・pgx.ErrNoRows → ErrXxxNotFound への変換              │
 └──────────────────────┬──────────────────────────────┘
-                       │  pgx/v4 pgxpool
+                       │  pgx/v5 pgxpool
                        ▼
 ┌─────────────────────────────────────────────────────┐
 │                  PostgreSQL (Supabase)                │
@@ -298,7 +298,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 |------|------|----------|------|
 | 言語 | Go | 1.20 | メイン開発言語 |
 | Webフレームワーク | Echo | v4.12.0 | HTTPサーバー、ルーティング、ミドルウェア |
-| DBドライバ | pgx/v4 | v4.18.3 | PostgreSQL接続（コネクションプール） |
+| DBドライバ | pgx/v5 | v5.11.0 | PostgreSQL接続（コネクションプール。Simple Protocol で実行。#153） |
 | 認証 | golang-jwt/jwt/v5 | v5.3.1 | JWT トークン生成・検証（`utils/cookie/jwt.go` に集約。#152） |
 | 環境変数 | godotenv | v1.5.1 | .env ファイル読み込み |
 | UUID | google/uuid | v1.6.0 | UUID生成・バリデーション |

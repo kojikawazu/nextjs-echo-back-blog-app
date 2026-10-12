@@ -7,7 +7,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // errRemoteDB は SUPABASE_URL がローカル以外の DB を指している場合のエラー。

@@ -36,12 +36,12 @@
 |------|------|
 | **Echo** | Go言語用の軽量・高パフォーマンスなWebフレームワーク。本プロジェクトではv4.12.0を使用。ルーティング、ミドルウェア、リクエスト/レスポンスのバインディング機能を提供する。 |
 | **JWT (JSON Web Token)** | 認証トークンの標準規格。本プロジェクトでは`golang-jwt/jwt/v5`（v5.3.1）を使用し、HS256アルゴリズムで署名する。有効期限は1時間。HTTP-onlyクッキーに格納して管理する。 |
-| **Supabase** | PostgreSQLベースのBaaS（Backend as a Service）。本プロジェクトではデータベースとして利用し、`pgx/v4`ドライバーを通じてコネクションプール（最大10接続）で接続する。 |
+| **Supabase** | PostgreSQLベースのBaaS（Backend as a Service）。本プロジェクトではデータベースとして利用し、`pgx/v5`ドライバーを通じてコネクションプール（最大10接続）で接続する。 |
 | **Cloud Run** | Google Cloudのサーバーレスコンテナ実行プラットフォーム。リクエスト駆動で起動し、未使用時はゼロにスケールダウンするため、低トラフィック環境でのコスト最適化に適している。 |
 | **Artifact Registry** | Google CloudのDockerイメージ管理サービス。CI/CDパイプラインでビルドしたコンテナイメージの保存先として使用する。 |
 | **Secret Manager** | Google CloudのシークレットＧ管理サービス。`SUPABASE_URL`、`JWT_SECRET_KEY`、`ALLOWED_ORIGINS`等の機密情報を安全に管理し、Cloud Runの環境変数として注入する。 |
 | **Visit ID（訪問者ID）** | 未認証のサイト訪問者を一意に識別するためのUUID。JWTトークンとして`visit-id-token`クッキーに格納される。いいね機能における匿名ユーザーの重複防止に使用する。 |
-| **pgx** | Go言語用のPostgreSQLドライバー。本プロジェクトではv4を使用し、`pgxpool`によるコネクションプーリングを行う。Simple Protocolを優先設定し、Prepared Statementの競合を防止している。 |
+| **pgx** | Go言語用のPostgreSQLドライバー。本プロジェクトではv5を使用し（v4 から移行。#153）、`pgxpool`によるコネクションプーリングを行う。クエリを Simple Protocol で実行し（`QueryExecModeSimpleProtocol`）、Prepared Statementの競合を防止している。 |
 | **Terraform** | HashiCorp製のIaC（Infrastructure as Code）ツール。GCPリソース（Cloud Run、Artifact Registry、Secret Manager、IAM）をコードで定義・管理する。 |
 | **Distroless** | Google提供の最小限コンテナイメージ。シェルやパッケージマネージャを含まず、アプリケーションバイナリの実行に必要な最小限のランタイムのみを含む。セキュリティとイメージサイズの最適化に寄与する。 |
 | **サービスアカウントキー認証** | GitHub ActionsからGCPリソースへアクセスする際の認証方式。`google-github-actions/auth@v1` に GitHub Secrets の `GCP_SERVICE_ACCOUNT_KEY`（サービスアカウントキーJSON）を `credentials_json` として渡して認証する（Workload Identity Federation は未使用）。 |

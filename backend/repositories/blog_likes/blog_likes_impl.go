@@ -6,7 +6,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 // FetchBlogLikesByVisitId は VisitId によっていいねデータを取得する。

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 // FetchBlogUsersByEmail は指定されたメールアドレスのユーザーを、パスワードハッシュを含めて取得する。

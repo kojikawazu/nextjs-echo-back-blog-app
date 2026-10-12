@@ -102,8 +102,8 @@
 |----------|------|------------|
 | 言語 | Go | 1.20 |
 | Webフレームワーク | Echo | v4.12.0 |
-| データベース | Supabase (PostgreSQL) | pgx v4.18.3 |
-| 認証 | JWT | golang-jwt v3.2.2 |
+| データベース | Supabase (PostgreSQL) | pgx v5.11.0 |
+| 認証 | JWT | golang-jwt v5.3.1 |
 | インフラ | Google Cloud Run | - |
 | IaC | Terraform | - |
 | CI/CD | GitHub Actions | - |
