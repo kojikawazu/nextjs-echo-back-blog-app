@@ -37,6 +37,24 @@ func TestRepository_UpdateBlogUsers(t *testing.T) {
 	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(stored.Password), []byte(testPasswd)))
 }
 
+// 正常系: 更新すると updated_at が DB のトリガで進み、created_at は変わらない（#117）。
+// リポジトリの UPDATE 文は updated_at を書かないため、値が進むのはトリガによる。
+func TestRepository_UpdateBlogUsers_UpdatedAt(t *testing.T) {
+	repo := NewBlogUsersRepository()
+
+	before, err := repo.FetchBlogUsersById(os.Getenv("TEST_USER_ID"))
+	require.NoError(t, err)
+
+	// 名前・メール・パスワードは元の値のまま更新する（後続のテストのログインを壊さない）
+	updated, err := repo.UpdateBlogUsers(before.ID, before.Name, before.Email, before.Password)
+	require.NoError(t, err)
+
+	assert.True(t, updated.UpdatedAt.After(before.UpdatedAt),
+		"updated_at が進んでいない: before=%v updated=%v", before.UpdatedAt, updated.UpdatedAt)
+	assert.True(t, updated.CreatedAt.Equal(before.CreatedAt),
+		"created_at が変わった: before=%v updated=%v", before.CreatedAt, updated.CreatedAt)
+}
+
 // 準正常系: 存在しないIDでの更新は該当行なし（pgx.ErrNoRows）を ErrUserNotFound に変換して返す。
 func TestRepository_UpdateBlogUsers_NotFound(t *testing.T) {
 	repo := NewBlogUsersRepository()

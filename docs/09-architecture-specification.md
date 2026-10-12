@@ -425,7 +425,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
 | `test` | `go test ./...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全パッケージの UT を実行（全 mock。DB を必要としない）。対象を列挙しないため、追加したパッケージも自動で対象になる（#158）。IT / E2E は build tag で分離しているため含まれない |
-| `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査のテストも実行 |
+| `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査とスキーマの検査（監査列・`updated_at` のトリガ。#117）のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
 > IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する（接続先はローカルに限り、本番等のリモートは `testsupport` が拒否する。#140）。UT・E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。値は本番の secret ではなく CI 専用のダミー値（`ci-test-dummy-jwt-secret`）とする（Dependabot が起動したワークフローは Actions secrets を参照できず空になるため、また本番鍵をテストに露出させないため）。

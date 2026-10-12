@@ -88,16 +88,17 @@
 | `repositories/blogs/test/blogs_FetchBlogTags_test.go` | タグ取得 |
 | `repositories/blogs/test/blogs_FetchBlogPopular_test.go` | 人気ブログ取得 + 境界（0件） |
 | `repositories/blogs/test/blogs_CreateBlog_test.go` | ブログ作成（異常系: 空userId）、作成したブログの `created_at`（timestamptz）・`updated_at`（timestamp）が現在時刻付近で返ること（pgx v5 移行で日時型の Scan が変わっていないことの確認。#153） |
-| `repositories/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新（異常系: 空id） |
+| `repositories/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新（異常系: 空id）、更新で `updated_at` がトリガにより進み `created_at` は変わらないこと（#117） |
 | `repositories/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除（異常系: 空id） |
 | `repositories/blogs/test/blogs_pipeline_test.go` | ブログCRUDパイプライン |
 | `repositories/blogs/test/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
 | `repositories/blog_users/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_users/blog_users_FetchUserById_test.go` | ユーザーID指定取得 + 準正常系（空id） |
 | `repositories/blog_users/blog_users_FetchUserByEmail_test.go` | メール指定取得（パスワードが bcrypt ハッシュで保存されていること）+ 準正常系（存在しないメール → `ErrUserNotFound`） |
-| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新（渡したハッシュが保存され元のパスワードで照合できること）+ 準正常系（存在しないID） |
+| `repositories/blog_users/blog_users_UpdateBlogUsers_test.go` | ユーザー更新（渡したハッシュが保存され元のパスワードで照合できること）、更新で `updated_at` がトリガにより進み `created_at` は変わらないこと（#117）+ 準正常系（存在しないID） |
 | `repositories/blog_users/blog_users_log_test.go` | 取得・更新・認証失敗時のログにパスワード・メールアドレスが残らないこと |
 | `repositories/blog_users/zz_connection_closed_test.go` | 異常系（接続断で安全に失敗） |
+| `testsupport/schema_test.go` | スキーマの検査（#117）: `updated_at` を持つ全テーブル（3 つ）に `set_updated_at()` を呼ぶ `BEFORE UPDATE` 行単位のトリガがあること、監査列（`created_at` / `updated_at`）がすべて `timestamptz NOT NULL DEFAULT now()` であること、UPDATE で `updated_at` に古い値を明示してもトリガが現在時刻で上書きすること（アプリから UPDATE しない `blog_likes` で確認）。`testsupport/main_test.go` の `TestMain` でテスト用 DB を準備する |
 | `testsupport/guard_test.go` | テスト用 DB の接続先検査（ローカルのみ許可・リモート/解析不能は拒否・エラーに接続情報を含めない）、リモート指定時に `Setup` が接続せずエラーを返すこと |
 | `repositories/blog_comments/main_test.go` | TestMain（`testsupport.Start` 委譲） |
 | `repositories/blog_comments/blog_comments_FetchCommentsByBlogId_test.go` | ブログID指定コメント取得 + 準正常系（不正UUID） |
