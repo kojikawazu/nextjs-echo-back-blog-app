@@ -7,27 +7,15 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// リクエスト情報を共通して取得
-func logWithLevel(c echo.Context, level string, message string) {
-	requestPath := c.Path()
-	method := c.Request().Method
-	userAgent := c.Request().UserAgent()
-
-	// レベルに応じたログを出力
-	switch level {
-	case "INFO":
-		logger.InfoLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	case "ERROR":
-		logger.ErrorLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	case "WARN":
-		logger.WarnLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	case "DEBUG":
-		logger.DebugLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	case "TEST":
-		logger.TestLog.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	default:
-		log.Printf("%s: %s %s %s - %s", level, method, requestPath, userAgent, message)
-	}
+// logWithLevel はリクエスト情報（メソッド・ルートのパス・User-Agent）を添えてログを出力する。
+// レベル名はロガーのプレフィックス（"INFO: " など）で付くため、メッセージには含めない。
+//
+// 引数:
+//   - l: 出力先のロガー（logger.InfoLog など）
+//   - c: Echoのリクエストコンテキスト
+//   - message: 出力するログメッセージ
+func logWithLevel(l *log.Logger, c echo.Context, message string) {
+	l.Printf("%s %s %s - %s", c.Request().Method, c.Path(), c.Request().UserAgent(), message)
 }
 
 // LogInfo は情報ログを出力する。
@@ -36,7 +24,7 @@ func logWithLevel(c echo.Context, level string, message string) {
 //   - c: Echoのリクエストコンテキスト
 //   - message: 出力するログメッセージ
 func LogInfo(c echo.Context, message string) {
-	logWithLevel(c, "INFO", message)
+	logWithLevel(logger.InfoLog, c, message)
 }
 
 // LogError はエラーログを出力する。
@@ -45,7 +33,7 @@ func LogInfo(c echo.Context, message string) {
 //   - c: Echoのリクエストコンテキスト
 //   - message: 出力するログメッセージ
 func LogError(c echo.Context, message string) {
-	logWithLevel(c, "ERROR", message)
+	logWithLevel(logger.ErrorLog, c, message)
 }
 
 // LogDebug はデバッグログを出力する。
@@ -54,5 +42,5 @@ func LogError(c echo.Context, message string) {
 //   - c: Echoのリクエストコンテキスト
 //   - message: 出力するログメッセージ
 func LogDebug(c echo.Context, message string) {
-	logWithLevel(c, "DEBUG", message)
+	logWithLevel(logger.DebugLog, c, message)
 }

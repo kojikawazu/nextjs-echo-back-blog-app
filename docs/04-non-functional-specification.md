@@ -125,7 +125,7 @@ signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 - 各ログには日付、時刻、ファイル名（短縮形）が自動付与される（`log.Ldate|log.Ltime|log.Lshortfile`）。
 - `TEST_MODE=true` の環境変数が設定されている場合、Info/Error/Warn/Debug のログ出力が `io.Discard` に抑制される。
-- リクエストコンテキスト付きログユーティリティ（`utils/log`）により、HTTPメソッド、リクエストパス、User-Agentを含むログを出力可能。
+- リクエストコンテキスト付きログユーティリティ（`utils/log`）により、HTTPメソッド、リクエストパス（ルートのパターン）、User-Agentを含むログを出力可能。形式は `INFO: <日時> <ファイル:行>: POST /api/blogs/:id <User-Agent> - <メッセージ>`（レベル名はロガーのプレフィックスにのみ付く。#158）。
 
 ### 4.4 Echo Logger ミドルウェア
 

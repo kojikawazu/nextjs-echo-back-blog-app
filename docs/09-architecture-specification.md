@@ -424,7 +424,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
-| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO・エラー定義（apperrors）・JWT の発行/検証（utils/cookie）の UT を実行。DB を必要としない |
+| `test` | `go test ./...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全パッケージの UT を実行（全 mock。DB を必要としない）。対象を列挙しないため、追加したパッケージも自動で対象になる（#158）。IT / E2E は build tag で分離しているため含まれない |
 | `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
@@ -908,8 +908,8 @@ go run main.go
 ```bash
 cd backend
 
-# 単体テスト（UT / DB 不要・全 mock）
-go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/...
+# 単体テスト（UT / DB 不要・全 mock。全パッケージ）
+go test ./...
 
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

@@ -172,7 +172,7 @@
 
 | ファイルパス | テスト対象 |
 |-------------|-----------|
-| `utils/log/utils_log_test.go` | ログユーティリティ |
+| `utils/log/utils_log_test.go` | ログユーティリティ（#158）: INFO / ERROR / DEBUG が対応するロガーにだけ出力され、レベル名がプレフィックスに 1 回だけ付くこと、ルートのパターン・メソッド・User-Agent・メッセージの完全一致。User-Agent なし・ルート不一致（パス空）・メッセージが空・メッセージ中の `%` が書式指定として解釈されないこと。テスト中は `logger` の各ロガーの出力先とフラグ（日時・ファイル名）を差し替え、`t.Cleanup` で戻す |
 | `supabase/client_test.go` | 接続設定（#153）: `buildConnString` が sslmode を付与すること（空なら `require`、既存クエリには `&` で連結）、`newPoolConfig` が Simple Protocol・最大 10 接続・アイドル 30 秒を設定すること、解析できない接続文字列でエラーを返すこと。Simple Protocol の指定は pooler の無い IT / E2E では外れても検出できないため UT で固定する |
 | `utils/cookie/jwt_test.go` | JWT の発行・検証（#152 / #156）: 発行したトークンが `aud`・`exp`・クレームを持つこと、形式不正・期限切れ・`exp` なし・別の鍵・`alg: none`・HS512・`aud` の取り違え（両方向）・`aud` なし・`user_id` / `visit_id` 空を拒否すること（v5 の sentinel を `errors.Is` で検証） |
 | `apperrors/apperrors_test.go` | sentinel が `errors.Is` で同一性判定されること（同じメッセージの別エラーとは一致しない）、`Wrap` が sentinel・原因の両方に一致すること |
