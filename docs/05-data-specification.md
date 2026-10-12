@@ -23,7 +23,7 @@
   - [6.2 接続ライフサイクル](#62-接続ライフサイクル)
   - [6.3 本番環境での秘密情報管理](#63-本番環境での秘密情報管理)
 - [7. 監査列方針](#7-監査列方針)
-  - [7.1 現状との乖離（未対応）](#71-現状との乖離未対応)
+  - [7.1 実装（#117 で対応済み）](#71-実装117-で対応済み)
 
 ---
 
@@ -83,8 +83,8 @@
 | name | TEXT | NOT NULL | - | ユーザー名 |
 | email | TEXT | NOT NULL | - | メールアドレス（ログイン認証に使用） |
 | password | TEXT | NOT NULL | - | パスワードの bcrypt ハッシュ（`$2a$10$...`、60 文字）。平文は保存しない（#120） |
-| created_at | TIMESTAMP | NOT NULL | DEFAULT now() | 作成日時 |
-| updated_at | TIMESTAMP | NOT NULL | DEFAULT now() | 更新日時 |
+| created_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 作成日時 |
+| updated_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 更新日時（UPDATE 時にトリガ `set_updated_at()` で自動更新。#117） |
 
 対応するGoモデル: `models.BlogUsersData`
 
@@ -122,8 +122,8 @@ type BlogUsersData struct {
 | tags | TEXT | NOT NULL | - | タグ（文字列として格納） |
 | likes | INT8 | NOT NULL | DEFAULT 0 | いいね数（集計値を保持するカラム） |
 | comment_cnt | INT8 | NOT NULL | DEFAULT 0 | コメント数（集計値を保持するカラム） |
-| created_at | TIMESTAMP | NOT NULL | DEFAULT now() | 作成日時 |
-| updated_at | TIMESTAMP | NOT NULL | DEFAULT now() | 更新日時 |
+| created_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 作成日時 |
+| updated_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 更新日時（UPDATE 時にトリガ `set_updated_at()` で自動更新。#117） |
 
 対応するGoモデル: `models.BlogData`
 
@@ -161,8 +161,8 @@ type BlogData struct {
 | id | UUID | NOT NULL | PRIMARY KEY | いいねID（自動生成） |
 | blog_id | UUID | NOT NULL | FOREIGN KEY → blogs.id | 対象ブログのID |
 | visit_id | TEXT | NOT NULL | - | 訪問者のID（JWTから抽出されたUUID文字列） |
-| created_at | TIMESTAMP | NOT NULL | DEFAULT now() | 作成日時 |
-| updated_at | TIMESTAMP | NOT NULL | DEFAULT now() | 更新日時 |
+| created_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 作成日時 |
+| updated_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 更新日時（UPDATE 時にトリガ `set_updated_at()` で自動更新。#117） |
 
 対応するGoモデル: `models.BlogLikesData`
 
@@ -192,7 +192,7 @@ type BlogLikesData struct {
 | blog_id | UUID | NOT NULL | FOREIGN KEY → blogs.id | 対象ブログのID |
 | guest_user | TEXT | NOT NULL | - | コメント投稿者のゲスト名 |
 | comment | TEXT | NOT NULL | - | コメント本文 |
-| created_at | TIMESTAMP | NOT NULL | DEFAULT now() | 作成日時 |
+| created_at | TIMESTAMPTZ | NOT NULL | DEFAULT now() | 作成日時 |
 
 対応するGoモデル: `models.BlogCommentsData`
 
@@ -337,15 +337,18 @@ Supabase（PostgreSQL）
 - リポジトリ層のINSERT / UPDATE文に監査列を書かない（`SET updated_at = NOW()` も含む）。`RETURNING` での読み出しは可。
 - タイムゾーン付き（`timestamptz`）で統一する。Cloud Run / Supabase / ローカルでコンテナのTZが異なるため、`timestamp`（タイムゾーンなし）を混在させると暗黙変換で値がずれる。
 
-### 7.1 現状との乖離（未対応）
+### 7.1 実装（#117 で対応済み）
 
-現行スキーマは上記方針を満たしておらず、以下の既知の問題がある。
+上記方針は、共通トリガ関数と各テーブルのトリガで実現している。
 
-| 問題 | 影響 | 該当箇所 |
-|---|---|---|
-| `updated_at` を更新する `BEFORE UPDATE` トリガが存在しない。Goコード側にも `updated_at` への代入がない | **`updated_at` が作成時刻のまま更新されない** | `blog_users` / `blogs` / `blog_likes` |
-| `created_at` は `timestamptz`、`updated_at` は `timestamp`（TZなし）で型が不整合 | TZ差異による値のずれ | 同上 |
+| 対象 | 内容 |
+|---|---|
+| 共通トリガ関数 | `public.set_updated_at()`（`NEW.updated_at = now()`）。`SET search_path = ''` でスキーマの参照を固定する |
+| トリガ | `trg_blog_users_set_updated_at` / `trg_blogs_set_updated_at` / `trg_blog_likes_set_updated_at`（いずれも `BEFORE UPDATE ... FOR EACH ROW`） |
+| 列 | 3 テーブルの `updated_at` を `timestamptz NOT NULL DEFAULT now()` に統一（以前は `timestamp`・NULL 許可） |
 
-- 該当は `work/backup.sql`（Supabase本番ダンプ）と `backend/testsupport/testdata/schema.sql`（IT/E2E用）の双方。
-- `blog_comments` は `updated_at` を持たない（更新機能がないため現状は問題にならない）。
-- スキーマ修正は影響範囲が異なるため別タスク（issue #117）として扱う。
+- 本番への適用手順は [`supabase-migration-guide.md` の付録 B](./supabase-migration-guide.md#付録-b-updated_at-の自動更新と型の統一117) を参照。テスト用スキーマ（`backend/testsupport/testdata/schema.sql`）も同じ定義にしている。
+- UPDATE 文で `updated_at` を指定しても、トリガが現在時刻で上書きする。
+- #117 以前は `updated_at` が作成時刻のまま更新されていなかった。過去の更新時刻は記録されていないため、既存行の `updated_at` は作成時刻のまま（移行時に復元はしない）。
+- `blog_comments` は `updated_at` を持たない（更新機能がないため）。
+- 監査列の定義は IT（`testsupport/schema_test.go`）で検査する。`updated_at` を持つテーブルにトリガが無い、または監査列が `timestamptz NOT NULL DEFAULT now()` でない場合に失敗する。

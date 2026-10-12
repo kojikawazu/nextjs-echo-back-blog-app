@@ -204,6 +204,12 @@
   - 対応: テストを `logger.*Log` の差し替え・完全一致の検証に書き直し、テーブルドリブン化。ログのレベル名の重複（`INFO: ... INFO: POST ...`）をなくした
   - CI の UT を `go test ./...` に変更し、追加したパッケージが自動で対象になるようにした
 
+- [x] **`updated_at` の自動更新と型の統一（#117）**
+  - 原因: `updated_at` は `DEFAULT now()` のみで、UPDATE 時に値を進めるトリガが無かった（作成時刻のまま固定）。型も `timestamp`（TZ なし）で `created_at`（`timestamptz`）と不整合だった
+  - 対応: 共通トリガ関数 `set_updated_at()` と `blog_users` / `blogs` / `blog_likes` の `BEFORE UPDATE` トリガを追加し、`updated_at` を `timestamptz NOT NULL` に統一。Go のコードは変更なし
+  - 本番は `supabase-migration-guide.md` 付録 B の手順で適用（ユーザーが SQL Editor で実行）。過去の更新時刻は記録されておらず復元しない
+  - テスト用スキーマに同じ定義を入れ、IT でスキーマ（トリガの付け忘れ・監査列の型）と UPDATE 時の値の進みを検査する
+
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし
   - 対応: Echo の`middleware.CSRF`の導入、またはカスタムCSRFトークン実装
