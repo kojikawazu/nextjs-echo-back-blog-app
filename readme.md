@@ -28,7 +28,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 |---|---|---|
 | 言語 | Go | 1.25 |
 | Web フレームワーク | Echo | v4.15.3 |
-| DB ドライバ | pgx/v4（pgxpool） | v4.18.3 |
+| DB ドライバ | pgx/v5（pgxpool） | v5.11.0 |
 | 認証 | golang-jwt/jwt/v5（HS256） | v5.3.1 |
 | データベース | Supabase（PostgreSQL） | - |
 | 実行環境 | Google Cloud Run | - |
@@ -88,7 +88,7 @@ docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 cd backend
 
 # 単体テスト（UT）: DB 不要・全 mock。handlers / services / middlewares / models。
-go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/...
+go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/... ./supabase/...
 
 # インテグレーションテスト（IT）: repositories 層。
 # 既定では testcontainers が使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

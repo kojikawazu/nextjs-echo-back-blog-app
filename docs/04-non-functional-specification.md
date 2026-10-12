@@ -34,16 +34,16 @@
 
 ### 1.1 データベース接続プール（pgxpool）
 
-Supabase（PostgreSQL）への接続には `jackc/pgx/v4/pgxpool` を使用し、以下の設定でコネクションプールを構成している。
+Supabase（PostgreSQL）への接続には `jackc/pgx/v5/pgxpool` を使用し、以下の設定でコネクションプールを構成している。
 
 | 設定項目 | 値 | 説明 |
 |---|---|---|
 | MaxConns | 10 | 同時接続の最大数 |
 | MaxConnIdleTime | 30秒 | アイドル状態のコネクションが破棄されるまでの時間 |
-| PreferSimpleProtocol | true | Prepared Statementの競合を防ぐためにSimple Protocolを優先 |
+| DefaultQueryExecMode | `QueryExecModeSimpleProtocol` | Supabase の pooler（トランザクションモード）で Prepared Statement が競合しないよう Simple Protocol で実行する（v4 の `PreferSimpleProtocol = true` に相当。#153） |
 | SSLMode | require | 接続URLに `?sslmode=require` を付与 |
 
-- 起動時に `Pool.Ping()` で接続確認を行い、さらに `SELECT 1` のテストクエリを実行して疎通を検証する。
+- プールの作成（`pgxpool.NewWithConfig`）時には接続しないため、起動時に `Pool.Ping()` で接続確認を行い、さらに `SELECT 1` のテストクエリを実行して疎通を検証する。
 - コネクションプールはグローバル変数 `supabase.Pool` として保持され、全リポジトリから共有される。
 
 ### 1.2 Cloud Run オートスケーリング

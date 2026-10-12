@@ -311,11 +311,11 @@ Supabase（PostgreSQL）
 | SSLモード | `sslmode=require` | URLに付与される |
 | 最大接続数 | 10 | `config.MaxConns` |
 | アイドルタイムアウト | 30秒 | `config.MaxConnIdleTime` |
-| Simple Protocol | 有効 | `config.ConnConfig.PreferSimpleProtocol = true` |
+| Simple Protocol | 有効 | `config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol` |
 
 ### 6.2 接続ライフサイクル
 
-1. **初期化**（`InitSupabase()`）: 接続URL解析 → プール設定 → 接続確立 → Ping確認
+1. **初期化**（`InitSupabase()`）: 接続URL解析とプール設定（`newPoolConfig()`）→ プール作成（`pgxpool.NewWithConfig`。この時点では接続しない）→ Ping で接続確認
 2. **テストクエリ**（`TestQuery()`）: `SELECT 1` を実行して動作確認
 3. **利用**: 各リポジトリが `supabase.Pool` と `supabase.Ctx`（`context.Background()`）を直接参照
 4. **終了**（`ClosePool()`）: グレースフルシャットダウン時にプールをクローズ

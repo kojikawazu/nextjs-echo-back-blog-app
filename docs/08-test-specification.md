@@ -87,7 +87,7 @@
 | `repositories/blogs/test/blogs_FetchBlogCategories_test.go` | カテゴリ取得 |
 | `repositories/blogs/test/blogs_FetchBlogTags_test.go` | タグ取得 |
 | `repositories/blogs/test/blogs_FetchBlogPopular_test.go` | 人気ブログ取得 + 境界（0件） |
-| `repositories/blogs/test/blogs_CreateBlog_test.go` | ブログ作成（異常系: 空userId） |
+| `repositories/blogs/test/blogs_CreateBlog_test.go` | ブログ作成（異常系: 空userId）、作成したブログの `created_at`（timestamptz）・`updated_at`（timestamp）が現在時刻付近で返ること（pgx v5 移行で日時型の Scan が変わっていないことの確認。#153） |
 | `repositories/blogs/test/blogs_UpdateBlog_test.go` | ブログ更新（異常系: 空id） |
 | `repositories/blogs/test/blogs_DeleteBlog_test.go` | ブログ削除（異常系: 空id） |
 | `repositories/blogs/test/blogs_pipeline_test.go` | ブログCRUDパイプライン |
@@ -173,6 +173,7 @@
 | ファイルパス | テスト対象 |
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
+| `supabase/client_test.go` | 接続設定（#153）: `buildConnString` が sslmode を付与すること（空なら `require`、既存クエリには `&` で連結）、`newPoolConfig` が Simple Protocol・最大 10 接続・アイドル 30 秒を設定すること、解析できない接続文字列でエラーを返すこと。Simple Protocol の指定は pooler の無い IT / E2E では外れても検出できないため UT で固定する |
 | `utils/cookie/jwt_test.go` | JWT の発行・検証（#152 / #156）: 発行したトークンが `aud`・`exp`・クレームを持つこと、形式不正・期限切れ・`exp` なし・別の鍵・`alg: none`・HS512・`aud` の取り違え（両方向）・`aud` なし・`user_id` / `visit_id` 空を拒否すること（v5 の sentinel を `errors.Is` で検証） |
 | `apperrors/apperrors_test.go` | sentinel が `errors.Is` で同一性判定されること（同じメッセージの別エラーとは一致しない）、`Wrap` が sentinel・原因の両方に一致すること |
 | `middlewares/error_handler_test.go` | `HTTPErrorHandler`: 各 Kind → ステータス（400/401/404/409/429/500）と統一エラーレスポンス、包まれた sentinel の判定、原因・Echo の独自メッセージ・想定外エラーの内容を本文に出さないこと、Echo の 404/405、HEAD、書き込み済みレスポンスを上書きしないこと、`SetupMiddlewares` 経由（ルート不在・panic を含む）で 1 回だけ書き込まれること |

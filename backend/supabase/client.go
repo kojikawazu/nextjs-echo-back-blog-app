@@ -10,7 +10,8 @@ import (
 
 	"backend/logger"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
@@ -41,6 +42,30 @@ func buildConnString(baseURL, sslmode string) string {
 	return baseURL + sep + "sslmode=" + sslmode
 }
 
+// newPoolConfig は接続文字列からコネクションプールの設定を組み立てる。
+// Supabase の pooler（トランザクションモード）は接続をまたいだ Prepared Statement に対応しないため、
+// クエリは Simple Protocol で実行する。
+//
+// 引数:
+//   - connString: 接続文字列
+//
+// 戻り値:
+//   - *pgxpool.Config: コネクションプールの設定
+//   - error: 接続文字列を解析できない場合のエラー
+func newPoolConfig(connString string) (*pgxpool.Config, error) {
+	config, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, err
+	}
+
+	// コネクションプールの設定
+	config.MaxConns = 10
+	config.MaxConnIdleTime = 30 * time.Second
+	// Prepared Statementの競合を防ぐためにSimple Protocolを使う
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	return config, nil
+}
+
 // InitSupabase は Supabase の接続を初期化する。
 // 接続URLを環境変数から取得し、コネクションプールを設定する。
 // コネクションの最大数やアイドルタイム、シンプルプロトコルの使用を設定する。
@@ -55,20 +80,15 @@ func InitSupabase() error {
 	logger.InfoLog.Println("Initializing Supabase client...")
 	supabaseURL := buildConnString(os.Getenv("SUPABASE_URL"), os.Getenv("DB_SSLMODE"))
 
-	config, err := pgxpool.ParseConfig(supabaseURL)
+	config, err := newPoolConfig(supabaseURL)
 	if err != nil {
 		log.Printf("Unable to parse database URL: %v", err)
 		return fmt.Errorf("unable to parse database URL: %v", err)
 	}
 
-	// コネクションプールの設定
-	config.MaxConns = 10
-	config.MaxConnIdleTime = 30 * time.Second
-	// Prepared Statementの競合を防ぐためにSimple Protocolを優先
-	config.ConnConfig.PreferSimpleProtocol = true
-
+	// v5 のプールは作成時に接続しないため、直後の Ping で接続を確認する
 	logger.InfoLog.Println("Connecting supabase database...")
-	Pool, err = pgxpool.ConnectConfig(Ctx, config)
+	Pool, err = pgxpool.NewWithConfig(Ctx, config)
 	if err != nil {
 		logger.ErrorLog.Printf("Unable to connect to Supabase: %v", err)
 		return fmt.Errorf("unable to connect to Supabase: %v", err)

@@ -7,7 +7,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v5"
 )
 
 // FetchBlogs は全ブログデータを取得する。
