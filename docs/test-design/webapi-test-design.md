@@ -176,6 +176,9 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 | S-1 | Cookieなし → 未認証 | Cookie欠如 | 401 | Unit | High |
 | S-2 | 期限切れトークン → 未認証 | 期限切れJWT | 401 | Unit | High |
 | S-3 | 不正なトークン値 → 未認証 | `token: "invalid"` | 401 | Unit | High |
+| S-4 | 訪問者トークン → 未認証（#156） | `token` に `visit-id-token` の値 | 401 `AUTH_TOKEN_INVALID` | Unit / E2E | High |
+| S-5 | `aud` なしの旧形式トークン → 未認証（#156） | `aud` を持たない JWT | 401 `AUTH_TOKEN_INVALID` | Unit | High |
+| S-6 | `alg: none` のトークン → 未認証（#152） | 署名なしの JWT | 401 `AUTH_TOKEN_INVALID` | Unit（`utils/cookie`）/ E2E | High |
 
 ### 1-3. Handler層: Logout
 

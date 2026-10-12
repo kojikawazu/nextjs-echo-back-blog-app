@@ -299,7 +299,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 | 言語 | Go | 1.20 | メイン開発言語 |
 | Webフレームワーク | Echo | v4.12.0 | HTTPサーバー、ルーティング、ミドルウェア |
 | DBドライバ | pgx/v4 | v4.18.3 | PostgreSQL接続（コネクションプール） |
-| 認証 | golang-jwt/jwt | v3.2.2 | JWT トークン生成・検証 |
+| 認証 | golang-jwt/jwt/v5 | v5.3.1 | JWT トークン生成・検証（`utils/cookie/jwt.go` に集約。#152） |
 | 環境変数 | godotenv | v1.5.1 | .env ファイル読み込み |
 | UUID | google/uuid | v1.6.0 | UUID生成・バリデーション |
 | テスト | testify | v1.9.0 | アサーション・モック |
@@ -424,7 +424,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
 | `lint` | gofmt（`gofmt -l .`）/ go vet / golangci-lint（v2.12.2） | フォーマット・静的解析・統合リンタ |
-| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO・エラー定義（apperrors）の UT を実行。DB を必要としない |
+| `test` | `go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全 mock の Handler/Service/Middleware 層・ルーティング（レートリミットの適用先）・モデル・DTO・エラー定義（apperrors）・JWT の発行/検証（utils/cookie）の UT を実行。DB を必要としない |
 | `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
 
@@ -909,7 +909,7 @@ go run main.go
 cd backend
 
 # 単体テスト（UT / DB 不要・全 mock）
-go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/...
+go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/...
 
 # インテグレーションテスト（IT / Repository 層）。既定で testcontainers が
 # 使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。

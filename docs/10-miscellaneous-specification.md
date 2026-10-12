@@ -35,7 +35,7 @@
 | 用語 | 説明 |
 |------|------|
 | **Echo** | Go言語用の軽量・高パフォーマンスなWebフレームワーク。本プロジェクトではv4.12.0を使用。ルーティング、ミドルウェア、リクエスト/レスポンスのバインディング機能を提供する。 |
-| **JWT (JSON Web Token)** | 認証トークンの標準規格。本プロジェクトでは`golang-jwt/jwt v3.2.2`を使用し、HS256アルゴリズムで署名する。有効期限は1時間。HTTP-onlyクッキーに格納して管理する。 |
+| **JWT (JSON Web Token)** | 認証トークンの標準規格。本プロジェクトでは`golang-jwt/jwt/v5`（v5.3.1）を使用し、HS256アルゴリズムで署名する。有効期限は1時間。HTTP-onlyクッキーに格納して管理する。 |
 | **Supabase** | PostgreSQLベースのBaaS（Backend as a Service）。本プロジェクトではデータベースとして利用し、`pgx/v4`ドライバーを通じてコネクションプール（最大10接続）で接続する。 |
 | **Cloud Run** | Google Cloudのサーバーレスコンテナ実行プラットフォーム。リクエスト駆動で起動し、未使用時はゼロにスケールダウンするため、低トラフィック環境でのコスト最適化に適している。 |
 | **Artifact Registry** | Google CloudのDockerイメージ管理サービス。CI/CDパイプラインでビルドしたコンテナイメージの保存先として使用する。 |
@@ -55,7 +55,7 @@
 | フロントエンドリポジトリ | https://github.com/kojikawazu/nextjs-echo-blog-front-app-renew |
 | Echo フレームワーク | https://echo.labstack.com/ |
 | Supabase | https://supabase.com/ |
-| golang-jwt | https://github.com/golang-jwt/jwt |
+| golang-jwt | https://github.com/golang-jwt/jwt （v5） |
 | pgx ドライバー | https://github.com/jackc/pgx |
 | Google Cloud Run | https://cloud.google.com/run |
 | Terraform GCP Provider | https://registry.terraform.io/providers/hashicorp/google/latest |

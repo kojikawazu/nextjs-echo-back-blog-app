@@ -163,7 +163,7 @@
 | `handlers/blog_likes/blog_likes_GenerateVisitorId_test.go` | 訪問者ID生成ハンドラ |
 | `handlers/auth/auth_test.go` | 認証ハンドラ |
 | `handlers/auth/auth_Login_test.go` | ログインハンドラ |
-| `handlers/auth/auth_CheckAuth_test.go` | 認証確認ハンドラ |
+| `handlers/auth/auth_CheckAuth_test.go` | 認証確認ハンドラ（訪問者トークン・`aud` なしの旧形式トークンを拒否すること。#156） |
 | `handlers/auth/auth_Logout_test.go` | ログアウトハンドラ |
 | `handlers/auth/auth_pipeline_test.go` | 認証フローパイプライン |
 | `handlers/auth/auth_log_test.go` | ログイン・認証確認時のログに資格情報が残らず、ユーザー ID で識別されること |
@@ -173,6 +173,7 @@
 | ファイルパス | テスト対象 |
 |-------------|-----------|
 | `utils/log/utils_log_test.go` | ログユーティリティ |
+| `utils/cookie/jwt_test.go` | JWT の発行・検証（#152 / #156）: 発行したトークンが `aud`・`exp`・クレームを持つこと、形式不正・期限切れ・`exp` なし・別の鍵・`alg: none`・HS512・`aud` の取り違え（両方向）・`aud` なし・`user_id` / `visit_id` 空を拒否すること（v5 の sentinel を `errors.Is` で検証） |
 | `apperrors/apperrors_test.go` | sentinel が `errors.Is` で同一性判定されること（同じメッセージの別エラーとは一致しない）、`Wrap` が sentinel・原因の両方に一致すること |
 | `middlewares/error_handler_test.go` | `HTTPErrorHandler`: 各 Kind → ステータス（400/401/404/409/429/500）と統一エラーレスポンス、包まれた sentinel の判定、原因・Echo の独自メッセージ・想定外エラーの内容を本文に出さないこと、Echo の 404/405、HEAD、書き込み済みレスポンスを上書きしないこと、`SetupMiddlewares` 経由（ルート不在・panic を含む）で 1 回だけ書き込まれること |
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー（4xx は WARN、5xx は ERROR）・JSON 出力・機密ヘッダ非記録） |
@@ -499,7 +500,7 @@ func TestHandler_FetchBlogs(t *testing.T) {
 | `blogs_crud_test.go` | 正常系: 作成(201)→詳細→更新(200)→削除(204) / 準正常系: 未認証作成 → 401 |
 | `likes_comments_test.go` | 正常系: 訪問者ID発行→いいね作成/確認/削除、コメント一覧/作成(201) |
 | `users_test.go` | 正常系: ユーザー取得のレスポンスに password キーが含まれない（公開フィールドのみ） / 準正常系: 未認証のユーザー取得 → 401。ユーザー更新はアカウントを書き換えるため E2E では行わず、レスポンスの DTO はハンドラ UT で検証する |
-| `errors_test.go` | 準正常系: 統一エラーレスポンス `{"code","error"}`（他のキーを含まない）とステータス。ルート不在 404・ブログ不在 404・UUID 形式でない ID 400・count=0 400・ログイン欠落 400 / 誤パスワード 401・Cookie 無し 401・コメント欠落 400・不正な JSON 400・存在しないブログの更新 404・現パスワード誤りのユーザー更新 400（更新されず元のパスワードでログインできる）・二重いいね 409・いいね系 4 エンドポイントで訪問者トークン無し 401 `VISITOR_TOKEN_MISSING` / 不正（形式不正・別の鍵で署名・期限切れ）401 `VISITOR_TOKEN_INVALID` |
+| `errors_test.go` | 準正常系: 統一エラーレスポンス `{"code","error"}`（他のキーを含まない）とステータス。ルート不在 404・ブログ不在 404・UUID 形式でない ID 400・count=0 400・ログイン欠落 400 / 誤パスワード 401・Cookie 無し 401・コメント欠落 400・不正な JSON 400・存在しないブログの更新 404・現パスワード誤りのユーザー更新 400（更新されず元のパスワードでログインできる）・二重いいね 409・いいね系 4 エンドポイントで訪問者トークン無し 401 `VISITOR_TOKEN_MISSING` / 不正（形式不正・別の鍵で署名・期限切れ）401 `VISITOR_TOKEN_INVALID`・トークンの取り違え（訪問者トークンで auth-check → 401 `AUTH_TOKEN_INVALID`、認証トークンでいいね一覧 → 401 `VISITOR_TOKEN_INVALID`。#156）・`alg: none` の認証トークン 401 |
 
 #### 主なエンドポイントの期待ステータス（E2E で確定）
 

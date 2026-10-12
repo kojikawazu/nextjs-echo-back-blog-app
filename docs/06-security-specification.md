@@ -56,7 +56,8 @@
 | 署名鍵 | 環境変数 `JWT_SECRET_KEY` から取得 |
 | トークン有効期限 | 1時間（`time.Now().Add(1 * time.Hour)`） |
 | トークン格納先 | HTTP-only Cookie（Cookie名: `token`） |
-| JWTライブラリ | `github.com/golang-jwt/jwt v3.2.2+incompatible` |
+| JWTライブラリ | `github.com/golang-jwt/jwt/v5`（v5.3.1。#152 で v3.2.2 から移行） |
+| トークンの種類 | `aud` クレームで区別する（認証: `auth`、訪問者: `visitor`。#156） |
 
 ### 1.2 認証トークンのペイロード
 
@@ -65,9 +66,24 @@ type Claims struct {
     UserID   string `json:"user_id"`   // ユーザーUUID
     Email    string `json:"email"`     // メールアドレス
     Username string `json:"username"`  // ユーザー名
-    jwt.StandardClaims                 // ExpiresAt（有効期限）
+    jwt.RegisteredClaims               // Audience（"auth"）・ExpiresAt（有効期限）
 }
 ```
+
+#### 検証で必ず確認する項目
+
+発行・検証は `utils/cookie/jwt.go`（`NewAuthToken` / `NewVisitorToken` / `ParseAuthToken` / `ParseVisitorToken`）に集約し、検証箇所ごとに挙動が変わらないようにしている（#152 / #156）。
+
+| 項目 | 内容 | 不一致時 |
+|---|---|---|
+| 署名アルゴリズム | `HS256` のみ許可（`jwt.WithValidMethods`）。`alg: none` や HS512 等の別アルゴリズムは拒否 | 401 |
+| 署名 | `JWT_SECRET_KEY` で検証 | 401 |
+| `aud` | 認証トークンは `auth`、訪問者トークンは `visitor` と一致すること（`jwt.WithAudience`） | 401 |
+| `exp` | 必須（`jwt.WithExpirationRequired`）かつ期限内 | 401 |
+| `user_id` / `visit_id` | 空でないこと | 401 |
+
+- 認証トークンと訪問者トークンは同じ鍵で署名するため、署名の検証だけでは種類を区別できない。#156 以前は、誰でも取得できる訪問者トークンを `token` Cookie に入れると `GET /api/users/auth-check` が `200 Authenticated`（user_id は空）を返していた。`aud` の照合で、取り違えを双方向とも拒否する。
+- `aud` を持たない旧形式のトークン（#156 のデプロイ前に発行されたもの）は拒否される。デプロイ時、オーナーは 1 回だけ再ログインが必要になり、訪問者 ID は再発行される（いずれも有効期限は 1 時間）。
 
 ### 1.3 認証フロー
 
@@ -83,7 +99,7 @@ type Claims struct {
 #### 認証確認（`GET /api/users/auth-check`）
 
 1. `token` Cookieからトークン文字列を取得する。
-2. `jwt.ParseWithClaims` でトークンを検証する（署名・有効期限）。
+2. `ParseAuthToken` でトークンを検証する（アルゴリズム・署名・`aud`・有効期限・`user_id`。上表）。不在は 401 `AUTH_TOKEN_MISSING`、検証失敗は 401 `AUTH_TOKEN_INVALID`。
 3. 検証成功時に `user_id`, `username`, `email` を返却する。
 
 #### ログアウト（`POST /api/users/logout`）
@@ -219,7 +235,7 @@ var IsProduction = os.Getenv("ENV") == "production"
 2. 既存の `visit-id-token` Cookieが有効か確認する。
 3. 有効なCookieが存在しない場合、以下を実行する:
    - `uuid.New().String()` でUUIDを生成する。
-   - UUIDをClaimsに含めたJWTトークンを作成する（HS256、1時間有効）。
+   - UUIDをClaimsに含めたJWTトークンを作成する（HS256、`aud: visitor`、1時間有効）。
    - `visit-id-token` CookieにJWTトークンを格納する。
 4. 有効なCookieが存在する場合、生成をスキップする。
 

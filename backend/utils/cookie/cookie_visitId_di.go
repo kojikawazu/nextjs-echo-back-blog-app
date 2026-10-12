@@ -2,13 +2,10 @@ package utils_cookie
 
 import (
 	"backend/config"
-	"backend/models"
-	"errors"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
@@ -25,17 +22,7 @@ func (u *CookieUtilsImpl) CreateVisitIdToken() (string, error) {
 	// トークンの有効期限を1時間に設定
 	expirationTime := u.GetAuthCookieExpirationTime()
 	// JWTトークンの作成
-	claims := &models.ClaimsVisitId{
-		VisitId: visitorID,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	// トークンを作成
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// トークンを文字列に変換
-	tokenString, err := token.SignedString(config.JwtKey)
+	tokenString, err := NewVisitorToken(visitorID, expirationTime)
 	if err != nil {
 		log.Println("Could not create JWT token: " + err.Error())
 		return "", err
@@ -76,22 +63,11 @@ func (u *CookieUtilsImpl) AddVisitIdCoookie(c echo.Context, tokenString string, 
 //
 // 戻り値:
 //   - string: トークンから取得した訪問者ID
-//   - error: トークンが無効または有効期限切れの場合のエラー
+//   - error: 形式不正・署名不正・期限切れ・種類違い（認証トークン等）・visit_id 空の場合のエラー
 func (u *CookieUtilsImpl) GetVisitIdFromToken(c echo.Context, tokenString string) (string, error) {
-	claims := &models.ClaimsVisitId{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return config.JwtKey, nil
-	})
-
+	claims, err := ParseVisitorToken(tokenString)
 	if err != nil {
 		return "", err
 	}
-
-	// トークンの有効期限をチェック (Unixタイムスタンプとして比較)
-	expirationTime := time.Unix(claims.ExpiresAt, 0)
-	if !token.Valid || expirationTime.Before(time.Now()) {
-		return "", errors.New("token expired or invalid")
-	}
-
 	return claims.VisitId, nil
 }
