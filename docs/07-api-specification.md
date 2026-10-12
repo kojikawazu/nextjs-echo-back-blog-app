@@ -92,9 +92,9 @@
 | `INVALID_REQUEST_BODY` | 400 | リクエストボディのパース（バインド）に失敗 |
 | `INVALID_CURRENT_PASSWORD` | 400 | ユーザー更新時、現在のパスワードが一致しない |
 | `AUTH_TOKEN_MISSING` | 401 | 認証トークン（token Cookie）が存在しない |
-| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが不正・期限切れ |
+| `AUTH_TOKEN_INVALID` | 401 | 認証トークンが不正・期限切れ・種類違い（訪問者トークン等） |
 | `VISITOR_TOKEN_MISSING` | 401 | 訪問者トークン（visit-id-token Cookie）が存在しない（`GET /api/blog-likes/generate-visit-id` で再発行できる） |
-| `VISITOR_TOKEN_INVALID` | 401 | 訪問者トークンが不正・期限切れ（同上） |
+| `VISITOR_TOKEN_INVALID` | 401 | 訪問者トークンが不正・期限切れ・種類違い（認証トークン等）（同上） |
 | `INVALID_CREDENTIALS` | 401 | ログイン失敗（ユーザー不在・パスワード不一致を区別しない） |
 | `BLOG_NOT_FOUND` | 404 | 該当するブログが存在しない |
 | `USER_NOT_FOUND` | 404 | 該当するユーザーが存在しない |
@@ -235,7 +235,7 @@ Cookieに含まれるJWTトークンの有効性を検証する。
 | ステータス | コード | エラーメッセージ | 条件 |
 |-----------|--------|----------------|------|
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 
 > #123 以前は本文のキーが `message`（`{"message": "Token not found"}` 等）だったが、共通エラーレスポンス形式に統一した。
 
@@ -305,7 +305,7 @@ JWTトークンからユーザーIDを取得し、そのユーザーの詳細情
 |-----------|--------|----------------|------|
 | 400 Bad Request | `VALIDATION_ERROR` | `Id is required` | トークンから取得したユーザー ID が空 |
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 | 404 Not Found | `USER_NOT_FOUND` | `User not found` | トークンのユーザーが存在しない（#123 で 500 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
@@ -370,7 +370,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | 400 Bad Request | `VALIDATION_ERROR` | `Password is too long` | newPassword が 72 バイトを超える（bcrypt の上限） |
 | 400 Bad Request | `INVALID_CURRENT_PASSWORD` | `Invalid current password` | 現在のパスワードが一致しない（#123 で 500 から変更） |
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 | 404 Not Found | `USER_NOT_FOUND` | `User not found` | トークンのユーザーが存在しない（#123 で 500 から変更） |
 | 429 Too Many Requests | `TOO_MANY_REQUESTS` | `Too many requests` | 認証系レートリミット超過（`POST /api/users/login` と共有。5 回/分） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得・更新エラー、パスワードのハッシュ化失敗、トークン再作成に失敗 |
@@ -674,7 +674,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | 400 Bad Request | `VALIDATION_ERROR` | `Invalid description` | description が空 |
 | 400 Bad Request | `VALIDATION_ERROR` | `Invalid tags` | tags が空 |
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 作成エラー |
 
 ---
@@ -746,7 +746,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | 400 Bad Request | `VALIDATION_ERROR` | `Invalid description` | description が空 |
 | 400 Bad Request | `VALIDATION_ERROR` | `Invalid tags` | tags が空 |
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 | 404 Not Found | `BLOG_NOT_FOUND` | `Blog not found` | 該当ブログが存在しない（#123 で 500 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 更新エラー |
 
@@ -779,7 +779,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 |-----------|--------|----------------|------|
 | 400 Bad Request | `VALIDATION_ERROR` | `Invalid id` | id が空、または UUID 形式でない（#123 で UUID 形式の検証を Service 層に移動。以前は 500） |
 | 401 Unauthorized | `AUTH_TOKEN_MISSING` | `Authentication token is missing` | token Cookie が存在しない |
-| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・期限切れ・無効 |
+| 401 Unauthorized | `AUTH_TOKEN_INVALID` | `Authentication token is invalid` | トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（訪問者トークン等。#156）・`user_id` が空 |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 削除エラー |
 
 > **注意**: 存在しない（UUID 形式は正しい）ID の削除はエラーにせず `204 No Content` を返す（冪等な削除として扱う）。
@@ -820,7 +820,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 |-----------|--------|----------------|------|
 | 400 Bad Request | `VALIDATION_ERROR` | `VisitId is empty` | トークンから取得した訪問者 ID が空 |
 | 401 Unauthorized | `VISITOR_TOKEN_MISSING` | `Visitor token is missing` | visit-id-token Cookie が存在しない（#148 で 500 から変更） |
-| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ（#148 で 500 から変更） |
+| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（認証トークン等。#156）・`visit_id` が空（#148 で 500 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 取得エラー |
 
 ---
@@ -901,7 +901,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 |-----------|--------|----------------|------|
 | 400 Bad Request | `VALIDATION_ERROR` | `BlogId or VisitId is empty` | blogId または訪問者 ID が空 |
 | 401 Unauthorized | `VISITOR_TOKEN_MISSING` | `Visitor token is missing` | visit-id-token Cookie が存在しない（#148 で 500 から変更） |
-| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ（#148 で 500 から変更） |
+| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（認証トークン等。#156）・`visit_id` が空（#148 で 500 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 確認エラー（#123 で変更。以前は DB 障害も `200 OK` の `{"isLiked": false}` に握り潰していた） |
 
 > いいねが存在しない場合はエラーではなく `200 OK` で `{"isLiked": false}` を返す（Repository 層が「該当なし」をエラーではなく `false` として返す）。
@@ -943,7 +943,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 |-----------|--------|----------------|------|
 | 400 Bad Request | `VALIDATION_ERROR` | `BlogId or VisitId is empty` | blogId または訪問者 ID が空（#123 で 500 から変更） |
 | 401 Unauthorized | `VISITOR_TOKEN_MISSING` | `Visitor token is missing` | visit-id-token Cookie が存在しない（#148 で 500 から変更） |
-| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ（#148 で 500 から変更） |
+| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（認証トークン等。#156）・`visit_id` が空（#148 で 500 から変更） |
 | 409 Conflict | `ALREADY_LIKED` | `Blog is already liked` | 既にいいね済み（#123 で 400 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | いいね済みかの確認、または DB 作成エラー |
 
@@ -979,7 +979,7 @@ JWTトークンで認証されたユーザーの情報を更新する。更新�
 | ステータス | コード | エラーメッセージ | 条件 |
 |-----------|--------|----------------|------|
 | 401 Unauthorized | `VISITOR_TOKEN_MISSING` | `Visitor token is missing` | visit-id-token Cookie が存在しない（#148 で 500 から変更） |
-| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ（#148 で 500 から変更） |
+| 401 Unauthorized | `VISITOR_TOKEN_INVALID` | `Visitor token is invalid` | 訪問者トークンの解析失敗・署名不正・期限切れ・`exp` なし・種類違い（認証トークン等。#156）・`visit_id` が空（#148 で 500 から変更） |
 | 500 Internal Server Error | `INTERNAL_ERROR` | `Internal server error` | DB 削除エラー |
 
 ---

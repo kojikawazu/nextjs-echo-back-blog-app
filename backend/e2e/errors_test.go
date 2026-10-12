@@ -5,6 +5,7 @@ package e2e
 import (
 	"backend/config"
 	"backend/models"
+	utils_cookie "backend/utils/cookie"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -224,18 +225,19 @@ var visitorTokenEndpoints = []struct {
 func newClientWithVisitorToken(t *testing.T, token string) *http.Client {
 	t.Helper()
 	client := newClient(t)
-	u, err := url.Parse(baseURL)
-	require.NoError(t, err)
-	client.Jar.SetCookies(u, []*http.Cookie{{Name: "visit-id-token", Value: token, Path: "/"}})
+	setCookie(t, client, "visit-id-token", token)
 	return client
 }
 
-// signVisitorToken は key で署名した訪問者トークンを返す。
+// signVisitorToken は key で署名した訪問者トークン（aud=visitor）を返す。
 func signVisitorToken(t *testing.T, key []byte, expiresAt time.Time) string {
 	t.Helper()
 	claims := &models.ClaimsVisitId{
-		VisitId:        "e2e-visitor",
-		StandardClaims: jwt.StandardClaims{ExpiresAt: expiresAt.Unix()},
+		VisitId: "e2e-visitor",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{utils_cookie.AudienceVisitor},
+			ExpiresAt: jwt.NewNumericDate(expiresAt),
+		},
 	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(key)
 	require.NoError(t, err)
@@ -282,4 +284,69 @@ func TestE2E_Error_VisitorTokenInvalid(t *testing.T) {
 			})
 		}
 	}
+}
+
+// cookieValue は client が保持する name の Cookie の値を返す（無ければテストを失敗させる）。
+func cookieValue(t *testing.T, client *http.Client, name string) string {
+	t.Helper()
+	u, err := url.Parse(baseURL)
+	require.NoError(t, err)
+	for _, c := range client.Jar.Cookies(u) {
+		if c.Name == name {
+			return c.Value
+		}
+	}
+	t.Fatalf("cookie %q not found", name)
+	return ""
+}
+
+// setCookie は client に name=value の Cookie を設定する。
+func setCookie(t *testing.T, client *http.Client, name, value string) {
+	t.Helper()
+	u, err := url.Parse(baseURL)
+	require.NoError(t, err)
+	client.Jar.SetCookies(u, []*http.Cookie{{Name: name, Value: value, Path: "/"}})
+}
+
+// 準正常系: 誰でも発行できる訪問者トークンを token Cookie に入れても認証を通さない（#156。以前は 200 Authenticated）。
+func TestE2E_Error_VisitorTokenAsAuthToken(t *testing.T) {
+	client := newClient(t)
+	gen := doJSON(t, client, http.MethodGet, "/api/blog-likes/generate-visit-id", nil)
+	gen.Body.Close()
+	require.Equal(t, http.StatusOK, gen.StatusCode)
+	setCookie(t, client, "token", cookieValue(t, client, "visit-id-token"))
+
+	resp := doJSON(t, client, http.MethodGet, "/api/users/auth-check", nil)
+
+	assertErrorResponse(t, resp, http.StatusUnauthorized, "AUTH_TOKEN_INVALID", "Authentication token is invalid")
+}
+
+// 準正常系: 認証トークンを visit-id-token Cookie に入れても訪問者として扱わない（#156）。
+func TestE2E_Error_AuthTokenAsVisitorToken(t *testing.T) {
+	client := newClient(t)
+	login(t, client)
+	setCookie(t, client, "visit-id-token", cookieValue(t, client, "token"))
+
+	resp := doJSON(t, client, http.MethodGet, "/api/blog-likes", nil)
+
+	assertErrorResponse(t, resp, http.StatusUnauthorized, "VISITOR_TOKEN_INVALID", "Visitor token is invalid")
+}
+
+// 準正常系: alg=none（署名なし）の認証トークンは受け付けない（#152）。
+func TestE2E_Error_AuthTokenAlgNone(t *testing.T) {
+	claims := &models.Claims{
+		UserID: "00000000-0000-0000-0000-000000000000",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Audience:  jwt.ClaimStrings{utils_cookie.AudienceAuth},
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodNone, claims).SignedString(jwt.UnsafeAllowNoneSignatureType)
+	require.NoError(t, err)
+	client := newClient(t)
+	setCookie(t, client, "token", token)
+
+	resp := doJSON(t, client, http.MethodGet, "/api/users/auth-check", nil)
+
+	assertErrorResponse(t, resp, http.StatusUnauthorized, "AUTH_TOKEN_INVALID", "Authentication token is invalid")
 }

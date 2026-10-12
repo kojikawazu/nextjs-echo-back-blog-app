@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,19 +22,7 @@ func (u *CookieUtilsImpl) CreateToken(user *models.BlogUsersData) (string, error
 	// トークンの有効期限を1時間に設定
 	expirationTime := u.GetAuthCookieExpirationTime()
 	// JWTトークンの作成
-	claims := &models.Claims{
-		UserID:   user.ID,
-		Email:    user.Email,
-		Username: user.Name,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-
-	// トークンを作成
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	// トークンを文字列に変換
-	tokenString, err := token.SignedString(config.JwtKey)
+	tokenString, err := NewAuthToken(user, expirationTime)
 	if err != nil {
 		log.Println("Could not create JWT token: " + err.Error())
 		return "", err

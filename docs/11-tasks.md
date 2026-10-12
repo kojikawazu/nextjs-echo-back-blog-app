@@ -182,6 +182,12 @@
   - クライアント IP は `X-Forwarded-For` の右端側から取る（`echo.ExtractIPFromXFFHeader`）。Cloud Run の最大インスタンス数を 3 に固定
   - 残: BFF 経由のリクエストは BFF の IP で数えられ、利用者全体で 1 つの枠を共有する（#146）
 
+- [x] **JWT ライブラリの v5 移行とトークン種類の取り違え防止（#152 / #156）**
+  - 対応: `golang-jwt/jwt` v3.2.2（Dependabot の high アラート。修正版なし）を v5.3.1 へ移行。発行・検証を `utils/cookie/jwt.go` に集約し、`alg` を HS256 に固定、`exp` を必須化
+  - 併せて #156 を修正: 訪問者トークンを `token` Cookie に入れると auth-check が 200 を返していた。`aud`（`auth` / `visitor`）で種類を区別し、`user_id` / `visit_id` が空のトークンも拒否
+  - 影響: デプロイ前に発行された `aud` なしのトークンは無効になる（オーナーは 1 回再ログイン、訪問者 ID は再発行）
+  - 残: pgx v5 移行（#153）、testcontainers 更新（#154）。親 issue #151
+
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし
   - 対応: Echo の`middleware.CSRF`の導入、またはカスタムCSRFトークン実装

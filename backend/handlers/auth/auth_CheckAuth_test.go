@@ -6,31 +6,41 @@ import (
 	"backend/models"
 	services_auth "backend/services/auth"
 	services_users "backend/services/blog_users"
+	utils_cookie "backend/utils/cookie"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 )
 
-// generateTestToken はテスト用JWTトークンを生成するヘルパー
+// generateTestToken はテスト用の認証トークンを生成するヘルパー
 func generateTestToken(t *testing.T, expiresAt time.Time) string {
 	t.Helper()
-	claims := &models.Claims{
-		UserID:   "user123",
-		Email:    "test@example.com",
-		Username: "Test User",
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expiresAt.Unix(),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(config.JwtKey)
+	tokenString, err := utils_cookie.NewAuthToken(&models.BlogUsersData{
+		ID:    "user123",
+		Email: "test@example.com",
+		Name:  "Test User",
+	}, expiresAt)
 	if err != nil {
 		t.Fatalf("failed to generate test token: %v", err)
+	}
+	return tokenString
+}
+
+// generateLegacyToken は aud を持たない（#156 以前の形式の）トークンを生成するヘルパー
+func generateLegacyToken(t *testing.T) string {
+	t.Helper()
+	claims := &models.Claims{
+		UserID:           "user123",
+		RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour))},
+	}
+	tokenString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(config.JwtKey)
+	if err != nil {
+		t.Fatalf("failed to generate legacy token: %v", err)
 	}
 	return tokenString
 }
@@ -69,6 +79,26 @@ func TestHandler_CheckAuth(t *testing.T) {
 			setupCookie: func(req *http.Request) {
 				tokenString := generateTestToken(t, time.Now().Add(-1*time.Hour))
 				req.AddCookie(&http.Cookie{Name: "token", Value: tokenString})
+			},
+			wantErr: apperrors.ErrAuthTokenInvalid,
+		},
+		{
+			// 誰でも発行できる訪問者トークンでは認証を通さない（#156。以前は 200 Authenticated を返していた）
+			name: "準正常系_訪問者トークンの場合はErrAuthTokenInvalidを返す",
+			setupCookie: func(req *http.Request) {
+				tokenString, err := utils_cookie.NewVisitorToken("visitor-1", time.Now().Add(1*time.Hour))
+				if err != nil {
+					t.Fatalf("failed to generate visitor token: %v", err)
+				}
+				req.AddCookie(&http.Cookie{Name: "token", Value: tokenString})
+			},
+			wantErr: apperrors.ErrAuthTokenInvalid,
+		},
+		{
+			// aud を持たない旧形式のトークンは受け付けない（#156 のデプロイで 1 回だけ再ログインが必要）
+			name: "準正常系_audを持たない旧形式のトークンの場合はErrAuthTokenInvalidを返す",
+			setupCookie: func(req *http.Request) {
+				req.AddCookie(&http.Cookie{Name: "token", Value: generateLegacyToken(t)})
 			},
 			wantErr: apperrors.ErrAuthTokenInvalid,
 		},

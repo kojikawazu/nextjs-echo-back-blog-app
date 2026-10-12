@@ -1,13 +1,10 @@
 package utils_cookie
 
 import (
-	"backend/config"
 	"backend/models"
-	"errors"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
@@ -74,22 +71,7 @@ func (u *CookieUtilsImpl) ExistsAuthCookie(c echo.Context, tokenName string) boo
 //
 // 戻り値:
 //   - *models.Claims: 検証に成功したトークンのクレーム情報
-//   - error: トークンが無効または有効期限切れの場合のエラー
+//   - error: 形式不正・署名不正・期限切れ・種類違い（訪問者トークン等）・user_id 空の場合のエラー
 func (u *CookieUtilsImpl) VerifyToken(c echo.Context, tokenString string) (*models.Claims, error) {
-	claims := &models.Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return config.JwtKey, nil
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	// トークンの有効期限をチェック (Unixタイムスタンプとして比較)
-	expirationTime := time.Unix(claims.ExpiresAt, 0)
-	if !token.Valid || expirationTime.Before(time.Now()) {
-		return nil, errors.New("token expired or invalid")
-	}
-
-	return claims, nil
+	return ParseAuthToken(tokenString)
 }

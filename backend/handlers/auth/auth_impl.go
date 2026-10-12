@@ -2,8 +2,6 @@ package handlers_auth
 
 import (
 	"backend/apperrors"
-	"backend/config"
-	"backend/models"
 	utils_cookie "backend/utils/cookie"
 	utils "backend/utils/log"
 
@@ -11,7 +9,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt"
 	"github.com/labstack/echo/v4"
 )
 
@@ -54,16 +51,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 
 	// JWTトークンの作成
 	expirationTime := time.Now().Add(1 * time.Hour) // トークンの有効期限を1時間に設定
-	claims := &models.Claims{
-		UserID:   user.ID,
-		Email:    user.Email,
-		Username: user.Name,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString(config.JwtKey)
+	tokenString, err := utils_cookie.NewAuthToken(user, expirationTime)
 	if err != nil {
 		return fmt.Errorf("create token: %w", err)
 	}
@@ -82,7 +70,7 @@ func (h *AuthHandler) Login(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（token クッキーを含む）
 //
 // 戻り値:
-//   - error: トークン不在は apperrors.ErrAuthTokenMissing、解析失敗・無効は ErrAuthTokenInvalid。成功時はユーザー情報を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
+//   - error: トークン不在は apperrors.ErrAuthTokenMissing、形式不正・署名不正・期限切れ・種類違い（訪問者トークン等）・user_id 空は ErrAuthTokenInvalid。成功時はユーザー情報を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	utils.LogInfo(c, "Checking authentication...")
 
@@ -93,17 +81,10 @@ func (h *AuthHandler) CheckAuth(c echo.Context) error {
 	}
 	tokenString := cookie.Value
 
-	claims := &models.Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return config.JwtKey, nil
-	})
-
+	// 署名・種類（aud）・期限・user_id を検証する
+	claims, err := utils_cookie.ParseAuthToken(tokenString)
 	if err != nil {
 		return apperrors.Wrap(apperrors.ErrAuthTokenInvalid, err)
-	}
-
-	if !token.Valid {
-		return apperrors.ErrAuthTokenInvalid
 	}
 
 	// 認証成功
