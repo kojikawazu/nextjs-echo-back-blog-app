@@ -240,7 +240,7 @@
 - [x] **エラーハンドリングの統一（#123）**
   - 対応: `apperrors`（Kind・Code・sentinel）を新設し、サービス層は sentinel を返して `errors.Is` で判定。ハンドラはエラーを return するだけにし、`middlewares.HTTPErrorHandler` で統一エラーレスポンス `{"code", "error"}` に変換
   - 文字列照合のずれで誤っていたステータスを修正（DB 障害が 401/404 になる、count≤0・ユーザー不在・現パスワード不一致が 500 になる等）。いいね済みは 409、UUID 形式でない ID は 400
-  - 残: いいね系で訪問者トークンが無い・不正なときに 500 を返す（#148）
+  - いいね系で訪問者トークンが無い・不正なときの 500 は #148 で 401（`VISITOR_TOKEN_MISSING` / `VISITOR_TOKEN_INVALID`）に変更
 
 - [x] **ディレクトリ・レイヤ構成とルール（api.md）の乖離解消（#125）**
   - 対応: 実装をルールに寄せる（`internal/` 化・Command/Query 分離）のではなく、`.claude/rules/api.md` を現在の構成（handlers / services / repositories / models / dto / apperrors）に合わせて書き換えた。守るべき原則（薄いハンドラ、リポジトリのインターフェース、レスポンス DTO、sentinel error）を明文化

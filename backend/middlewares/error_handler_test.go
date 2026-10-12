@@ -41,6 +41,20 @@ func TestHTTPErrorHandler(t *testing.T) {
 			wantBody:   `{"code":"AUTH_TOKEN_MISSING","error":"Authentication token is missing"}`,
 		},
 		{
+			// 準正常系: 訪問者トークンの不在は 401（#148 で 500 から変更）。原因（http.ErrNoCookie）は返さない
+			name:       "visitor_token_missing_returns_401",
+			err:        apperrors.Wrap(apperrors.ErrVisitorTokenMissing, http.ErrNoCookie),
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   `{"code":"VISITOR_TOKEN_MISSING","error":"Visitor token is missing"}`,
+		},
+		{
+			// 準正常系: 訪問者トークンの不正・期限切れは 401（#148 で 500 から変更）。解析エラーの詳細は返さない
+			name:       "visitor_token_invalid_returns_401",
+			err:        apperrors.Wrap(apperrors.ErrVisitorTokenInvalid, errors.New("signature is invalid")),
+			wantStatus: http.StatusUnauthorized,
+			wantBody:   `{"code":"VISITOR_TOKEN_INVALID","error":"Visitor token is invalid"}`,
+		},
+		{
 			// 準正常系: 不在は 404
 			name:       "not_found_returns_404",
 			err:        errNotFound,

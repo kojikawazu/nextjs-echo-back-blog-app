@@ -226,6 +226,7 @@ var IsProduction = os.Getenv("ENV") == "production"
 ### 5.3 訪問者IDの使用
 
 - いいね操作（作成・削除・確認・一覧取得）時に `visit-id-token` Cookieからvisit-idを抽出する。
+- Cookie が無い場合は 401 `VISITOR_TOKEN_MISSING`、解析失敗・署名不正・期限切れの場合は 401 `VISITOR_TOKEN_INVALID` を返す（#148）。解析エラーの詳細はレスポンスに含めず、ログにのみ記録する。
 - データベースの `blog_likes.visit_id` カラムにUUID文字列として保存される。
 - `blog_id` と `visit_id` の組み合わせで重複いいねを防止する。
 
@@ -330,4 +331,4 @@ var IsProduction = os.Getenv("ENV") == "production"
 - **#123 で解消**。サービス層は sentinel error（`apperrors.Error`）を返し、判定は `errors.Is` で行う。ステータスとレスポンス本文への変換は `middlewares.HTTPErrorHandler` に集約した（[09-architecture-specification.md](09-architecture-specification.md) 2.3）。
 - 文字列照合のずれにより、DB 障害が 401（ログイン）・404（ブログ詳細・コメント一覧）に丸められていた。現在は 500 を返し、認証失敗・不在と区別する。
 - エラーレスポンスに内部情報を含めない。500 は常に `{"code":"INTERNAL_ERROR","error":"Internal server error"}` を返し、Echo の `HTTPError` も独自メッセージ（バインドエラーの詳細等）を返さない。原因はアクセスログにのみ記録する。
-- **残課題**: いいね系で訪問者トークンが無い・不正なときに 500 を返す（クライアント起因のため 4xx が妥当。#148）。
+- いいね系で訪問者トークンが無い・不正なときは 401（`VISITOR_TOKEN_MISSING` / `VISITOR_TOKEN_INVALID`）を返す。#123 時点では 500 だったが、クライアント起因（未発行・期限切れ・改ざん）のため #148 で 4xx に変更した。

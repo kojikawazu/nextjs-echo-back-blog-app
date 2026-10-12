@@ -3,11 +3,16 @@
 package e2e
 
 import (
+	"backend/config"
+	"backend/models"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -201,4 +206,80 @@ func TestE2E_Error_AlreadyLiked(t *testing.T) {
 	second := doJSON(t, client, http.MethodPost, "/api/blog-likes/create/"+blogID, nil)
 
 	assertErrorResponse(t, second, http.StatusConflict, "ALREADY_LIKED", "Blog is already liked")
+}
+
+// visitorTokenEndpoints は visit-id-token Cookie を要求するいいね系エンドポイント。
+var visitorTokenEndpoints = []struct {
+	name   string
+	method string
+	path   func(blogID string) string
+}{
+	{name: "fetch_likes", method: http.MethodGet, path: func(string) string { return "/api/blog-likes" }},
+	{name: "is_liked", method: http.MethodGet, path: func(id string) string { return "/api/blog-likes/is-liked/" + id }},
+	{name: "create_like", method: http.MethodPost, path: func(id string) string { return "/api/blog-likes/create/" + id }},
+	{name: "delete_like", method: http.MethodDelete, path: func(id string) string { return "/api/blog-likes/delete/" + id }},
+}
+
+// newClientWithVisitorToken は visit-id-token Cookie に token を持つクライアントを生成する。
+func newClientWithVisitorToken(t *testing.T, token string) *http.Client {
+	t.Helper()
+	client := newClient(t)
+	u, err := url.Parse(baseURL)
+	require.NoError(t, err)
+	client.Jar.SetCookies(u, []*http.Cookie{{Name: "visit-id-token", Value: token, Path: "/"}})
+	return client
+}
+
+// signVisitorToken は key で署名した訪問者トークンを返す。
+func signVisitorToken(t *testing.T, key []byte, expiresAt time.Time) string {
+	t.Helper()
+	claims := &models.ClaimsVisitId{
+		VisitId:        "e2e-visitor",
+		StandardClaims: jwt.StandardClaims{ExpiresAt: expiresAt.Unix()},
+	}
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(key)
+	require.NoError(t, err)
+	return token
+}
+
+// 準正常系: 訪問者トークンが無いいいね操作は 401 VISITOR_TOKEN_MISSING（#148 で 500 から変更）。
+func TestE2E_Error_VisitorTokenMissing(t *testing.T) {
+	blogID := os.Getenv("TEST_BLOG_ID")
+
+	for _, ep := range visitorTokenEndpoints {
+		t.Run(ep.name, func(t *testing.T) {
+			client := newClient(t)
+
+			resp := doJSON(t, client, ep.method, ep.path(blogID), nil)
+
+			assertErrorResponse(t, resp, http.StatusUnauthorized, "VISITOR_TOKEN_MISSING", "Visitor token is missing")
+		})
+	}
+}
+
+// 準正常系: 訪問者トークンが不正・改ざん・期限切れのいいね操作は 401 VISITOR_TOKEN_INVALID（#148 で 500 から変更）。
+func TestE2E_Error_VisitorTokenInvalid(t *testing.T) {
+	blogID := os.Getenv("TEST_BLOG_ID")
+	tokens := []struct {
+		name  string
+		token string
+	}{
+		{name: "malformed", token: "not-a-jwt"},
+		// 別の鍵で署名（改ざん）
+		{name: "wrong_signature", token: signVisitorToken(t, []byte("e2e-attacker-key"), time.Now().Add(time.Hour))},
+		// 正しい鍵だが期限切れ
+		{name: "expired", token: signVisitorToken(t, config.JwtKey, time.Now().Add(-time.Hour))},
+	}
+
+	for _, tk := range tokens {
+		for _, ep := range visitorTokenEndpoints {
+			t.Run(tk.name+"/"+ep.name, func(t *testing.T) {
+				client := newClientWithVisitorToken(t, tk.token)
+
+				resp := doJSON(t, client, ep.method, ep.path(blogID), nil)
+
+				assertErrorResponse(t, resp, http.StatusUnauthorized, "VISITOR_TOKEN_INVALID", "Visitor token is invalid")
+			})
+		}
+	}
 }

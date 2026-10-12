@@ -1,6 +1,7 @@
 package handlers_blog_likes
 
 import (
+	"backend/apperrors"
 	"backend/models"
 	services_blogs_likes "backend/services/blog_likes"
 	utils_cookie "backend/utils/cookie"
@@ -19,6 +20,7 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 		expectedStatus int
 		expectedBody   string
 		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
+		wantCause      error // 非 nil のときは wantErr に添えた原因も errors.Is で辿れることを検証する
 	}{
 		{
 			name: "正常系_訪問IDに紐づくいいね一覧を取得成功",
@@ -42,21 +44,23 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 			expectedBody:   `[]`,
 		},
 		{
-			name: "準正常系_visit-id-token Cookieがない場合500を返す",
+			name: "準正常系_visit-id-token Cookieがない場合401_VISITOR_TOKEN_MISSINGを返す",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 			},
-			wantErr: errNoCookie,
+			wantErr:   apperrors.ErrVisitorTokenMissing,
+			wantCause: errNoCookie,
 		},
 		{
-			name: "準正常系_visitId取得に失敗した場合500を返す",
+			name: "準正常系_トークン解析に失敗した場合401_VISITOR_TOKEN_INVALIDを返す",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				token := "mocked-token"
 				req.AddCookie(&http.Cookie{Name: "visit-id-token", Value: token})
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return(token, nil)
 				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errParseToken)
 			},
-			wantErr: errParseToken,
+			wantErr:   apperrors.ErrVisitorTokenInvalid,
+			wantCause: errParseToken,
 		},
 		{
 			name: "異常系_Serviceがエラーを返す場合500を返す",
@@ -84,6 +88,9 @@ func TestHandler_FetchBlogLikesByVisitId(t *testing.T) {
 			err := handler.FetchBlogLikesByVisitId(c)
 			if tt.wantErr != nil {
 				assertHandlerError(t, err, rec, tt.wantErr)
+				if tt.wantCause != nil {
+					assert.ErrorIs(t, err, tt.wantCause)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedStatus, rec.Code)
