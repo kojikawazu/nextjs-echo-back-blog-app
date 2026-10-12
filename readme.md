@@ -87,8 +87,8 @@ docker run --env-file backend/.env -p 8080:8080 echo-blog-back
 ```bash
 cd backend
 
-# 単体テスト（UT）: DB 不要・全 mock。handlers / services / middlewares / models。
-go test ./handlers/... ./services/... ./middlewares/... ./routes/... ./models/... ./dto/... ./apperrors/... ./utils/cookie/... ./supabase/...
+# 単体テスト（UT）: DB 不要・全 mock。全パッケージが対象（CI と同じ）。
+go test ./...
 
 # インテグレーションテスト（IT）: repositories 層。
 # 既定では testcontainers が使い捨ての PostgreSQL を起動する（Docker 稼働が前提）。
