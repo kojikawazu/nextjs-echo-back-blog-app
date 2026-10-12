@@ -1,6 +1,7 @@
 package handlers_blog_likes
 
 import (
+	"backend/apperrors"
 	services_blogs_likes "backend/services/blog_likes"
 	utils_cookie "backend/utils/cookie"
 	"net/http"
@@ -19,6 +20,7 @@ func TestHandler_IsBlogLiked(t *testing.T) {
 		expectedStatus int
 		expectedBody   string
 		wantErr        error // 非 nil のときはハンドラがこのエラーを返すことを検証する
+		wantCause      error // 非 nil のときは wantErr に添えた原因も errors.Is で辿れることを検証する
 	}{
 		{
 			name:   "正常系_いいね済みの場合isLiked:trueを返す",
@@ -60,15 +62,16 @@ func TestHandler_IsBlogLiked(t *testing.T) {
 			wantErr: errService,
 		},
 		{
-			name:   "準正常系_visit-id-token Cookieがない場合500を返す",
+			name:   "準正常系_visit-id-token Cookieがない場合401_VISITOR_TOKEN_MISSINGを返す",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return("", errNoCookie)
 			},
-			wantErr: errNoCookie,
+			wantErr:   apperrors.ErrVisitorTokenMissing,
+			wantCause: errNoCookie,
 		},
 		{
-			name:   "準正常系_visitId取得に失敗した場合500を返す",
+			name:   "準正常系_トークン解析に失敗した場合401_VISITOR_TOKEN_INVALIDを返す",
 			blogId: "blog-1",
 			setupMock: func(c echo.Context, req *http.Request, mockCookie *utils_cookie.MockCookieUtils, mockService *services_blogs_likes.MockBlogLikeService) {
 				token := "mocked-token"
@@ -76,7 +79,8 @@ func TestHandler_IsBlogLiked(t *testing.T) {
 				mockCookie.On("GetAuthCookieValue", c, "visit-id-token").Return(token, nil)
 				mockCookie.On("GetVisitIdFromToken", c, token).Return("", errParseToken)
 			},
-			wantErr: errParseToken,
+			wantErr:   apperrors.ErrVisitorTokenInvalid,
+			wantCause: errParseToken,
 		},
 	}
 
@@ -98,6 +102,9 @@ func TestHandler_IsBlogLiked(t *testing.T) {
 			err := handler.IsBlogLiked(c)
 			if tt.wantErr != nil {
 				assertHandlerError(t, err, rec, tt.wantErr)
+				if tt.wantCause != nil {
+					assert.ErrorIs(t, err, tt.wantCause)
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.Equal(t, tt.expectedStatus, rec.Code)

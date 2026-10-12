@@ -324,8 +324,8 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 | # | テストケース | 入力 | 期待結果 | テスト種別 | 優先度 |
 |---|---|---|---|---|---|
 | S-1 | blogIdが空 → 400 | `blogId: ""` | 400 | Unit | High |
-| S-2 | visit-id-token Cookie欠如 → 500 | Cookie未設定 | 500 | Unit | High |
-| S-3 | visitId取得失敗 → 500 | JWT解析エラー | 500 | Unit | High |
+| S-2 | visit-id-token Cookie欠如 → 401（#148 で 500 から変更） | Cookie未設定 | 401 `VISITOR_TOKEN_MISSING` | Unit / E2E | High |
+| S-3 | visitId取得失敗 → 401（#148 で 500 から変更） | JWT解析エラー・署名不正・期限切れ | 401 `VISITOR_TOKEN_INVALID` | Unit / E2E | High |
 
 ##### 異常系
 
@@ -352,8 +352,8 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 | # | テストケース | 入力 | 期待結果 | テスト種別 | 優先度 |
 |---|---|---|---|---|---|
 | S-1 | blogIdが空 → 400 | `blogId: ""` | 400 | Unit | High |
-| S-2 | visit-id-token Cookie欠如 → 500 | Cookie未設定 | 500 | Unit | High |
-| S-3 | visitId取得失敗 → 500 | JWT解析エラー | 500 | Unit | High |
+| S-2 | visit-id-token Cookie欠如 → 401（#148 で 500 から変更） | Cookie未設定 | 401 `VISITOR_TOKEN_MISSING` | Unit / E2E | High |
+| S-3 | visitId取得失敗 → 401（#148 で 500 から変更） | JWT解析エラー・署名不正・期限切れ | 401 `VISITOR_TOKEN_INVALID` | Unit / E2E | High |
 
 ##### 異常系
 
@@ -380,7 +380,7 @@ Login成功1件のみ実装済み（`handlers/auth/auth_test.go`）
 | # | テストケース | 入力 | 期待結果 | テスト種別 | 優先度 |
 |---|---|---|---|---|---|
 | S-1 | blogIdが空 → 400 | `blogId: ""` | 400 | Unit | High |
-| S-2 | visit-id-token Cookie欠如 → 500 | Cookie未設定 | 500 | Unit | High |
+| S-2 | visit-id-token Cookie欠如 → 401（#148 で 500 から変更） | Cookie未設定 | 401 `VISITOR_TOKEN_MISSING` | Unit / E2E | High |
 
 ##### 異常系
 

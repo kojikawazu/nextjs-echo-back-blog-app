@@ -1,6 +1,7 @@
 package handlers_blog_likes
 
 import (
+	"backend/apperrors"
 	"backend/dto"
 	utils "backend/utils/log"
 	"fmt"
@@ -15,19 +16,14 @@ import (
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーを含む）
 //
 // 戻り値:
-//   - error: 訪問者トークンの取得/解析やデータ取得の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
+//   - error: 訪問者トークンの不在・不正は apperrors.ErrVisitorTokenMissing / ErrVisitorTokenInvalid、データ取得の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) FetchBlogLikesByVisitId(c echo.Context) error {
 	utils.LogInfo(c, "Fetching blog likes by visit id...")
 
-	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	// クッキーの訪問者トークンから訪問IDを取得
+	visitId, err := h.visitIdFromCookie(c)
 	if err != nil {
-		return fmt.Errorf("get visit id token: %w", err)
-	}
-	// JWTトークンを解析して訪問IDを取得
-	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
-	if err != nil {
-		return fmt.Errorf("get visit id: %w", err)
+		return err
 	}
 
 	// VisitIDに紐づくいいねデータを取得
@@ -87,19 +83,14 @@ func (h *BlogLikeHandler) GenerateVisitorId(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: 訪問者トークンの取得/解析や確認の失敗はエラー（500）、blogId が空は ErrBlogIDOrVisitIDEmpty。成功時は isLiked を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
+//   - error: 訪問者トークンの不在・不正は apperrors.ErrVisitorTokenMissing / ErrVisitorTokenInvalid、確認の失敗はエラー（500）、blogId が空は ErrBlogIDOrVisitIDEmpty。成功時は isLiked を 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 	utils.LogInfo(c, "Checking if blog is liked...")
 
-	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	// クッキーの訪問者トークンから訪問IDを取得
+	visitId, err := h.visitIdFromCookie(c)
 	if err != nil {
-		return fmt.Errorf("get visit id token: %w", err)
-	}
-	// JWTトークンを解析して訪問IDを取得
-	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
-	if err != nil {
-		return fmt.Errorf("get visit id: %w", err)
+		return err
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -123,19 +114,14 @@ func (h *BlogLikeHandler) IsBlogLiked(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: 訪問者トークンの取得/解析の失敗はエラー（500）、空値は ErrBlogIDOrVisitIDEmpty、いいね済みは ErrAlreadyLiked。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
+//   - error: 訪問者トークンの不在・不正は apperrors.ErrVisitorTokenMissing / ErrVisitorTokenInvalid、空値は ErrBlogIDOrVisitIDEmpty、いいね済みは ErrAlreadyLiked。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Creating blog like...")
 
-	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	// クッキーの訪問者トークンから訪問IDを取得
+	visitId, err := h.visitIdFromCookie(c)
 	if err != nil {
-		return fmt.Errorf("get visit id token: %w", err)
-	}
-	// JWTトークンを解析して訪問IDを取得
-	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
-	if err != nil {
-		return fmt.Errorf("get visit id: %w", err)
+		return err
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -157,19 +143,14 @@ func (h *BlogLikeHandler) CreateBlogLike(c echo.Context) error {
 //   - c: リクエスト/レスポンスを保持する echo コンテキスト（visit-id-token クッキーとパスパラメータ blogId を含む）
 //
 // 戻り値:
-//   - error: 訪問者トークンの取得/解析や削除の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
+//   - error: 訪問者トークンの不在・不正は apperrors.ErrVisitorTokenMissing / ErrVisitorTokenInvalid、削除の失敗はエラー（500）。成功時は 200 で返す（エラーのステータス・本文は middlewares.HTTPErrorHandler が決める）
 func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	utils.LogInfo(c, "Deleting blog like...")
 
-	// クッキーからJWTトークンを取得
-	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	// クッキーの訪問者トークンから訪問IDを取得
+	visitId, err := h.visitIdFromCookie(c)
 	if err != nil {
-		return fmt.Errorf("get visit id token: %w", err)
-	}
-	// JWTトークンを解析して訪問IDを取得
-	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
-	if err != nil {
-		return fmt.Errorf("get visit id: %w", err)
+		return err
 	}
 
 	// パスパラメータからブログIDと訪問者IDを取得
@@ -185,4 +166,25 @@ func (h *BlogLikeHandler) DeleteBlogLike(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{
 		"message": "Blog like deleted successfully",
 	})
+}
+
+// visitIdFromCookie は visit-id-token クッキーの JWT を解析して訪問IDを取り出す。
+// 不在・不正はクライアント側の要因（未発行・期限切れ・改ざん）のため、500 ではなく 401 になる sentinel を返す。
+//
+// 引数:
+//   - c: リクエストを保持する echo コンテキスト（visit-id-token クッキーを含む）
+//
+// 戻り値:
+//   - string: 訪問ID
+//   - error: クッキー不在は apperrors.ErrVisitorTokenMissing、解析失敗・期限切れは ErrVisitorTokenInvalid（いずれも原因を添える）
+func (h *BlogLikeHandler) visitIdFromCookie(c echo.Context) (string, error) {
+	cookieValue, err := h.CookieUtils.GetAuthCookieValue(c, "visit-id-token")
+	if err != nil {
+		return "", apperrors.Wrap(apperrors.ErrVisitorTokenMissing, err)
+	}
+	visitId, err := h.CookieUtils.GetVisitIdFromToken(c, cookieValue)
+	if err != nil {
+		return "", apperrors.Wrap(apperrors.ErrVisitorTokenInvalid, err)
+	}
+	return visitId, nil
 }

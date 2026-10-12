@@ -31,6 +31,8 @@ const (
 	CodeInvalidRequestBody     = "INVALID_REQUEST_BODY"
 	CodeAuthTokenMissing       = "AUTH_TOKEN_MISSING"
 	CodeAuthTokenInvalid       = "AUTH_TOKEN_INVALID"
+	CodeVisitorTokenMissing    = "VISITOR_TOKEN_MISSING"
+	CodeVisitorTokenInvalid    = "VISITOR_TOKEN_INVALID"
 	CodeInvalidCredentials     = "INVALID_CREDENTIALS"
 	CodeInvalidCurrentPassword = "INVALID_CURRENT_PASSWORD"
 	CodeBlogNotFound           = "BLOG_NOT_FOUND"
@@ -94,6 +96,10 @@ var (
 	ErrAuthTokenMissing = New(KindUnauthorized, CodeAuthTokenMissing, "Authentication token is missing")
 	// ErrAuthTokenInvalid は認証トークンが不正・期限切れであることを示す。
 	ErrAuthTokenInvalid = New(KindUnauthorized, CodeAuthTokenInvalid, "Authentication token is invalid")
+	// ErrVisitorTokenMissing は訪問者トークン（visit-id-token Cookie）が無いことを示す。
+	ErrVisitorTokenMissing = New(KindUnauthorized, CodeVisitorTokenMissing, "Visitor token is missing")
+	// ErrVisitorTokenInvalid は訪問者トークンが不正・期限切れであることを示す。
+	ErrVisitorTokenInvalid = New(KindUnauthorized, CodeVisitorTokenInvalid, "Visitor token is invalid")
 	// ErrTooManyRequests はレートリミットを超過したことを示す。
 	ErrTooManyRequests = New(KindTooManyRequests, CodeTooManyRequests, "Too many requests")
 )

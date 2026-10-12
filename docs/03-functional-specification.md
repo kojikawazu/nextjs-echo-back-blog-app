@@ -419,8 +419,8 @@ DBから `DISTINCT category` を `ORDER BY category` で取得し、そのまま
 
 | 条件 | HTTPステータス | コード | エラーメッセージ |
 |------|---------------|--------|-----------------|
-| visit-id-token Cookie取得失敗 | 500 | INTERNAL_ERROR | Internal server error |
-| visitId解析失敗 | 500 | INTERNAL_ERROR | Internal server error |
+| visit-id-token Cookieなし | 401 | VISITOR_TOKEN_MISSING | Visitor token is missing |
+| 訪問者トークンの解析失敗・署名不正・期限切れ | 401 | VISITOR_TOKEN_INVALID | Visitor token is invalid |
 | blogId/visitId空 | 400 | VALIDATION_ERROR | BlogId or VisitId is empty |
 | 重複いいね | 409 | ALREADY_LIKED | Blog is already liked |
 | いいね済み確認・DB挿入失敗 | 500 | INTERNAL_ERROR | Internal server error |
