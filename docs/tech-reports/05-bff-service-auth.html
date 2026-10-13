@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echo Blog 通信経路</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@700;900&display=swap">
+<style>
+/* Layout: 1 カラムの技術資料。左揃えの見出し + 本文 68ch、図と表だけ全幅（横スクロールは各コンテナ内） */
+:root {
+  --bg: #f3f5f7;
+  --surface: #ffffff;
+  --fg: #18212c;
+  --muted: #5a6573;
+  --line: #cfd6de;
+  --accent: #2f5fd0;
+  --accent-soft: #e4ebfb;
+  --allow: #1f8a5b;
+  --allow-soft: #e2f3ea;
+  --deny: #c43c3c;
+  --deny-soft: #f9e5e3;
+  --code-bg: #e9edf2;
+  --font-display: "Zen Kaku Gothic New", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --font-body: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.25rem;
+  --step-2: 1.6rem;
+  --step-3: 2.2rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161d;
+    --surface: #18202a;
+    --fg: #e4e9ef;
+    --muted: #9aa6b4;
+    --line: #2f3a47;
+    --accent: #7c9ff0;
+    --accent-soft: #1d2a45;
+    --allow: #5cc595;
+    --allow-soft: #15302a;
+    --deny: #ef7a72;
+    --deny-soft: #3a1f1f;
+    --code-bg: #212b37;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161d;
+  --surface: #18202a;
+  --fg: #e4e9ef;
+  --muted: #9aa6b4;
+  --line: #2f3a47;
+  --accent: #7c9ff0;
+  --accent-soft: #1d2a45;
+  --allow: #5cc595;
+  --allow-soft: #15302a;
+  --deny: #ef7a72;
+  --deny-soft: #3a1f1f;
+  --code-bg: #212b37;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.75;
+}
+.page {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 40px 72px;
+  display: grid;
+  gap: 56px;
+}
+header { display: grid; gap: 14px; }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.35; }
+h1 { font-size: var(--step-3); font-weight: 900; }
+h2 { font-size: var(--step-2); font-weight: 700; }
+h3 { font-size: var(--step-1); font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.lead { font-size: 1.08rem; max-width: 64ch; }
+section { display: grid; gap: 18px; min-width: 0; }
+.section-head { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 22px; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+:not(pre) > code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 4px; }
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.lead-note { color: var(--muted); font-size: var(--step--1); max-width: 76ch; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: var(--step--1); }
+.meta span { font-variant-numeric: tabular-nums; }
+
+/* 図 */
+.figure {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px;
+  overflow-x: auto;
+}
+.figure svg { display: block; min-width: 860px; width: 100%; height: auto; }
+.figure figcaption { margin-top: 10px; color: var(--muted); font-size: var(--step--1); }
+figure { margin: 0; }
+.d-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.d-run { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.d-gate { fill: var(--allow-soft); stroke: var(--allow); stroke-width: 1.5; }
+.d-actor-bad { fill: var(--deny-soft); stroke: var(--deny); stroke-width: 1.5; }
+.d-title { fill: var(--fg); font-family: var(--font-display); font-weight: 700; font-size: 15px; }
+.d-text { fill: var(--fg); font-family: var(--font-body); font-size: 12.5px; }
+.d-sub { fill: var(--muted); font-family: var(--font-body); font-size: 12px; }
+.d-mono { fill: var(--fg); font-family: var(--font-mono); font-size: 11.5px; }
+.d-label { fill: var(--accent); font-family: var(--font-body); font-size: 11.5px; font-weight: 500; }
+.d-label-deny { fill: var(--deny); font-family: var(--font-body); font-size: 11.5px; font-weight: 700; }
+.d-label-allow { fill: var(--allow); font-family: var(--font-body); font-size: 11.5px; font-weight: 700; }
+.d-arrow { stroke: var(--accent); stroke-width: 1.8; fill: none; }
+.d-arrow-deny { stroke: var(--deny); stroke-width: 1.8; fill: none; stroke-dasharray: 6 5; }
+.d-arrow-allow { stroke: var(--allow); stroke-width: 1.8; fill: none; }
+.d-arrow-muted { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+.m-accent { fill: var(--accent); }
+.m-deny { fill: var(--deny); }
+.m-allow { fill: var(--allow); }
+.m-muted { fill: var(--muted); }
+
+/* 表 */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.94rem; }
+th, td { text-align: left; vertical-align: top; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+tr:last-child td { border-bottom: none; }
+thead th { font-weight: 700; font-size: var(--step--1); letter-spacing: 0.04em; color: var(--muted); background: var(--bg); }
+td:first-child { font-weight: 500; white-space: nowrap; }
+.after { color: var(--fg); }
+.before { color: var(--muted); }
+
+.chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 0.05em 0.55em;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.chip-allow { color: var(--allow); }
+.chip-deny { color: var(--deny); }
+
+/* 2 段の認証 */
+.pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+.pair article {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 18px 20px;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+.pair dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 0.93rem; }
+.pair dt { color: var(--muted); }
+.pair dd { margin: 0; min-width: 0; }
+
+/* 信頼の連鎖（順序に意味がある） */
+ol.chain { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; counter-reset: step; }
+ol.chain li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 2.4rem 1fr;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px dashed var(--line);
+}
+ol.chain li:last-child { border-bottom: none; }
+ol.chain li::before {
+  content: counter(step);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+ol.chain .who { font-weight: 700; }
+ol.chain p { color: var(--fg); }
+.note {
+  border-left: 3px solid var(--deny);
+  background: var(--deny-soft);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  max-width: 76ch;
+}
+
+/* タイムライン */
+ol.timeline { list-style: none; margin: 0; padding: 0; display: grid; }
+ol.timeline li { display: grid; grid-template-columns: 5.2rem 1fr; gap: 16px; padding: 10px 0; }
+ol.timeline time { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--muted); padding-top: 1px; }
+ol.timeline .bad { background: var(--deny-soft); border-radius: 8px; padding: 10px 12px; margin-inline: -12px; }
+ol.timeline .good { color: var(--fg); }
+
+/* コマンド */
+.cmd { display: grid; gap: 8px; }
+.cmd-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+pre {
+  margin: 0;
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 14px 16px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+button.copy {
+  font: inherit;
+  font-size: var(--step--1);
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 10px;
+  cursor: pointer;
+}
+button.copy:hover { border-color: var(--accent); }
+
+ul.plain { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; max-width: 72ch; }
+.refs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 24px; margin: 0; padding: 0; list-style: none; font-size: 0.93rem; }
+.refs li { display: flex; gap: 10px; min-width: 0; }
+.refs .num { font-family: var(--font-mono); color: var(--muted); min-width: 7.5rem; }
+
+.mermaid-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; overflow-x: auto; }
+pre.mermaid { background: transparent; padding: 0; }
+
+@media (max-width: 560px) {
+  .page { padding-block: 28px 56px; gap: 44px; }
+  ol.timeline li { grid-template-columns: 1fr; gap: 2px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">nextjs-echo-blog ・ 2026-10-13 時点 ・ #146 / #164 / #166 / front#150</div>
+    <h1>Echo Blog 通信経路</h1>
+    <p class="lead">バックエンドを「誰でも呼べる API」から「BFF だけが呼べる内部 API」に変え、レートリミットを利用者ごとに効かせた後の構成です。リクエストがどこを通り、どこで誰が検証されるかをまとめます。</p>
+    <p class="lead-note">Markdown 版: <a href="./05-bff-service-auth.md">05-bff-service-auth.md</a>（内容を変えるときは両方を更新する）。公開リポジトリのため、GCP のプロジェクト ID は <code>&lt;backend-project&gt;</code> と表記しています。</p>
+    <div class="meta">
+      <span>Cloud Run 2 サービス（別プロジェクト）</span>
+      <span>直接アクセス <span class="chip chip-deny">403</span></span>
+      <span>BFF 経由 <span class="chip chip-allow">200</span></span>
+      <span>レートリミット：利用者の IP 単位</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="s-overview">
+    <div class="section-head">
+      <h2 id="s-overview">全体像</h2>
+      <p>Cloud Run は 2 つです。画面と BFF（<code>/api/*</code>）は同じ Next.js アプリで、Cloud Run どうしの通信は「① → ②」の 1 本だけです。この区間を ID トークンで保護しています。</p>
+    </div>
+    <figure class="figure">
+      <svg viewBox="0 0 980 460" role="img" aria-labelledby="fig1-title fig1-desc">
+        <title id="fig1-title">Echo Blog のリクエスト経路</title>
+        <desc id="fig1-desc">ブラウザは Cloud Run ① の画面と /api を呼ぶ。/api はメタデータサーバーから ID トークンを取り、X-Client-IP とともに Cloud Run ② を呼ぶ。② の手前で Google フロントエンドが IAM をチェックし、ID トークンのない攻撃者のリクエストは 403 で拒否される。② は Supabase を使う。</desc>
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-accent"/></marker>
+          <marker id="ah-deny" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="m-deny"/></marker>
+          <marker id="ah-allow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="m-allow"/></marker>
+          <marker id="ah-muted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="m-muted"/></marker>
+        </defs>
+
+        <!-- ブラウザ -->
+        <rect x="20" y="96" width="140" height="70" rx="8" class="d-box"/>
+        <text x="90" y="126" text-anchor="middle" class="d-title">ブラウザ</text>
+        <text x="90" y="148" text-anchor="middle" class="d-sub">ブログの閲覧者</text>
+
+        <!-- 攻撃者 -->
+        <rect x="20" y="368" width="140" height="70" rx="8" class="d-actor-bad"/>
+        <text x="90" y="398" text-anchor="middle" class="d-title">直接アクセス</text>
+        <text x="90" y="420" text-anchor="middle" class="d-sub">URL を知る第三者</text>
+
+        <!-- Cloud Run ① -->
+        <rect x="200" y="24" width="280" height="226" rx="10" class="d-run"/>
+        <text x="218" y="50" class="d-title">Cloud Run ①　Next.js</text>
+        <text x="218" y="70" class="d-sub">フロントのプロジェクト ・ 公開</text>
+        <rect x="220" y="84" width="240" height="54" rx="6" class="d-box"/>
+        <text x="236" y="106" class="d-text">画面（frontend）</text>
+        <text x="236" y="126" class="d-mono">'use client' のページ</text>
+        <rect x="220" y="150" width="240" height="84" rx="6" class="d-box"/>
+        <text x="236" y="172" class="d-text">/api/*（BFF）</text>
+        <text x="236" y="192" class="d-mono">proxyToBackend</text>
+        <text x="236" y="210" class="d-mono">XFF 右端 → X-Client-IP</text>
+        <text x="236" y="226" class="d-mono">ID トークン → Authorization</text>
+
+        <!-- メタデータサーバー -->
+        <rect x="220" y="282" width="240" height="56" rx="6" class="d-box"/>
+        <text x="236" y="305" class="d-text">メタデータサーバー</text>
+        <text x="236" y="325" class="d-sub">ID トークン発行（約 1 時間・キャッシュ）</text>
+        <path d="M340,280 L340,238" class="d-arrow-muted" marker-start="url(#ah-muted)" marker-end="url(#ah-muted)"/>
+
+        <!-- ブラウザ → ① -->
+        <path d="M160,118 L218,111" class="d-arrow" marker-end="url(#ah)"/>
+        <path d="M160,146 L218,186" class="d-arrow" marker-end="url(#ah)"/>
+        <text x="166" y="104" class="d-label">画面・JS</text>
+        <text x="164" y="184" class="d-label">データ</text>
+
+        <!-- Google フロントエンド（IAM チェック） -->
+        <rect x="580" y="110" width="124" height="128" rx="8" class="d-gate"/>
+        <text x="642" y="136" text-anchor="middle" class="d-title">IAM チェック</text>
+        <text x="642" y="158" text-anchor="middle" class="d-sub">Google フロントエンド</text>
+        <text x="642" y="184" text-anchor="middle" class="d-mono">invoker =</text>
+        <text x="642" y="202" text-anchor="middle" class="d-mono">BFF の SA のみ</text>
+        <text x="642" y="224" text-anchor="middle" class="d-sub">トークンを検証</text>
+
+        <!-- ① → ゲート -->
+        <path d="M460,192 L578,174" class="d-arrow" marker-end="url(#ah)"/>
+        <text x="472" y="160" class="d-label">Bearer ID トークン</text>
+        <text x="472" y="176" class="d-label">+ X-Client-IP</text>
+
+        <!-- 攻撃者 → ゲート（拒否） -->
+        <path d="M160,403 L642,403 L642,242" class="d-arrow-deny" marker-end="url(#ah-deny)"/>
+        <text x="330" y="394" class="d-label-deny">ID トークンなし → 403（コンテナに届かない）</text>
+
+        <!-- Cloud Run ② -->
+        <rect x="760" y="24" width="204" height="226" rx="10" class="d-run"/>
+        <text x="776" y="50" class="d-title">Cloud Run ②　Echo</text>
+        <text x="776" y="70" class="d-sub">バックエンド側 ・ 非公開</text>
+        <rect x="776" y="84" width="172" height="150" rx="6" class="d-box"/>
+        <text x="790" y="106" class="d-mono">NewIPExtractor</text>
+        <text x="790" y="124" class="d-mono">X-Client-IP</text>
+        <text x="790" y="140" class="d-mono">  → c.RealIP()</text>
+        <text x="790" y="166" class="d-text">レートリミット</text>
+        <text x="790" y="184" class="d-sub">利用者の IP ごと</text>
+        <text x="790" y="208" class="d-text">JWT 認証</text>
+        <text x="790" y="226" class="d-sub">Cookie（token）</text>
+
+        <!-- ゲート → ② -->
+        <path d="M704,174 L774,160" class="d-arrow-allow" marker-end="url(#ah-allow)"/>
+        <text x="710" y="200" class="d-label-allow">検証 OK</text>
+
+        <!-- ② → Supabase -->
+        <rect x="782" y="300" width="160" height="56" rx="8" class="d-box"/>
+        <text x="862" y="324" text-anchor="middle" class="d-title">Supabase</text>
+        <text x="862" y="344" text-anchor="middle" class="d-sub">PostgreSQL</text>
+        <path d="M862,250 L862,298" class="d-arrow" marker-end="url(#ah)"/>
+      </svg>
+      <figcaption>① と ② は別の GCP プロジェクトにあります。② の手前で Google フロントエンドが ID トークンを検証するので、アプリのコードはサービス間の認証に関わりません。</figcaption>
+    </figure>
+  </section>
+
+  <section aria-labelledby="s-diff">
+    <div class="section-head">
+      <h2 id="s-diff">何が変わったか</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>項目</th><th>変更前</th><th>変更後</th></tr></thead>
+        <tbody>
+          <tr><td>バックエンドを呼べる相手</td><td class="before">誰でも（URL を知っていれば）</td><td class="after">BFF のサービスアカウントだけ（Cloud Run IAM）</td></tr>
+          <tr><td>直接アクセス</td><td class="before">アプリに届く</td><td class="after"><span class="chip chip-deny">403</span> Google のフロントエンドで止まる</td></tr>
+          <tr><td>BFF 経由の利用者の数え方</td><td class="before">全員まとめて 1 枠（BFF の IP）</td><td class="after">利用者ごと（<code>X-Client-IP</code>）</td></tr>
+          <tr><td>ログインの総当たり</td><td class="before">攻撃者が連打すると、オーナーも最長 1 分ログインできない</td><td class="after">攻撃者の IP だけが 429 になる</td></tr>
+          <tr><td>アクセスログの <code>remote_ip</code></td><td class="before">BFF の IP</td><td class="after">利用者の IP</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-auth">
+    <div class="section-head">
+      <h2 id="s-auth">認証は 2 段</h2>
+      <p>役割の違う 2 つの認証が、別のレイヤで動きます。<code>Authorization</code> ヘッダはサービス間、Cookie は利用者に使うので、同じリクエストに両方が乗っても衝突しません。</p>
+    </div>
+    <div class="pair">
+      <article>
+        <h3>サービス間の認証</h3>
+        <p>呼んでいるのは BFF か？</p>
+        <dl>
+          <dt>仕組み</dt><dd>Cloud Run IAM ＋ ID トークン</dd>
+          <dt>検証する場所</dt><dd>Google フロントエンド（アプリの外）</dd>
+          <dt>運ぶヘッダ</dt><dd><code>Authorization: Bearer …</code></dd>
+          <dt>失敗したとき</dt><dd>トークンなし 403、不正なトークン 401</dd>
+        </dl>
+      </article>
+      <article>
+        <h3>利用者の認証</h3>
+        <p>ログインしているのはオーナーか？</p>
+        <dl>
+          <dt>仕組み</dt><dd>アプリの JWT（HS256、<code>aud</code> で種類を区別）</dd>
+          <dt>検証する場所</dt><dd>バックエンド（Echo）</dd>
+          <dt>運ぶヘッダ</dt><dd><code>Cookie: token=…</code></dd>
+          <dt>失敗したとき</dt><dd>401（統一エラーレスポンス）</dd>
+        </dl>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-chain">
+    <div class="section-head">
+      <h2 id="s-chain">クライアント IP を信頼できる理由</h2>
+      <p><code>X-Client-IP</code> は誰でも書けるただのヘッダです。それでも信頼できるのは、次の 4 つが順につながっているからです。どれか 1 つが崩れると成り立ちません。</p>
+    </div>
+    <ol class="chain">
+      <li><div><p class="who">ブラウザ</p><p>偽装できるのは <code>X-Forwarded-For</code> の左側だけ。右端は Google のフロントエンドが接続元の IP を追加する（ドメインマッピングで公開しており、ロードバランサは挟んでいない）。</p></div></li>
+      <li><div><p class="who">BFF</p><p>右端だけを使って <code>X-Client-IP</code> を作る。IP として解釈できない値なら付けない。</p></div></li>
+      <li><div><p class="who">Cloud Run IAM</p><p>バックエンドには BFF しか到達できない。だから <code>X-Client-IP</code> を書けるのは BFF だけになる。</p></div></li>
+      <li><div><p class="who">バックエンド</p><p><code>TRUST_CLIENT_IP_HEADER=true</code> のときだけヘッダを信頼する。値が不正なら BFF の IP として数える（値を変えても回避できない）。</p></div></li>
+    </ol>
+    <p class="note">切り替え当日、3 が崩れていました。サービスの invoker IAM チェックが無効（<code>invoker-iam-disabled</code>）のままで、<code>allUsers</code> を外しても誰でも呼べました。そのため「非公開化」と「ヘッダの信頼」は、<code>deploy.yml</code> の同じ <code>gcloud run deploy</code> で必ずまとめて設定します。</p>
+  </section>
+
+  <section aria-labelledby="s-pageload">
+    <div class="section-head">
+      <h2 id="s-pageload">ページを開いたときのリクエスト</h2>
+      <p>ページはすべてクライアントコンポーネントです。まず画面の器（HTML・JS）を取り、そのあとブラウザがデータを <code>/api/*</code> から取ります。<code>/api/*</code> の 1 リクエストにつき、① から ② へのリクエストが 1 本出ます。トップページでは 5 本前後です。</p>
+    </div>
+    <div class="mermaid-wrap">
+<pre class="mermaid">
+sequenceDiagram
+    participant B as ブラウザ
+    participant F as Cloud Run ①（Next.js）
+    participant M as メタデータサーバー
+    participant E as Cloud Run ②（Echo）
+    B->>F: GET /（HTML・JS・CSS）
+    F-->>B: 画面の器
+    Note over B: JS が画面を組み立てる
+    par データ取得（並行）
+        B->>F: GET /api/blogs
+    and
+        B->>F: GET /api/blogs/categories ほか
+    end
+    F->>M: ID トークン（期限 5 分前までキャッシュ）
+    M-->>F: JWT
+    F->>E: GET /api/blogs（Bearer + X-Client-IP）
+    E-->>F: 200 JSON
+    F-->>B: 200 JSON
+</pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-env">
+    <div class="section-head">
+      <h2 id="s-env">環境ごとの動き</h2>
+      <p>ローカルとテストは従来どおり動くので、開発中に GCP の認証を意識する必要はありません。</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>環境</th><th>ID トークン</th><th>X-Client-IP の信頼</th><th>バックエンド</th></tr></thead>
+        <tbody>
+          <tr><td>本番（Cloud Run）</td><td>付ける（<code>K_SERVICE</code> がある）</td><td>する</td><td>非公開</td></tr>
+          <tr><td>ローカル開発</td><td>付けない</td><td>しない（XFF から取る）</td><td>公開（localhost）</td></tr>
+          <tr><td>IT / E2E</td><td>付けない</td><td>しない</td><td>testcontainers</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-timeline">
+    <div class="section-head">
+      <h2 id="s-timeline">切り替えの記録（2026-10-13・JST）</h2>
+    </div>
+    <ol class="timeline">
+      <li><time>22:02</time><div class="good">フロント #150 をマージ。22:07 にデプロイ完了。BFF が ID トークンと <code>X-Client-IP</code> を付け始める（バックエンドはまだ公開なので影響なし）。BFF のサービスアカウントへの invoker 付与もこの前後に実施。</div></li>
+      <li><time>22:09</time><div>バックエンド #164 をマージ。デプロイ後の確認で、<code>allUsers</code> が外れているのに直接アクセスが 200 のままだと判明。</div></li>
+      <li><time>22:10〜16</time><div class="bad">公開状態のまま <code>X-Client-IP</code> を信頼していた約 6 分間。直接アクセスでヘッダを偽装すれば、レートリミットを回避できた。原因はサービスの <code>invoker-iam-disabled: true</code>（#165）。</div></li>
+      <li><time>22:16</time><div class="good"><code>--invoker-iam-check</code> を手動で適用。直接アクセス 403、BFF 経由 200、アクセスログの <code>remote_ip</code> が利用者の IP になったことを確認。</div></li>
+      <li><time>22:22</time><div class="good">#166 をマージし、<code>deploy.yml</code> に <code>--invoker-iam-check</code> を追加。デプロイ後も状態が保たれていることを確認。</div></li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="s-ops">
+    <div class="section-head">
+      <h2 id="s-ops">運用メモ</h2>
+    </div>
+    <ul class="plain">
+      <li>コンソールでバックエンドを「公開」に戻さない。invoker の IAM チェックが無効になり、IAM のバインディングに関係なく誰でも呼べるようになる。</li>
+      <li><code>--no-allow-unauthenticated</code>・<code>--invoker-iam-check</code>・<code>TRUST_CLIENT_IP_HEADER=true</code> は 1 つのデプロイで揃えて変える。片方だけ変えると、偽装でレートリミットを回避できる状態になる。</li>
+      <li>レートリミットのカウントはインスタンスのメモリにある。最大 3 インスタンスなので、実効上限は最大 3 倍まで緩む。</li>
+      <li>BFF の ID トークンが取れないと、BFF は 500 <code>{"error":"Backend authentication failed"}</code> を返す。フロントのログに <code>Failed to obtain ID token for backend</code> が出る。</li>
+    </ul>
+    <div class="cmd">
+      <div class="cmd-head">
+        <h3>BFF 経由が 401 / 403 になったときの切り戻し</h3>
+        <button type="button" class="copy" data-target="cmd-rollback">コピー</button>
+      </div>
+      <p>IAM チェックを無効にして一時的に公開へ戻す。数秒で効く。<code>TRUST_CLIENT_IP_HEADER=true</code> が残るので、公開のまま放置せず、原因を直して <code>--invoker-iam-check</code> に戻す。</p>
+<pre id="cmd-rollback">gcloud run services update echo-blog-app \
+  --project &lt;backend-project&gt; --region asia-northeast1 \
+  --no-invoker-iam-check</pre>
+    </div>
+    <div class="cmd">
+      <div class="cmd-head">
+        <h3>状態の確認</h3>
+        <button type="button" class="copy" data-target="cmd-check">コピー</button>
+      </div>
+      <p><code>invoker-iam-disabled</code> が出力されなければ、IAM チェックは有効。</p>
+<pre id="cmd-check">gcloud run services describe echo-blog-app \
+  --project &lt;backend-project&gt; --region asia-northeast1 \
+  --format='value(metadata.annotations)' | tr ';' '\n' | grep invoker</pre>
+    </div>
+  </section>
+
+  <section aria-labelledby="s-refs">
+    <div class="section-head">
+      <h2 id="s-refs">関連</h2>
+    </div>
+    <ul class="refs">
+      <li><span class="num">back #146</span><a href="https://github.com/kojikawazu/nextjs-echo-back-blog-app/issues/146">BFF 経由のレートリミットを利用者単位に</a></li>
+      <li><span class="num">back PR #164</span><a href="https://github.com/kojikawazu/nextjs-echo-back-blog-app/pull/164">非公開化と X-Client-IP の信頼</a></li>
+      <li><span class="num">back #165 / PR #166</span><a href="https://github.com/kojikawazu/nextjs-echo-back-blog-app/pull/166">invoker の IAM チェックを有効にする</a></li>
+      <li><span class="num">front PR #150</span><a href="https://github.com/kojikawazu/nextjs-echo-blog-front-app-renew/pull/150">ID トークンとクライアント IP の付与</a></li>
+      <li><span class="num">back docs 06</span><span>セキュリティ仕様 6.3（IAM）・8.2（レートリミット）</span></li>
+      <li><span class="num">front docs 09</span><span>アーキテクチャ仕様「バックエンドの呼び出し」</span></li>
+    </ul>
+  </section>
+</div>
+
+<script>
+document.querySelectorAll('button.copy').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var el = document.getElementById(btn.dataset.target);
+    if (!el) return;
+    var text = el.textContent;
+    var done = function () {
+      btn.textContent = 'コピーしました';
+      setTimeout(function () { btn.textContent = 'コピー'; }, 1600);
+    };
+    var fallback = function () {
+      var range = document.createRange();
+      range.selectNodeContents(el);
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      btn.textContent = '選択しました';
+      setTimeout(function () { btn.textContent = 'コピー'; }, 1600);
+    };
+    try {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } catch (e) {
+      fallback();
+    }
+  });
+});
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({
+  startOnLoad: true,
+  theme: window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default',
+});
+</script>
+</body>
+</html>

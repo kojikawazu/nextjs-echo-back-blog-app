@@ -6,7 +6,7 @@
 
 - **標準仕様書（`01`〜`11`）** — 仕様の正準。番号順に読むと全体像をつかめる。
 - **移行ドキュメント** — インフラ・データ移行の手順とレポート。
-- **[`tech-reports/`](./tech-reports/)** — 利用技術の理解向上レポート（pgx / JWT / Hono / クリーンアーキテクチャ）。
+- **[`tech-reports/`](./tech-reports/)** — 利用技術の理解向上レポート（pgx / JWT / Hono / クリーンアーキテクチャ / BFF とのサービス間認証）。
 - **[`test-design/`](./test-design/)** — テスト設計の詳細ケース表。
 
 ## 読み進め順（おすすめ）
@@ -47,6 +47,7 @@
 | [JWT / HTTP-Only Cookie](./tech-reports/02-jwt-http-only-cookie.md) | JWT (HS256) と HTTP-Only Cookie による認証 |
 | [Hono](./tech-reports/03-hono.md) | フロント側 API Route（Hono） |
 | [クリーンアーキテクチャ](./tech-reports/04-clean-architecture.md) | Handler / Service / Repository の 3 層構成 |
+| [BFF とのサービス間認証](./tech-reports/05-bff-service-auth.md)（[HTML 版](./tech-reports/05-bff-service-auth.html)） | Cloud Run IAM + ID トークンによる非公開化・`X-Client-IP` による利用者単位のレートリミット・切り替えの記録 |
 
 ## test-design/ — テスト設計
 
