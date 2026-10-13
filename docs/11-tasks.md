@@ -222,6 +222,9 @@
   - 対応: Echo の`middleware.CSRF`の導入、またはカスタムCSRFトークン実装
   - 備考: SameSite=None設定のため、CSRF攻撃のリスクが存在する
 
+- [x] **秘匿ファイルの Git 混入検出（#126）**
+  - 対応: `.github/workflows/secret-scan.yml` を新設（パスフィルタなしで PR・`main` への push ごとに実行）。`scripts/check-secret-files.sh` が追跡済み・未追跡（`.gitignore` 漏れ）のファイルを、ファイル名（鍵・`.env` 系・Terraform の state / 変数）と内容（PEM 秘密鍵・サービスアカウントキー JSON）で検査する。`--history` で履歴上のパスも照合（導入時に 0 件を確認）
+  - テスト: `scripts/check-secret-files_test.sh`（使い捨ての git リポジトリで検出・素通り・未追跡・履歴・異常系を検証）を CI で実スキャンの前に実行
 - [ ] **入力サニタイズ（XSS防止）**
   - 現状: ユーザー入力（コメント本文、ゲスト名等）のサニタイズ処理なし
   - 対応: HTMLエスケープ処理の追加、またはサニタイズライブラリの導入

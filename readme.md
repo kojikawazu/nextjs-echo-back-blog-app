@@ -45,6 +45,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 ├── terraform/   # インフラ構成（Terraform）
 ├── docs/        # 仕様・設計ドキュメント
 ├── .github/     # CI/CD（GitHub Actions）
+├── scripts/     # CI 用スクリプト（Secret scan）
 └── README.md
 ```
 
@@ -103,6 +104,8 @@ JWT_SECRET_KEY=your-test-secret go test -tags=e2e ./e2e/...
 - IT / E2E は既定でコンテナを起動するため `.env.test` は不要。ローカルの DB（`supabase start` 等）に対して実行したい場合のみ `SUPABASE_URL`（と `TEST_*`）を環境変数で渡す（[`backend/.env.test.example`](backend/.env.test.example) 参照）。IT / E2E はデータを変更するため、**ローカル以外（本番 Supabase 等）の `SUPABASE_URL` は `testsupport` が拒否する**。
 
 > CI（`ci.yml`）は PR・`main` への push で、`test`（UT）・`integration-test`（IT / testcontainers）・`e2e-test`（API-E2E / testcontainers）の各ジョブを実行する。テスト方針の詳細は [`docs/08-test-specification.md`](docs/08-test-specification.md)。
+>
+> Secret scan（`secret-scan.yml`）は変更箇所を問わず PR・`main` への push のたびに実行し、鍵・`.env`・Terraform の state / 変数が Git の追跡対象に入っていないかを検査する。ローカルでは `scripts/check-secret-files.sh` を実行する（コミット前なら `.gitignore` 漏れの未追跡ファイルも検出する）。
 
 ## Lint / 静的解析
 
