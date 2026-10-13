@@ -121,7 +121,7 @@
 |------|------|--------|
 | **パスワードの平文保存**（解消済み） | #120 で bcrypt によるハッシュ化を導入し、既存ユーザーも一括移行した。 | - |
 | **CSRF保護なし** | Echo のCSRFミドルウェアが未設定。クッキーベース認証のため、CSRFトークンによる保護が必要。 | 高 |
-| **レート制限が BFF 単位**（一部解消） | #124 でクライアント IP 単位のレートリミットを導入した。ただしフロントエンド（BFF）がクライアント IP を転送しないため、BFF 経由の利用者は全体で 1 つの枠を共有する（詳細は [06-security-specification.md](06-security-specification.md) 8.2、対応は #146）。 | 低 |
+| **レート制限が BFF 単位**（解消済み） | #124 でクライアント IP 単位のレートリミットを導入し、#146 でバックエンドを BFF からのみ呼べるようにしたうえで、BFF が転送する `X-Client-IP` で利用者単位に数えるようにした（詳細は [06-security-specification.md](06-security-specification.md) 8.2）。 | - |
 | **入力サニタイズ不足** | XSS攻撃防止のための入力サニタイズ処理が未実装。特にコメントのゲスト名・本文が対象。 | 中 |
 
 ### データ型の制約
@@ -205,3 +205,4 @@
 | `JWT_SECRET_KEY` | JWTトークン署名キー | Secret Manager |
 | `SUPABASE_URL` | Supabase PostgreSQL接続URL | Secret Manager |
 | `ALLOWED_ORIGINS` | CORS許可オリジン（カンマ区切り） | Secret Manager |
+| `TRUST_CLIENT_IP_HEADER` | `true` で BFF が付与する `X-Client-IP` を信頼する（バックエンドの非公開化が前提。#146） | `deploy.yml`（`--update-env-vars`）/ Terraform（`cloud-run.tf`） |

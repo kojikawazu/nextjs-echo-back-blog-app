@@ -327,7 +327,7 @@ CommentRepository ──> CommentService ─────────┘──> C
 | RateLimiter（全体） | クライアント IP 単位で毎秒 20 件・瞬間 60 件まで（ヘルスチェック `GET /` を除く）。CORS の後に置き、429 にも CORS ヘッダを付ける |
 | RateLimiter（認証系） | ルート単位で `POST /api/users/login`・`PUT /api/users/update` に適用（5 回/分、2 つでカウントを共有）。`routes.go` で `middlewares.NewAuthRateLimiter()` を渡す |
 
-- クライアント IP は `e.IPExtractor = echo.ExtractIPFromXFFHeader()`（`X-Forwarded-For` の右端側）で取る。カウントはインスタンスのメモリで持つ。詳細は [06-security-specification.md](06-security-specification.md) 8.2。
+- クライアント IP は `e.IPExtractor = middlewares.NewIPExtractor(...)` で取る。`TRUST_CLIENT_IP_HEADER=true`（本番）のときは BFF が付与した `X-Client-IP`、それ以外は `X-Forwarded-For` の右端側（`echo.ExtractIPFromXFFHeader()`）。カウントはインスタンスのメモリで持つ。詳細は [06-security-specification.md](06-security-specification.md) 8.2。
 
 #### CORS設定詳細
 
@@ -353,7 +353,7 @@ Terraformで管理される GCP リソースは以下の通り。
 | CPU | 1000m (1 vCPU) |
 | メモリ | 512Mi |
 | ポート | 環境変数 `api_port` で指定 |
-| 認証 | 未認証アクセス許可 (`--allow-unauthenticated`) |
+| 認証 | 未認証アクセス拒否（`--no-allow-unauthenticated`）。Invoker は BFF のサービスアカウントのみ（`invoker_member`。#146） |
 | サービスアカウント | `cloud-run-sa` |
 | トラフィック | 最新リビジョンに100% |
 
@@ -478,7 +478,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
 | 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
 | 5. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
-| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する） |
+| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する。`--no-allow-unauthenticated` と `TRUST_CLIENT_IP_HEADER=true` を同じコマンドで設定する。#146） |
 | 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
 #### 使用するGitHub Secrets
@@ -539,6 +539,7 @@ CMD ["/app/main"]
 | `JWT_SECRET_KEY` | JWT署名キー | はい |
 | `ALLOWED_ORIGINS` | CORS許可オリジン（カンマ区切り） | はい |
 | `ENV` | 環境識別子（`production` で本番Cookie設定） | はい |
+| `TRUST_CLIENT_IP_HEADER` | `true` で BFF が付与する `X-Client-IP` をクライアント IP として信頼する（非公開化が前提。`deploy.yml` と Terraform で設定） | 本番のみ |
 | `PORT` | サーバーリスンポート（デフォルト: 8080） | いいえ |
 
 ### 7.3 サーバー起動フロー
@@ -613,11 +614,13 @@ backend/
 │
 ├── middlewares/
 │   ├── middlewares.go               # Echo ミドルウェア設定（HTTPErrorHandler/IPExtractor/RequestLogger/Recover/CORS/RateLimiter）
+│   ├── ip_extractor.go              # クライアント IP の抽出（X-Client-IP / X-Forwarded-For）
+│   ├── ip_extractor_test.go         # IP 抽出・TRUST_CLIENT_IP_HEADER の UT
 │   ├── middlewares_test.go          # アクセスログミドルウェアの UT
 │   ├── error_handler.go             # HTTPErrorHandler（エラー → ステータス・統一エラーレスポンス）
 │   ├── error_handler_test.go        # エラー変換の UT
 │   ├── rate_limiter.go              # レートリミット（全体・認証系）
-│   └── rate_limiter_test.go         # レートリミット・IP 抽出の UT
+│   └── rate_limiter_test.go         # レートリミット（BFF 経由の数え方を含む）の UT
 │
 ├── models/
 │   ├── auth.go                      # JWT Claims 構造体
@@ -896,8 +899,9 @@ go run main.go
 | `JWT_SECRET_KEY` | ✅ | JWT署名鍵。未設定だと `config.init()` の `log.Fatal` で即終了 | `backend/config/config.go:9,12-15` |
 | `SUPABASE_URL` | ✅ | PostgreSQL接続URL。`?sslmode=<DB_SSLMODE>` はコードが自動付与 | `backend/supabase/client.go` |
 | `DB_SSLMODE` | - | 接続時の SSL モード。未設定時 `require`（本番）。非SSLのDBは `disable` | `backend/supabase/client.go` |
-| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:26` |
+| `ALLOWED_ORIGINS` | ✅(ブラウザ利用時) | CORS許可オリジン（カンマ区切り） | `backend/middlewares/middlewares.go:29` |
 | `ENV` | - | `production` で Cookie が Secure/SameSite=None。ローカルは空 | `backend/config/config.go:10` |
+| `TRUST_CLIENT_IP_HEADER` | - | `true` で `X-Client-IP` を信頼する。ローカルでは設定しない（偽装でレートリミットを回避できるため） | `backend/middlewares/middlewares.go:23` |
 | `PORT` | - | リッスンポート（既定 8080） | `backend/main.go:74-77` |
 | `TEST_MODE` | - | `true` でログ破棄（主にテスト用） | `backend/logger/logger.go` |
 

@@ -180,7 +180,7 @@
 - [x] **レート制限の導入（#124）**
   - 対応: Echo の `middleware.RateLimiter`（メモリストア）を導入。全体はクライアント IP 単位で毎秒 20 件・瞬間 60 件、ログイン・ユーザー更新は共有で 5 回/分。超過時は 429
   - クライアント IP は `X-Forwarded-For` の右端側から取る（`echo.ExtractIPFromXFFHeader`）。Cloud Run の最大インスタンス数を 3 に固定
-  - 残: BFF 経由のリクエストは BFF の IP で数えられ、利用者全体で 1 つの枠を共有する（#146）
+  - 残: BFF 経由のリクエストは BFF の IP で数えられ、利用者全体で 1 つの枠を共有する（#146 で対応）
 
 - [x] **JWT ライブラリの v5 移行とトークン種類の取り違え防止（#152 / #156）**
   - 対応: `golang-jwt/jwt` v3.2.2（Dependabot の high アラート。修正版なし）を v5.3.1 へ移行。発行・検証を `utils/cookie/jwt.go` に集約し、`alg` を HS256 に固定、`exp` を必須化
@@ -209,6 +209,12 @@
   - 対応: 共通トリガ関数 `set_updated_at()` と `blog_users` / `blogs` / `blog_likes` の `BEFORE UPDATE` トリガを追加し、`updated_at` を `timestamptz NOT NULL` に統一。Go のコードは変更なし
   - 本番は `supabase-migration-guide.md` 付録 B の手順で適用（ユーザーが SQL Editor で実行）。過去の更新時刻は記録されておらず復元しない
   - テスト用スキーマに同じ定義を入れ、IT でスキーマ（トリガの付け忘れ・監査列の型）と UPDATE 時の値の進みを検査する
+
+- [x] **BFF 経由のリクエストを利用者単位でレートリミットする（#146）**
+  - 対応: バックエンドを Cloud Run IAM で BFF のサービスアカウントからのみ呼べるようにし（`--no-allow-unauthenticated`）、BFF が転送する `X-Client-IP` を `TRUST_CLIENT_IP_HEADER=true` のときのみ信頼する（`middlewares.NewIPExtractor`）
+  - フロントエンド側（ID トークンの付与・`X-Client-IP` の転送）は `nextjs-echo-blog-front-app-renew` の別 issue で対応
+  - 切り替え順: フロントのデプロイ → BFF のサービスアカウントへの `roles/run.invoker` 付与 → バックエンドのデプロイ（逆順だと BFF からの呼び出しが 401 になる）
+  - これで親 issue #119 のサブ issue はすべて対応済み
 
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし

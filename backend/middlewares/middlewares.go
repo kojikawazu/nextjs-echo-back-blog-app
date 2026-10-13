@@ -19,9 +19,8 @@ func SetupMiddlewares(e *echo.Echo) {
 	// エラーレスポンスを統一形式（dto.ErrorResponse）で返す
 	e.HTTPErrorHandler = HTTPErrorHandler
 
-	// クライアント IP は X-Forwarded-For の右端（Cloud Run のフロントエンドが付与した値）から取る。
-	// 既定の c.RealIP() は左端を使うため、ヘッダの偽装でレートリミットを回避できてしまう。
-	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	// クライアント IP の抽出方法（レートリミット・アクセスログで使う）。詳細は NewIPExtractor を参照
+	e.IPExtractor = NewIPExtractor(os.Getenv(trustClientIPHeaderEnv) == "true")
 
 	// ロガーとリカバリーミドルウェアを使用
 	e.Use(newRequestLogger(os.Stdout))

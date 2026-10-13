@@ -119,8 +119,17 @@
 | 全エンドポイント（`GET /` を除く） | 毎秒 20 件・瞬間 60 件まで |
 | `POST /api/users/login`・`PUT /api/users/update`（2 つで共有） | 5 回まで、以降 12 秒ごとに 1 回（5 回/分） |
 
-- クライアント IP は `X-Forwarded-For` の右端（Cloud Run のフロントエンドが付与した値）から取る。
-- フロントエンド（BFF）経由のリクエストは BFF の IP で数えるため、BFF 経由の利用者全体で 1 つの枠を共有する。詳細は [06-security-specification.md](06-security-specification.md) 8.2（利用者単位にする対応は #146）。
+- クライアント IP は、BFF が付与する `X-Client-IP` を使う（本番のみ。`TRUST_CLIENT_IP_HEADER=true`）。ヘッダがない・解釈できない場合や、ローカル・テストでは `X-Forwarded-For` の右端（Cloud Run のフロントエンドが付与した値）から取る。詳細は [06-security-specification.md](06-security-specification.md) 8.2（#146）。
+
+### 呼び出し元の制限
+
+- 本番のバックエンドは BFF（フロントエンドの Cloud Run のサービスアカウント）からのみ呼べる（Cloud Run IAM。#146）。BFF は ID トークンを `Authorization: Bearer` で付ける。ID トークンのないリクエストは、アプリに届く前に Cloud Run が 401 で拒否する（このエラーは統一エラーレスポンスの形式ではない）。
+- BFF が付与するヘッダ:
+
+| ヘッダ | 内容 |
+|--------|------|
+| `Authorization` | `Bearer <ID トークン>`（audience はバックエンドの URL）。Cloud Run が検証する |
+| `X-Client-IP` | クライアント IP（レートリミットのカウントに使う） |
 
 ### 共通レスポンスヘッダー
 

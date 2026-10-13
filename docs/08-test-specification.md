@@ -179,7 +179,8 @@
 | `apperrors/apperrors_test.go` | sentinel が `errors.Is` で同一性判定されること（同じメッセージの別エラーとは一致しない）、`Wrap` が sentinel・原因の両方に一致すること |
 | `middlewares/error_handler_test.go` | `HTTPErrorHandler`: 各 Kind → ステータス（400/401/404/409/429/500）と統一エラーレスポンス、包まれた sentinel の判定、原因・Echo の独自メッセージ・想定外エラーの内容を本文に出さないこと、Echo の 404/405、HEAD、書き込み済みレスポンスを上書きしないこと、`SetupMiddlewares` 経由（ルート不在・panic を含む）で 1 回だけ書き込まれること |
 | `middlewares/middlewares_test.go` | アクセスログミドルウェア（確定ステータス・エラー（4xx は WARN、5xx は ERROR）・JSON 出力・機密ヘッダ非記録） |
-| `middlewares/rate_limiter_test.go` | レートリミット: 上限内は通る・超過で 429 と `{"code":"TOO_MANY_REQUESTS","error":"Too many requests"}`・IP ごとに独立・`X-Forwarded-For` 左端の偽装で回避できない・XFF なし/解釈不能時は接続元で数える・ヘルスチェック除外・認証系の枠の共有と他エンドポイントへの非干渉。`SetupMiddlewares` の IP 抽出設定 |
+| `middlewares/rate_limiter_test.go` | レートリミット: 上限内は通る・超過で 429 と `{"code":"TOO_MANY_REQUESTS","error":"Too many requests"}`・IP ごとに独立・`X-Forwarded-For` 左端の偽装で回避できない・XFF なし/解釈不能時は接続元で数える・ヘルスチェック除外・認証系の枠の共有と他エンドポイントへの非干渉。BFF 経由（同じ BFF の IP）: 信頼が有効なら `X-Client-IP` ごとに別枠・解釈不能な値は BFF の IP で数える・信頼が無効なら `X-Client-IP` の偽装で回避できない。`SetupMiddlewares` の IP 抽出設定 |
+| `middlewares/ip_extractor_test.go` | IP 抽出: 信頼が有効なら `X-Client-IP` を使う（IPv6 は正規化・前後の空白を除去）・ヘッダなし/解釈不能/複数 IP は `X-Forwarded-For` の右端に戻す・信頼が無効ならヘッダを無視。`TRUST_CLIENT_IP_HEADER` は `true` のときのみ有効（未設定・`1`・`TRUE` は無効） |
 | `routes/routes_test.go` | 認証系レートリミットがログイン・ユーザー更新に適用され（カウント共有）、他のエンドポイントに影響しないこと |
 | `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
 | `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
