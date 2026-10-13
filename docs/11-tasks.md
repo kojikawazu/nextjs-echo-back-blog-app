@@ -215,6 +215,7 @@
   - フロントエンド側（ID トークンの付与・`X-Client-IP` の転送）は `nextjs-echo-blog-front-app-renew` の別 issue で対応
   - 切り替え順: フロントのデプロイ → BFF のサービスアカウントへの `roles/run.invoker` 付与 → バックエンドのデプロイ（逆順だと BFF からの呼び出しが 401 になる）
   - これで親 issue #119 のサブ issue はすべて対応済み
+  - 追補（#165）: デプロイ後もサービスの invoker IAM チェックが無効（`invoker-iam-disabled`）のままで、`allUsers` を外しても直接アクセスできた。`--invoker-iam-check` を手動で適用して解消し、`deploy.yml` にも追加した。本番で確認済み: 直接アクセスは 403、BFF 経由は 200、アクセスログの `remote_ip` は利用者の IP
 
 - [ ] **CSRF保護の追加**
   - 現状: クッキーベース認証にもかかわらずCSRFトークン検証なし

@@ -353,7 +353,7 @@ Terraformで管理される GCP リソースは以下の通り。
 | CPU | 1000m (1 vCPU) |
 | メモリ | 512Mi |
 | ポート | 環境変数 `api_port` で指定 |
-| 認証 | 未認証アクセス拒否（`--no-allow-unauthenticated`）。Invoker は BFF のサービスアカウントのみ（`invoker_member`。#146） |
+| 認証 | 未認証アクセス拒否（`--no-allow-unauthenticated`・`--invoker-iam-check`）。Invoker は BFF のサービスアカウントのみ（`invoker_member`。#146 / #165） |
 | サービスアカウント | `cloud-run-sa` |
 | トラフィック | 最新リビジョンに100% |
 
@@ -478,7 +478,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
 | 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
 | 5. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
-| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する。`--no-allow-unauthenticated` と `TRUST_CLIENT_IP_HEADER=true` を同じコマンドで設定する。#146） |
+| 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する。`--no-allow-unauthenticated`・`--invoker-iam-check` と `TRUST_CLIENT_IP_HEADER=true` を同じコマンドで設定する。#146 / #165） |
 | 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
 
 #### 使用するGitHub Secrets
