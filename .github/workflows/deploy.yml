@@ -12,6 +12,11 @@ on:
         - 'backend/Dockerfile'
         - '.github/workflows/**'
 
+# id-token: write は Workload Identity Federation で GitHub の OIDC トークンを発行するため（#144）
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -20,10 +25,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      # 長期有効なサービスアカウントキーは使わず、Workload Identity Federation でデプロイ専用 SA を借用する（#144）。
+      # Provider の条件で、このリポジトリの main ブランチの deploy.yml からのトークンだけを受け入れる（terraform/github-actions-wif.tf）。
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
 
       - name: Authenticate Docker with GCR
         run: |
@@ -55,17 +63,20 @@ jobs:
               --invoker-iam-check \
               --update-env-vars TRUST_CLIENT_IP_HEADER=true
 
+      # 最新 5 件を残して古いイメージを削除する。イメージはコミット SHA のタグ付きのため --delete-tags が必要
+      # （タグ付きのまま digest で削除すると失敗する）。削除権限（artifactregistry.versions.delete）は
+      # デプロイ SA にリポジトリ単位の repoAdmin で付与している（#144。以前の SA は writer のみで、毎回権限エラーになっていた）。
+      # 削除に失敗してもデプロイ自体は成功しているため、ジョブは失敗させず警告として残す。
       - name: Cleanup old images
         run: |
             IMAGE_NAME="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.REPO_NAME }}/${{ secrets.APP_NAME }}"
-            
-            # 古いイメージの削除（参照されていないもののみ）
+
             echo "Cleaning up old images..."
             gcloud artifacts docker images list ${IMAGE_NAME} --format="value(DIGEST)" --sort-by="~UPDATE_TIME" | tail -n +6 | while read -r DIGEST; do
                 if [[ ! -z "${DIGEST}" ]]; then
-                    echo "Attempting to delete old image: ${IMAGE_NAME}@${DIGEST}"
-                    gcloud artifacts docker images delete "$IMAGE_NAME@$DIGEST" --quiet || echo "Failed to delete $IMAGE_NAME@$DIGEST (likely referenced by other manifests)"
+                    echo "Deleting old image: ${IMAGE_NAME}@${DIGEST}"
+                    gcloud artifacts docker images delete "$IMAGE_NAME@$DIGEST" --delete-tags --quiet || echo "::warning::Failed to delete $IMAGE_NAME@$DIGEST"
                 fi
             done
-            
-            echo "Cleanup completed (some images may remain if referenced by other manifests)"
+
+            echo "Cleanup completed"

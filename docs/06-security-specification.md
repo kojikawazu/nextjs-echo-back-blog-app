@@ -279,6 +279,8 @@ var IsProduction = os.Getenv("ENV") == "production"
 - BFF はメタデータサーバーから取得した ID トークン（audience はバックエンドの URL）を `Authorization: Bearer` で付けて呼ぶ。ID トークンのないリクエストは Cloud Run が 403（不正なトークンは 401）で拒否し、コンテナに届かない。
 - アプリの JWT は Cookie（`token`）で受け取るため、`Authorization` ヘッダとは衝突しない。
 - Secret ManagerへのアクセスはサービスアカウントベースのIAMで制限される。
+- **GitHub Actions のデプロイは Workload Identity Federation で認証する**（#144）。長期有効なサービスアカウントキーを持たず、GitHub の OIDC トークンでデプロイ専用サービスアカウント（`echo-blog-deployer`）を借用する。Provider の条件（`attribute_condition`）で、このリポジトリの数値 ID（`repository_id`）と `workflow_ref`（`deploy.yml@refs/heads/main`）を照合し、他のリポジトリ・ブランチ・ワークフローからは借用できない。リポジトリ名ではなく ID で判定するのは、同名で作り直されたリポジトリを通さないため。Workload Identity Pool はこのリポジトリ専用とし、他リポジトリの Provider を経由した借用の余地を残さない。
+- デプロイ専用サービスアカウントの権限は、プロジェクト全体ではなく操作対象のリソース単位で付与する（Artifact Registry リポジトリに `repoAdmin`、Cloud Run サービスに `run.admin`、`cloud-run-sa` に `iam.serviceAccountUser`）。詳細は [`09-architecture-specification.md`](09-architecture-specification.md) の 5.1。
 
 ### 6.4 Artifact Registry
 

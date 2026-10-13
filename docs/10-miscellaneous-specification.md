@@ -44,7 +44,7 @@
 | **pgx** | Go言語用のPostgreSQLドライバー。本プロジェクトではv5を使用し（v4 から移行。#153）、`pgxpool`によるコネクションプーリングを行う。クエリを Simple Protocol で実行し（`QueryExecModeSimpleProtocol`）、Prepared Statementの競合を防止している。 |
 | **Terraform** | HashiCorp製のIaC（Infrastructure as Code）ツール。GCPリソース（Cloud Run、Artifact Registry、Secret Manager、IAM）をコードで定義・管理する。 |
 | **Distroless** | Google提供の最小限コンテナイメージ。シェルやパッケージマネージャを含まず、アプリケーションバイナリの実行に必要な最小限のランタイムのみを含む。セキュリティとイメージサイズの最適化に寄与する。 |
-| **サービスアカウントキー認証** | GitHub ActionsからGCPリソースへアクセスする際の認証方式。`google-github-actions/auth@v1` に GitHub Secrets の `GCP_SERVICE_ACCOUNT_KEY`（サービスアカウントキーJSON）を `credentials_json` として渡して認証する（Workload Identity Federation は未使用）。 |
+| **Workload Identity Federation（WIF）** | GitHub ActionsからGCPリソースへアクセスする際の認証方式（#144）。GitHub が発行する OIDC トークンを GCP の Workload Identity Provider で検証し、デプロイ専用のサービスアカウント（`echo-blog-deployer`）を借用する。長期有効なサービスアカウントキーを持たないため、鍵の漏洩・ローテーションの問題が生じない。Provider の条件で「このリポジトリ（`repository_id`）の main ブランチの `deploy.yml`」からのトークンだけを受け入れる。定義は `terraform/github-actions-wif.tf`。以前はサービスアカウントキー（Actions secret `GCP_SERVICE_ACCOUNT_KEY`）を `credentials_json` で渡していた |
 | **CORS** | Cross-Origin Resource Sharing。フロントエンド（Next.js）からのクロスオリジンリクエストを許可するために設定。`ALLOWED_ORIGINS`環境変数で許可オリジンをカンマ区切りで指定する。 |
 | **Clean Architecture** | 本プロジェクトで採用しているアーキテクチャパターン。Handler（プレゼンテーション層）、Service（ビジネスロジック層）、Repository（データアクセス層）の3層に分離する。 |
 

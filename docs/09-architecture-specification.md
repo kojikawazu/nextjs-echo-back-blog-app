@@ -382,6 +382,11 @@ Terraformで管理される GCP リソースは以下の通り。
 
 - Cloud Run サービスに対する呼び出し権限（`invoker_role`）
 - Cloud Run サービスアカウントに対するSecret Manager読み取り権限（`roles/secretmanager.secretAccessor`）
+- GitHub Actions のデプロイ専用サービスアカウント（`echo-blog-deployer`）の権限（#144）。プロジェクト全体ではなく、操作対象のリソース単位で付与する
+  - Artifact Registry リポジトリ: `roles/artifactregistry.repoAdmin`（イメージの push と古いイメージの削除）
+  - Cloud Run サービス: `roles/run.admin`（デプロイと `--no-allow-unauthenticated` による IAM ポリシーの更新）
+  - `cloud-run-sa`: `roles/iam.serviceAccountUser`（リビジョンの実行サービスアカウントに指定するため）
+  - 自身: `roles/iam.workloadIdentityUser`（このリポジトリの GitHub Actions に借用を許可）
 
 ### 5.2 Terraform構成
 
@@ -392,8 +397,11 @@ terraform/
 ├── cloud-run.tf            # Cloud Runサービス、サービスアカウント
 ├── cloud-run-iam.tf        # IAMロール設定
 ├── artifact-registry.tf    # Artifact Registry リポジトリ
-└── secrets.tf              # Secret Manager シークレット
+├── secrets.tf              # Secret Manager シークレット
+└── github-actions-wif.tf   # GitHub Actions のデプロイ認証（WIF の Provider・デプロイ専用サービスアカウントと権限）
 ```
+
+> `github-actions-wif.tf` の Workload Identity Pool はこのリポジトリ専用に作る。借用を許可する主体（`principalSet`）は Pool 単位で照合されるため、他リポジトリと Pool を共用すると、後から追加された条件の緩い Provider を経由して、このリポジトリの別ブランチ・別ワークフローのトークンがバインディングに一致しうる。専用 Pool なら Provider は `deploy.yml`（main）に限定した 1 つだけになる。また Cloud Run サービスの定義は本番とずれているため（#170）、適用は `terraform apply -target=...` で対象リソースに限定する（手順は [`cloud-run-migration-report.md`](cloud-run-migration-report.md) の「3. Workload Identity Federation への移行」）。既存の Cloud Run サービス・Artifact Registry リポジトリは、`-target` の依存として巻き込まないよう変数で指定している。
 
 #### Terraform要件
 
@@ -496,18 +504,19 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | ステップ | Action/コマンド | 説明 |
 |---------|----------------|------|
 | 1. Checkout | `actions/checkout@v3` | ソースコードの取得 |
-| 2. GCP認証 | `google-github-actions/auth@v1` | サービスアカウントキー（`credentials_json`）で認証 |
+| 2. GCP認証 | `google-github-actions/auth@v3` | Workload Identity Federation でデプロイ専用サービスアカウント（`echo-blog-deployer`）を借用する（#144）。`permissions: id-token: write` で GitHub の OIDC トークンを発行する。サービスアカウントキーは使わない |
 | 3. Docker認証 | `gcloud auth configure-docker` | Artifact Registryへの認証設定 |
 | 4. GCloud設定 | `google-github-actions/setup-gcloud@v1` | GCloud SDKの初期化 |
 | 5. ビルド・プッシュ | `docker build ./backend` + `docker push` | イメージビルドとプッシュ（ビルドコンテキストは `backend/`。タグ: コミットSHA） |
 | 6. デプロイ | `gcloud run deploy` | Cloud Runへのデプロイ（`--max-instances 3`。レートリミットの実効上限とコストを固定する。`--no-allow-unauthenticated`・`--invoker-iam-check` と `TRUST_CLIENT_IP_HEADER=true` を同じコマンドで設定する。#146 / #165） |
-| 7. クリーンアップ | `gcloud artifacts docker images delete` | 古いイメージの削除（最新5件を保持） |
+| 7. クリーンアップ | `gcloud artifacts docker images delete --delete-tags` | 古いイメージの削除（最新5件を保持）。イメージはコミット SHA のタグ付きのため `--delete-tags` を付ける。削除に失敗してもジョブは失敗させず `::warning::` で残す（#144 以前は削除権限が無く、毎回失敗していた） |
 
 #### 使用するGitHub Secrets
 
 | シークレット名 | 用途 |
 |---------------|------|
-| `GCP_SERVICE_ACCOUNT_KEY` | GCPサービスアカウントの認証キー（JSON） |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Provider のリソース名（`terraform output github_workload_identity_provider`） |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | デプロイ専用サービスアカウントのメールアドレス（`terraform output github_deploy_service_account`） |
 | `GCP_PROJECT_ID` | GCPプロジェクトID |
 | `GCP_REGION` | GCPリージョン |
 | `REPO_NAME` | Artifact Registryリポジトリ名 |

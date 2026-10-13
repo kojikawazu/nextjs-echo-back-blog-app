@@ -225,6 +225,10 @@
 - [x] **秘匿ファイルの Git 混入検出（#126）**
   - 対応: `.github/workflows/secret-scan.yml` を新設（パスフィルタなしで PR・`main` への push ごとに実行）。`scripts/check-secret-files.sh` が追跡済み・未追跡（`.gitignore` 漏れ）のファイルを、ファイル名（鍵・`.env` 系・Terraform の state / 変数）と内容（PEM 秘密鍵・サービスアカウントキー JSON）で検査する。`--history` で履歴上のパスも照合（導入時に 0 件を確認）
   - テスト: `scripts/check-secret-files_test.sh`（使い捨ての git リポジトリで検出・素通り・未追跡・履歴・異常系を検証）を CI で実スキャンの前に実行
+- [x] **GitHub Actions の GCP 認証を Workload Identity Federation に移行（#144）**
+  - 対応: `terraform/github-actions-wif.tf` で、このリポジトリ専用の Workload Identity Pool・Provider（`repository_id` と `workflow_ref` で main の `deploy.yml` に限定）と、デプロイ専用サービスアカウント（リソース単位の最小権限）を追加。`deploy.yml` を WIF 認証に変更し、サービスアカウントキーを廃止
+  - 併せて: 古いイメージの削除が権限不足で毎回失敗していた問題を、`repoAdmin` と `--delete-tags` で解消
+  - 残: Cloud Run の Terraform 定義と本番のずれ（#170）
 - [ ] **入力サニタイズ（XSS防止）**
   - 現状: ユーザー入力（コメント本文、ゲスト名等）のサニタイズ処理なし
   - 対応: HTMLエスケープ処理の追加、またはサニタイズライブラリの導入
