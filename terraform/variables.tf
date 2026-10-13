@@ -55,3 +55,15 @@ variable "tmp_allowed_origins" {
   type = string
   sensitive = true 
 }
+
+variable "github_repository" {
+  type        = string
+  default     = "kojikawazu/nextjs-echo-back-blog-app"
+  description = "デプロイを許可する GitHub リポジトリ（owner/name）。Provider の条件で workflow_ref と照合する"
+}
+
+variable "github_repository_id" {
+  type        = string
+  default     = "870653888"
+  description = "デプロイを許可する GitHub リポジトリの数値 ID（gh api repos/<owner>/<name> --jq .id）。同名で作り直されたリポジトリを通さないため、名前ではなく ID で判定する"
+}
