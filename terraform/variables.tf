@@ -19,7 +19,8 @@ variable "invoker_role" {
 }
 
 variable "invoker_member" {
-  type = string
+  type        = string
+  description = "バックエンドを呼び出せる主体。BFF（フロントエンドの Cloud Run）のサービスアカウントを指定する（例: serviceAccount:cloud-run-sa@<フロントのプロジェクト>.iam.gserviceaccount.com）。allUsers にしない（#146）"
 }
 
 variable "service_name" {

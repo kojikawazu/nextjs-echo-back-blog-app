@@ -16,15 +16,21 @@ const testProxyRemoteAddr = "169.254.1.1:40000"
 
 // rateLimitRequest はテストで送る 1 リクエスト分の送信元と期待ステータス。
 type rateLimitRequest struct {
+	clientIP   string // 空文字のときは X-Client-IP を付けない
 	xff        string // 空文字のときは X-Forwarded-For を付けない
 	remoteAddr string
 	wantStatus int
 }
 
-// newRateLimitTestServer は本番と同じ IP 抽出設定・エラーハンドラの Echo にミドルウェアを適用した /test を持つサーバーを返す。
+// newRateLimitTestServer は本番と同じ IP 抽出設定（X-Client-IP は信頼しない）・エラーハンドラの Echo にミドルウェアを適用した /test を持つサーバーを返す。
 func newRateLimitTestServer(m echo.MiddlewareFunc) *echo.Echo {
+	return newRateLimitTestServerWithTrust(m, false)
+}
+
+// newRateLimitTestServerWithTrust は X-Client-IP の信頼設定を指定して newRateLimitTestServer と同じサーバーを返す。
+func newRateLimitTestServerWithTrust(m echo.MiddlewareFunc, trustClientIPHeader bool) *echo.Echo {
 	e := echo.New()
-	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	e.IPExtractor = NewIPExtractor(trustClientIPHeader)
 	e.HTTPErrorHandler = HTTPErrorHandler
 	e.Use(m)
 	e.GET("/test", func(c echo.Context) error {
@@ -36,6 +42,9 @@ func newRateLimitTestServer(m echo.MiddlewareFunc) *echo.Echo {
 func serve(e *echo.Echo, method, path string, r rateLimitRequest) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, nil)
 	req.RemoteAddr = r.remoteAddr
+	if r.clientIP != "" {
+		req.Header.Set(clientIPHeader, r.clientIP)
+	}
 	if r.xff != "" {
 		req.Header.Set(echo.HeaderXForwardedFor, r.xff)
 	}
@@ -126,6 +135,74 @@ func TestNewRateLimiter(t *testing.T) {
 	}
 }
 
+// TestNewRateLimiter_ViaBFF は BFF 経由のリクエスト（全員が同じ BFF の IP から届く）の数え方を、X-Client-IP の信頼設定ごとに検証する。
+func TestNewRateLimiter_ViaBFF(t *testing.T) {
+	const (
+		burst = 2
+		bffIP = "34.0.0.1"
+	)
+
+	tests := []struct {
+		name     string
+		trust    bool
+		requests []rateLimitRequest
+	}{
+		{
+			// 正常系: 信頼が有効なら、同じ BFF 経由でも利用者（X-Client-IP）ごとに別の枠で数える
+			name:  "trusted_counts_per_client",
+			trust: true,
+			requests: []rateLimitRequest{
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.2", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.2", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusTooManyRequests},
+			},
+		},
+		{
+			// 準正常系: 信頼が有効でも、同じ利用者が上限を超えれば 429 になる（他の利用者は影響を受けない）
+			name:  "trusted_one_client_exceeded_does_not_block_others",
+			trust: true,
+			requests: []rateLimitRequest{
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "203.0.113.1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusTooManyRequests},
+				{clientIP: "203.0.113.2", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+			},
+		},
+		{
+			// 異常系: 信頼が有効で X-Client-IP が解釈できない場合は BFF の IP で数える（値を変えても回避できない）
+			name:  "trusted_unparsable_header_counts_as_bff",
+			trust: true,
+			requests: []rateLimitRequest{
+				{clientIP: "not-an-ip-1", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "not-an-ip-2", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "not-an-ip-3", xff: bffIP, remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusTooManyRequests},
+			},
+		},
+		{
+			// 準正常系: 信頼が無効なら、X-Client-IP を偽装しても送信元（X-Forwarded-For の右端）で数えるため回避できない
+			name:  "untrusted_spoofed_header_does_not_bypass",
+			trust: false,
+			requests: []rateLimitRequest{
+				{clientIP: "198.51.100.1", xff: "203.0.113.1", remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "198.51.100.2", xff: "203.0.113.1", remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusOK},
+				{clientIP: "198.51.100.3", xff: "203.0.113.1", remoteAddr: testProxyRemoteAddr, wantStatus: http.StatusTooManyRequests},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			e := newRateLimitTestServerWithTrust(newRateLimiter(rate.Every(time.Hour), burst, nil), tt.trust)
+
+			for i, r := range tt.requests {
+				assert.Equal(t, r.wantStatus, serve(e, http.MethodGet, "/test", r).Code, "request #%d", i)
+			}
+		})
+	}
+}
+
 // TestNewAPIRateLimiter は全体レートリミットがヘルスチェックを除く全パスに適用されることを検証する。
 func TestNewAPIRateLimiter(t *testing.T) {
 	client := rateLimitRequest{xff: "203.0.113.1", remoteAddr: testProxyRemoteAddr}
@@ -167,7 +244,7 @@ func TestNewAuthRateLimiter(t *testing.T) {
 
 	newServer := func() *echo.Echo {
 		e := echo.New()
-		e.IPExtractor = echo.ExtractIPFromXFFHeader()
+		e.IPExtractor = NewIPExtractor(false)
 		e.HTTPErrorHandler = HTTPErrorHandler
 		auth := NewAuthRateLimiter()
 		ok := func(c echo.Context) error { return c.String(http.StatusOK, "ok") }

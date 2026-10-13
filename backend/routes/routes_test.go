@@ -15,7 +15,7 @@ import (
 // レートリミットはハンドラより先に評価されるため、DB に到達しないリクエスト（不正ボディ・未認証）で検証できる。
 func newRoutesTestServer() *echo.Echo {
 	e := echo.New()
-	e.IPExtractor = echo.ExtractIPFromXFFHeader()
+	e.IPExtractor = middlewares.NewIPExtractor(false)
 	e.HTTPErrorHandler = middlewares.HTTPErrorHandler
 	SetupRoutes(e)
 	return e

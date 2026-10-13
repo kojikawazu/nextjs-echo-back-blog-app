@@ -38,6 +38,12 @@ resource "google_cloud_run_service" "echo_blog_app_service" {
           }
         }
 
+        # BFF が転送する X-Client-IP を信頼する。バックエンドを BFF からのみ呼べる（invoker_member が BFF のサービスアカウントのみ）ことが前提（#146）
+        env {
+          name  = "TRUST_CLIENT_IP_HEADER"
+          value = "true"
+        }
+
         dynamic "env" {
           for_each = local.secrets
 

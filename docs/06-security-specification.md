@@ -36,7 +36,7 @@
 - [7. SQLインジェクション対策](#7-sqlインジェクション対策)
 - [8. 既知のセキュリティ課題](#8-既知のセキュリティ課題)
   - [8.1 パスワードの平文保存（解消済み）](#81-パスワードの平文保存解消済み)
-  - [8.2 レートリミット（BFF 経由は利用者単位でない）](#82-レートリミットbff-経由は利用者単位でない)
+  - [8.2 レートリミット](#82-レートリミット)
   - [8.3 CSRF保護の欠如](#83-csrf保護の欠如)
   - [8.4 認可の不足（所有権チェック）](#84-認可の不足所有権チェック)
   - [8.5 入力長の制限なし](#85-入力長の制限なし)
@@ -273,7 +273,9 @@ var IsProduction = os.Getenv("ENV") == "production"
 ### 6.3 IAMロール
 
 - Cloud Run用のサービスアカウント（`cloud-run-sa`）が作成される。
-- Terraformでは `google_cloud_run_service_iam_member` でInvokerロールが定義されているが、GitHub Actionsのデプロイでは `--allow-unauthenticated` フラグを使用しており、Cloud Runサービスへのパブリックアクセスが許可されている。
+- **バックエンドは BFF からのみ呼べる**（#146）。GitHub Actions のデプロイは `--no-allow-unauthenticated` で `allUsers` の Invoker を外し、Terraform の `google_cloud_run_service_iam_member` で BFF（フロントエンドの Cloud Run、別プロジェクト）のサービスアカウントにのみ `roles/run.invoker` を付与する（`invoker_member`）。
+- BFF はメタデータサーバーから取得した ID トークン（audience はバックエンドの URL）を `Authorization: Bearer` で付けて呼ぶ。ID トークンのないリクエストは Cloud Run のフロントエンドが 401 で拒否し、コンテナに届かない。
+- アプリの JWT は Cookie（`token`）で受け取るため、`Authorization` ヘッダとは衝突しない。
 - Secret ManagerへのアクセスはサービスアカウントベースのIAMで制限される。
 
 ### 6.4 Artifact Registry
@@ -304,7 +306,7 @@ var IsProduction = os.Getenv("ENV") == "production"
 - 既存ユーザーは pgcrypto の `crypt(password, gen_salt('bf', 10))` で一括移行した（[supabase-migration-guide.md 付録 A](supabase-migration-guide.md#付録-a-パスワードのハッシュ化120)）。
 - **残課題**: 移行前の本番ダンプ（`work/backup.sql` 等、Git 管理外）には平文が残っているため、移行後に削除または再取得する。
 
-### 8.2 レートリミット（BFF 経由は利用者単位でない）
+### 8.2 レートリミット
 
 #124 で Echo の `middleware.RateLimiter` を導入した（`backend/middlewares/rate_limiter.go`）。カウントはインスタンスのメモリで持つ（Redis 等の外部ストアは使わない）。
 
@@ -314,14 +316,15 @@ var IsProduction = os.Getenv("ENV") == "production"
 | `POST /api/users/login`・`PUT /api/users/update`（2 つでカウントを共有） | 5 回まで、以降 12 秒ごとに 1 回（5 回/分） | パスワードの総当たり対策 |
 
 - 上限超過時は 429 `{"error":"Too many requests"}` を返す。
-- **クライアント IP の抽出**: `e.IPExtractor = echo.ExtractIPFromXFFHeader()`。`X-Forwarded-For` を右から読み、信頼できる経路（ループバック・リンクローカル・プライベート）を飛ばした最初の IP を使う。既定の `c.RealIP()` は左端（送信者が自由に書ける値）を使うため、偽装でレートリミットを回避できてしまう。解釈できない値が含まれる場合は接続元アドレスを使う。アクセスログの `remote_ip` も同じ値になる。
+- **クライアント IP の抽出**（`backend/middlewares/ip_extractor.go` の `NewIPExtractor`）。アクセスログの `remote_ip` も同じ値になる。
+  1. 環境変数 `TRUST_CLIENT_IP_HEADER` が `true` で、`X-Client-IP`（BFF が付与）が IP として解釈できる場合は、その値を正規化して使う（#146）。
+  2. それ以外は `echo.ExtractIPFromXFFHeader()`。`X-Forwarded-For` を右から読み、信頼できる経路（ループバック・リンクローカル・プライベート）を飛ばした最初の IP を使う。既定の `c.RealIP()` は左端（送信者が自由に書ける値）を使うため、偽装でレートリミットを回避できてしまう。解釈できない値が含まれる場合は接続元アドレスを使う。
+- **BFF 経由のリクエスト**: BFF はクライアント IP（BFF が受けた `X-Forwarded-For` の右端 = Cloud Run が付与した値）を `X-Client-IP` で転送する。バックエンドが受ける `X-Forwarded-For` の右端は BFF の IP になるため、`X-Client-IP` がなければ BFF 経由の利用者全体で 1 つの枠を共有することになる。
+- **`X-Client-IP` を信頼できる前提**: 送信者が自由に書けるヘッダのため、バックエンドを BFF からのみ呼べる状態（6.3）でのみ信頼する。公開状態で信頼すると、リクエストごとに値を変えてレートリミットを回避できる。`TRUST_CLIENT_IP_HEADER=true` は非公開化（`--no-allow-unauthenticated`）と同じ `gcloud run deploy` で設定し、片方だけが変わらないようにする（Terraform の `cloud-run.tf` にも同じ値を持たせ、apply で消えないようにする）。ローカル・IT/E2E では設定しない（既定は信頼しない）。値が `true` 以外（`1`・`TRUE` 等）の場合も信頼しない。
+- `X-Client-IP` が解釈できない値の場合は 400 にせず、BFF の IP として数える（値を変えても回避できない）。
 - **インスタンス数による緩み**: カウントはインスタンスごとのため、実効上限はインスタンス数倍になる。Cloud Run の最大インスタンス数を 3 に固定している（`deploy.yml` の `--max-instances 3`、Terraform の `autoscaling.knative.dev/maxScale`）。デプロイ・スケールインでカウントはリセットされる。
 
-**残課題（#146）**: フロントエンド（BFF）はクライアント IP を転送しないため、BFF 経由のリクエストはすべて BFF の IP で数えられ、BFF 経由の利用者全体で 1 つの枠を共有する。
-
-- バックエンドへ直接届くリクエスト（URL を知る攻撃者）は、送信元 IP 単位で制限される。
-- 攻撃者が公開サイトからログインを連打すると、オーナーも最長 1 分程度ログインできなくなる。ログインするのはオーナーのみのため許容している。
-- 本来の対策（バックエンドを BFF からのみ呼べるようにする、BFF が共有シークレット付きで IP を転送する等）は #146 で扱う。
+**#146 で解消**: 以前は BFF がクライアント IP を転送しておらず、BFF 経由の利用者全体で 1 つの枠を共有していた（攻撃者が公開サイトからログインを連打すると、オーナーも最長 1 分ログインできなくなる）。バックエンドの非公開化と `X-Client-IP` の転送により、利用者単位で数える。バックエンドへの直接アクセスは Cloud Run が 401 で拒否するため、レートリミットに到達しない。
 
 ### 8.3 CSRF保護の欠如
 

@@ -40,6 +40,8 @@ jobs:
             docker build -t ${IMAGE}:${{ github.sha }}  ./backend
             docker push ${IMAGE}:${{ github.sha }}
 
+      # バックエンドは BFF（フロントエンドのサービスアカウント）からのみ呼べるようにする（未認証の呼び出しは Cloud Run が 401 で拒否する）。
+      # BFF が転送する X-Client-IP は、非公開であることを前提に信頼するため、2 つの設定は必ず同じコマンドで揃えて変更する（#146）。
       - name: Deploy to Cloud Run
         run: |
             gcloud run deploy ${{ secrets.GCP_CLOUD_RUN_SERVICE_NAME }} \
@@ -47,7 +49,8 @@ jobs:
               --region ${{ secrets.GCP_REGION }} \
               --platform managed \
               --max-instances 3 \
-              --allow-unauthenticated
+              --no-allow-unauthenticated \
+              --update-env-vars TRUST_CLIENT_IP_HEADER=true
 
       - name: Cleanup old images
         run: |

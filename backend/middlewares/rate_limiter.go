@@ -11,7 +11,7 @@ import (
 
 // レートリミットの上限値。
 // カウントはインスタンスのメモリで持つため、Cloud Run のインスタンス数だけ実効上限が緩む（--max-instances で上限を固定する）。
-// BFF（フロントエンド）経由のリクエストは全員が BFF の IP に見えるため、BFF 経由の利用者全体で 1 つの枠を共有する。
+// BFF（フロントエンド）経由のリクエストは、BFF が転送する X-Client-IP で利用者単位に数える（NewIPExtractor）。
 const (
 	// apiRate / apiBurst は全エンドポイント共通の上限（濫用によるコスト増の抑止）: 毎秒 20 件、瞬間 60 件まで
 	apiRate  = rate.Limit(20)
@@ -48,7 +48,7 @@ func NewAuthRateLimiter() echo.MiddlewareFunc {
 }
 
 // newRateLimiter はクライアント IP（c.RealIP()）単位でカウントするレートリミットミドルウェアを返す。
-// IP の抽出方法は Echo インスタンスの IPExtractor に従う（SetupMiddlewares で X-Forwarded-For の右端から抽出する設定にする）。
+// IP の抽出方法は Echo インスタンスの IPExtractor に従う（SetupMiddlewares で NewIPExtractor を設定する）。
 //
 // 引数:
 //   - r: 1 秒あたりに補充されるリクエスト数
