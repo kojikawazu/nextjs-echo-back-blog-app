@@ -406,12 +406,13 @@ terraform/
 
 ## 6. CI/CDパイプライン
 
-GitHub Actions は 2 つのワークフローに責務を分離している。
+GitHub Actions は 3 つのワークフローに責務を分離している。
 
 | ファイル | トリガー | 役割 |
 |---------|---------|------|
 | `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + UT + IT + E2E）。マージ前に PR で実行される |
 | `.github/workflows/deploy.yml` | `main` への push | Docker ビルド → Artifact Registry へ push → Cloud Run へデプロイ |
+| `.github/workflows/secret-scan.yml` | PR・`main` への push（パスフィルタなし） | 秘匿ファイル（鍵・`.env`・Terraform の state / 変数）が Git の追跡対象に入っていないかを検査する（6.0.2 参照） |
 
 > テスト実行は `ci.yml` に一本化している。`deploy.yml` はデプロイ専任で、テスト・Go セットアップは持たない（PR 段階で `ci.yml` が品質を担保済みのため）。
 
@@ -440,6 +441,27 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | `gomod` | `backend/go.mod` | **セキュリティ更新のみ**（`open-pull-requests-limit: 0` でバージョン更新 PR は無効化）。セキュリティ更新は 1 つの PR（グループ `go-security`）にまとめ、`go.sum` の連鎖コンフリクトを防ぐ |
 
 > セキュリティ更新はリポジトリ設定（Dependabot security updates）で有効化されている。Dependabot が起動した CI は Actions secrets を参照できないため、CI はテスト用ダミー値で完結させている（6.0 参照）。Dependabot の PR は手で push せず、コンフリクト時は `@dependabot rebase` で解消する（手で push すると以後 Dependabot が当該 PR を更新しなくなる）。
+
+### 6.0.2 Secret scan（秘匿ファイルの混入検出）
+
+ファイル: `.github/workflows/secret-scan.yml`（判定ロジックは `scripts/check-secret-files.sh`、そのテストは `scripts/check-secret-files_test.sh`）
+
+`git ls-files` で引いた「git が見ているファイル」（追跡済み + 未追跡。`.gitignore` 対象は除く）を検査し、秘匿ファイルが含まれていたら失敗させる（#126）。`.gitignore` は未追跡ファイルにしか効かず（`git add -f` や書き漏れを止められない）、一度 push したファイルは追跡除外しても履歴に残るため、「追跡された時点で落とす」検出側として置く。
+
+| ステップ | 説明 |
+|---------|------|
+| `scripts/check-secret-files_test.sh` | 検出ルールの退行を、実スキャンの前に検知する（ケースごとに使い捨ての git リポジトリを作って実行する） |
+| `scripts/check-secret-files.sh` | 追跡済みのファイル（混入）と、`.gitignore` されていない未追跡のファイル（`git add` すると混入する）を検査する。`git ls-files` はインデックスを読むだけで履歴を走査しないため数秒で終わる |
+
+| 検査 | 対象 |
+|------|------|
+| ファイル名 | `.env` / `.env.*`、`*.key` / `*.pem` / `*.p12` / `*.pfx` / `*.jks` / `*.keystore`、`id_rsa` / `id_ed25519` / `id_dsa`、`credentials.json` / `serviceAccountKey.json`、Terraform の `*.tfstate` / `*.tfstate.backup` / `*.tfvars`（state には Secret Manager に入れる値が平文で残る） |
+| ファイル名（除外） | `*.example` / `*.sample` / `*.template` / `*.dist`、`*.env.d.ts`（テンプレートと型定義は秘匿情報を含まない） |
+| 内容 | PEM 秘密鍵のヘッダ（`-----BEGIN … PRIVATE KEY-----`）、GCP サービスアカウントキー JSON の `private_key` フィールド。サービスアカウントキーは任意のファイル名で保存されるため、名前では捕まらない |
+
+> `ci.yml` に同居させず独立したワークフローにしているのは、`ci.yml` がワークフロー単位の `paths`（`backend/**`）で絞っており、ルートや `terraform/` への混入では起動しないため。秘匿ファイルはどの変更種別でも混入しうるため、`secret-scan.yml` はパスフィルタを付けずに常に実行する。常に起動するので、ブランチ保護の必須チェックにしても `pending` のまま詰まらない。
+>
+> 検出時の対処は追跡除外ではなく、鍵・トークンのローテーションになる（push 済みの内容は履歴から取得できるため）。ローカルでは `scripts/check-secret-files.sh` で同じ検査を実行できる（`/pr-create`・`/self-review` もこのスクリプトがあれば実行する）。履歴上のパスは `scripts/check-secret-files.sh --history`（ファイル名のみ。導入時に一度だけ実行し、0 件を確認済み）で照合する。
 
 ### 6.1 デプロイワークフロー
 
@@ -577,6 +599,7 @@ nextjs-echo-back-blog-app/           # リポジトリルート（モノレポ�
 ├── terraform/                       # インフラ構成管理（Terraform）
 ├── docs/                            # 仕様・設計ドキュメント
 ├── .github/                         # CI/CD（GitHub Actions）
+├── scripts/                         # CI 用スクリプト（Secret scan とそのテスト）
 ├── manuals/                         # マニュアル
 ├── backup/                          # 旧 AWS App Runner 構成のバックアップ
 ├── work/                            # 作業用（gitignore）

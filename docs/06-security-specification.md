@@ -33,6 +33,7 @@
   - [6.3 IAMロール](#63-iamロール)
   - [6.4 Artifact Registry](#64-artifact-registry)
   - [6.5 SSL/TLS](#65-ssltls)
+  - [6.6 秘匿ファイルの Git 混入検出](#66-秘匿ファイルの-git-混入検出)
 - [7. SQLインジェクション対策](#7-sqlインジェクション対策)
 - [8. 既知のセキュリティ課題](#8-既知のセキュリティ課題)
   - [8.1 パスワードの平文保存（解消済み）](#81-パスワードの平文保存解消済み)
@@ -289,6 +290,12 @@ var IsProduction = os.Getenv("ENV") == "production"
 - Supabase接続の SSL モードは環境変数 `DB_SSLMODE` で制御し、**未設定時は `require`**（本番デフォルト）。本番では `require` を維持する。
 - `disable` はローカルの非SSL DB（IT の testcontainers など）に接続する場合のみ使用する。接続文字列は `backend/supabase/client.go` の `buildConnString` が `SUPABASE_URL` に `sslmode` を付与して組み立てる。
 - Cloud RunはHTTPSを標準で提供するため、クライアント-サーバー間の通信は暗号化される。
+
+### 6.6 秘匿ファイルの Git 混入検出
+
+- ローカルの秘匿ファイル（`backend/.env`・`backend/.env.test`・`terraform/terraform.tfstate`・`terraform/terraform.tfvars` 等）は `.gitignore` で追跡対象から外している。
+- `.gitignore` は「混入させない」側の対策でしかないため、CI の Secret scan（`.github/workflows/secret-scan.yml`。#126）で「追跡された時点で落とす」検出側を持つ。ファイル名（鍵・`.env` 系・Terraform の state / 変数）と内容（PEM 秘密鍵・サービスアカウントキー JSON）で、追跡済みのファイルと `.gitignore` されていない未追跡のファイルを検査し、PR・`main` への push のたびに常に実行する（`scripts/check-secret-files.sh`。ローカルでも同じスクリプトを実行する）。検出対象の詳細は [`09-architecture-specification.md`](09-architecture-specification.md) の 6.0.2 を参照。
+- 一度 push した秘匿ファイルは追跡除外しても Git の履歴に残る。検出した場合の対処は、履歴の書き換えではなく鍵・トークンのローテーションとする。
 
 ## 7. SQLインジェクション対策
 

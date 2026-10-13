@@ -184,6 +184,7 @@
 | `routes/routes_test.go` | 認証系レートリミットがログイン・ユーザー更新に適用され（カウント共有）、他のエンドポイントに影響しないこと |
 | `models/blog_users_test.go` | `BlogUsersData` の `String()` / `GoString()` が fmt の各書式でパスワード・メールアドレスをマスクすること、JSON 化してもパスワードが出ないこと |
 | `dto/blog_users_test.go` | `NewUserResponse` の変換と、JSON キーが公開フィールドのみであること |
+| `scripts/check-secret-files_test.sh`（リポジトリルート。Go 外のシェルテスト） | Secret scan の検出ルール（#126）。ケースごとに使い捨ての git リポジトリを作ってスクリプトを実行する: 鍵・`.env` 系・Terraform の state / 変数を追跡済みのファイル名で検出すること（日本語パスもエスケープされずに出ること）、テンプレート（`.example` 等）・型定義（`.env.d.ts`）・紛らわしい名前（`apiKey.ts`・`keyboard.md`・`*.tf`）を素通りすること、空のリポジトリで成功すること、PEM 秘密鍵（RSA / OpenSSH 含む）・サービスアカウントキー JSON を任意のファイル名でも内容で検出し、公開鍵やキー名への言及は素通りすること、`.gitignore` されていない未追跡ファイルは検出し ignore 済みは素通りすること、混在時は検出分だけを出力すること、追跡から外したファイルを `--history` だけが検出すること、不明な引数・git 管理外では失敗すること。CI（`secret-scan.yml`）で実スキャンの前に実行する |
 | `dto/blogs_test.go` / `dto/blog_likes_test.go` / `dto/blog_comments_test.go` | DTO の JSON が DTO 化以前（モデル直返し）の出力と完全一致すること（ゴールデン）、ゼロ値・nil（`null`）・空（`[]`）・順序の保持 |
 
 ---
@@ -541,6 +542,11 @@ JWT_SECRET_KEY=your-test-secret go test -tags=e2e ./e2e/... -v
 ```
 
 > `go test ./...`（タグなし）に IT・E2E は含まれない（`//go:build integration` / `//go:build e2e` で分離）。
+
+```bash
+# Secret scan の検出ルールのテスト（リポジトリルートで実行。Go 外のシェルテスト）
+scripts/check-secret-files_test.sh
+```
 
 ### 特定パッケージのテスト実行
 
