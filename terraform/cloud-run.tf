@@ -26,7 +26,10 @@ resource "google_cloud_run_service" "echo_blog_app_service" {
 
     spec {
       containers {
-        image = "${var.gcp_region}-docker.pkg.dev/${var.gcp_project_id}/${google_artifact_registry_repository.echo_blog_app_repo.repository_id}/${var.service_name}:latest"
+        # image は deploy.yml（gcloud run deploy --image <コミット SHA>）が管理するため lifecycle.ignore_changes で除外している。
+        # この値はサービスの新規作成時にだけ使われ、次の deploy.yml の実行でアプリのイメージに置き換わる。
+        # Artifact Registry には SHA タグしか push しないため、作成時点で必ず存在する公開のプレースホルダーを指定する（#170）
+        image = "us-docker.pkg.dev/cloudrun/container/hello"
 
         ports {
           container_port = var.api_port
@@ -56,7 +59,7 @@ resource "google_cloud_run_service" "echo_blog_app_service" {
               }
             }
           }
-        }        
+        }
       }
       service_account_name = google_service_account.cloud_run_sa.email
     }
@@ -65,6 +68,18 @@ resource "google_cloud_run_service" "echo_blog_app_service" {
   traffic {
     percent         = 100
     latest_revision = true
+  }
+
+  # リビジョンの管理の分担（#170）:
+  # - deploy.yml: image（コミット SHA タグ）と、gcloud が付与するクライアント情報のアノテーション
+  # - Terraform: それ以外（env・Secret 参照・リソース・maxScale・サービスアカウント）
+  # 分担を決めずに両方が書くと、terraform apply がデプロイ済みのイメージを巻き戻す
+  lifecycle {
+    ignore_changes = [
+      template[0].spec[0].containers[0].image,
+      template[0].metadata[0].annotations["run.googleapis.com/client-name"],
+      template[0].metadata[0].annotations["run.googleapis.com/client-version"],
+    ]
   }
 
   depends_on = [

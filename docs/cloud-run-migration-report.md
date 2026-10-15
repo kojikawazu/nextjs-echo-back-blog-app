@@ -10,6 +10,7 @@
   - [1. Terraform](#1-terraform)
   - [2. GitHub Actions](#2-github-actions)
   - [3. Workload Identity Federation への移行](#3-workload-identity-federation-への移行)
+  - [4. Terraform と本番の差分（drift）の解消](#4-terraform-と本番の差分drift-の解消)
 - [移行によるアプリケーションへの影響](#移行によるアプリケーションへの影響)
 
 ---
@@ -97,6 +98,34 @@
    gcloud iam service-accounts keys list --iam-account <旧SA> --managed-by=user
    gcloud iam service-accounts keys delete <キーID> --iam-account <旧SA>
    ```
+
+### 4. Terraform と本番の差分（drift）の解消
+
+Cloud Run のリビジョンは `deploy.yml`（`gcloud run deploy`）が更新するため、Terraform の定義が追従せず、`terraform plan` が `1 to change` になっていた（#170）。この状態で `terraform apply` を全体にかけると、デプロイ済みのイメージを巻き戻す。
+
+| 差分 | 原因 | 対応 |
+|------|------|------|
+| イメージ（Terraform は `:latest`、本番はコミット SHA タグ） | `deploy.yml` が SHA タグで更新する（`:latest` は push していない） | `deploy.yml` の管理とし、`lifecycle.ignore_changes` で除外。Terraform の値は新規作成時のプレースホルダー（`us-docker.pkg.dev/cloudrun/container/hello`）にした |
+| アノテーション `run.googleapis.com/client-name` / `client-version` | gcloud が付与する | `lifecycle.ignore_changes` で除外 |
+| env の並び | 本番の並びが手作業で設定されたもので、Terraform の定義（`TRUST_CLIENT_IP_HEADER` → Secret 参照をキー順）と異なる。`env` は順序付きのリストとして比較される | Terraform の定義を正とし、適用して本番を揃える |
+| env `DUMMY` | 本番だけにある。アプリケーションは参照していない | 適用で削除する |
+
+#### 解消手順
+
+1. plan で差分が env（並びと `DUMMY`）だけであることを確認する。イメージ・アノテーションが差分に出ないこと（`ignore_changes` が効いていること）を確認する。
+
+   ```bash
+   cd terraform
+   terraform plan -target=google_cloud_run_service.echo_blog_app_service
+   ```
+
+2. Cloud Run サービスだけに限定して適用する。新しいリビジョンが作られ、イメージは現在の SHA タグのまま、env が Terraform の定義どおりになる。
+
+   ```bash
+   terraform apply -target=google_cloud_run_service.echo_blog_app_service
+   ```
+
+3. 全体の `terraform plan` が `No changes` になることを確認する。以降は `-target` を付けずに適用できる。
 
 ## 移行によるアプリケーションへの影響
 

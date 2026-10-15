@@ -42,7 +42,7 @@
 | **Secret Manager** | Google CloudのシークレットＧ管理サービス。`SUPABASE_URL`、`JWT_SECRET_KEY`、`ALLOWED_ORIGINS`等の機密情報を安全に管理し、Cloud Runの環境変数として注入する。 |
 | **Visit ID（訪問者ID）** | 未認証のサイト訪問者を一意に識別するためのUUID。JWTトークンとして`visit-id-token`クッキーに格納される。いいね機能における匿名ユーザーの重複防止に使用する。 |
 | **pgx** | Go言語用のPostgreSQLドライバー。本プロジェクトではv5を使用し（v4 から移行。#153）、`pgxpool`によるコネクションプーリングを行う。クエリを Simple Protocol で実行し（`QueryExecModeSimpleProtocol`）、Prepared Statementの競合を防止している。 |
-| **Terraform** | HashiCorp製のIaC（Infrastructure as Code）ツール。GCPリソース（Cloud Run、Artifact Registry、Secret Manager、IAM）をコードで定義・管理する。 |
+| **Terraform** | HashiCorp製のIaC（Infrastructure as Code）ツール。GCPリソース（Cloud Run、Artifact Registry、Secret Manager、IAM）をコードで定義・管理する。Cloud Run のイメージ（コミット SHA タグ）は `deploy.yml` が更新するため、Terraform 側は `lifecycle.ignore_changes` で除外し、env 等それ以外の設定を管理する（#170） |
 | **Distroless** | Google提供の最小限コンテナイメージ。シェルやパッケージマネージャを含まず、アプリケーションバイナリの実行に必要な最小限のランタイムのみを含む。セキュリティとイメージサイズの最適化に寄与する。 |
 | **Workload Identity Federation（WIF）** | GitHub ActionsからGCPリソースへアクセスする際の認証方式（#144）。GitHub が発行する OIDC トークンを GCP の Workload Identity Provider で検証し、デプロイ専用のサービスアカウント（`echo-blog-deployer`）を借用する。長期有効なサービスアカウントキーを持たないため、鍵の漏洩・ローテーションの問題が生じない。Provider の条件で「このリポジトリ（`repository_id`）の main ブランチの `deploy.yml`」からのトークンだけを受け入れる。定義は `terraform/github-actions-wif.tf`。以前はサービスアカウントキー（Actions secret `GCP_SERVICE_ACCOUNT_KEY`）を `credentials_json` で渡していた |
 | **CORS** | Cross-Origin Resource Sharing。フロントエンド（Next.js）からのクロスオリジンリクエストを許可するために設定。`ALLOWED_ORIGINS`環境変数で許可オリジンをカンマ区切りで指定する。 |
