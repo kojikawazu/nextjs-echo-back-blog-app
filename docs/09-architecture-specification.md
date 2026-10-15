@@ -356,6 +356,9 @@ Terraformで管理される GCP リソースは以下の通り。
 | 認証 | 未認証アクセス拒否（`--no-allow-unauthenticated`・`--invoker-iam-check`）。Invoker は BFF のサービスアカウントのみ（`invoker_member`。#146 / #165） |
 | サービスアカウント | `cloud-run-sa` |
 | トラフィック | 最新リビジョンに100% |
+| イメージ | `deploy.yml` がコミット SHA タグで更新する（Terraform 側は新規作成時のプレースホルダーのみ） |
+
+> **リビジョンの管理の分担（#170）**: Cloud Run のリビジョンは `deploy.yml`（`gcloud run deploy`）と Terraform の両方が書き込むため、項目ごとに管理元を 1 つに決めている。`deploy.yml` はイメージ（コミット SHA タグ）と、gcloud が付与するアノテーション（`run.googleapis.com/client-name` / `client-version`）を管理し、Terraform はこれらを `lifecycle.ignore_changes` で除外する。それ以外（env・Secret 参照・CPU / メモリ・`maxScale`・サービスアカウント）は Terraform が管理する。`deploy.yml` の `--max-instances 3`・`--update-env-vars TRUST_CLIENT_IP_HEADER=true` は Terraform と同じ値を指定しており、矛盾しない（非公開化の設定と同じコマンドで揃えるため残している。#146 / #165）。env を追加・変更するときは Terraform（`cloud-run.tf` / `secrets.tf`）で行い、`gcloud` で直接書き換えない（`env` は順序付きのリストとして比較されるため、並びが変わるだけでも差分になる）。
 
 #### Artifact Registry
 
@@ -401,7 +404,9 @@ terraform/
 └── github-actions-wif.tf   # GitHub Actions のデプロイ認証（WIF の Provider・デプロイ専用サービスアカウントと権限）
 ```
 
-> `github-actions-wif.tf` の Workload Identity Pool はこのリポジトリ専用に作る。借用を許可する主体（`principalSet`）は Pool 単位で照合されるため、他リポジトリと Pool を共用すると、後から追加された条件の緩い Provider を経由して、このリポジトリの別ブランチ・別ワークフローのトークンがバインディングに一致しうる。専用 Pool なら Provider は `deploy.yml`（main）に限定した 1 つだけになる。また Cloud Run サービスの定義は本番とずれているため（#170）、適用は `terraform apply -target=...` で対象リソースに限定する（手順は [`cloud-run-migration-report.md`](cloud-run-migration-report.md) の「3. Workload Identity Federation への移行」）。既存の Cloud Run サービス・Artifact Registry リポジトリは、`-target` の依存として巻き込まないよう変数で指定している。
+> `cloud-run.tf` はイメージとクライアント情報のアノテーションを `lifecycle.ignore_changes` で除外しているため、`deploy.yml` によるデプロイ後も `terraform plan` は差分なし（No changes）になる（5.1 の「リビジョンの管理の分担」参照。#170）。
+>
+> `github-actions-wif.tf` の Workload Identity Pool はこのリポジトリ専用に作る。借用を許可する主体（`principalSet`）は Pool 単位で照合されるため、他リポジトリと Pool を共用すると、後から追加された条件の緩い Provider を経由して、このリポジトリの別ブランチ・別ワークフローのトークンがバインディングに一致しうる。専用 Pool なら Provider は `deploy.yml`（main）に限定した 1 つだけになる（導入手順は [`cloud-run-migration-report.md`](cloud-run-migration-report.md) の「3. Workload Identity Federation への移行」）。既存の Cloud Run サービス・Artifact Registry リポジトリは、`-target` の依存として巻き込まないよう変数で指定している。
 
 #### Terraform要件
 
@@ -851,7 +856,8 @@ terraform/
 ├── cloud-run.tf                # Cloud Runサービス定義
 ├── cloud-run-iam.tf            # IAMロール設定
 ├── artifact-registry.tf        # Artifact Registry定義
-└── secrets.tf                  # Secret Manager定義
+├── secrets.tf                  # Secret Manager定義
+└── github-actions-wif.tf       # GitHub Actions のデプロイ認証（WIF）
 ```
 
 ---
