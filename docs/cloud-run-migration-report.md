@@ -107,12 +107,12 @@ Cloud Run のリビジョンは `deploy.yml`（`gcloud run deploy`）が更新�
 |------|------|------|
 | イメージ（Terraform は `:latest`、本番はコミット SHA タグ） | `deploy.yml` が SHA タグで更新する（`:latest` は push していない） | `deploy.yml` の管理とし、`lifecycle.ignore_changes` で除外。Terraform の値は新規作成時のプレースホルダー（`us-docker.pkg.dev/cloudrun/container/hello`）にした |
 | アノテーション `run.googleapis.com/client-name` / `client-version` | gcloud が付与する | `lifecycle.ignore_changes` で除外 |
-| env の並び | 本番の並びが手作業で設定されたもので、Terraform の定義（`TRUST_CLIENT_IP_HEADER` → Secret 参照をキー順）と異なる。`env` は順序付きのリストとして比較される | Terraform の定義を正とし、適用して本番を揃える |
+| Secret 参照の env（削除と追加として表示される） | 実体は差分ではない。provider のスキーマで `env` は set（順序を持たない）であり、`DUMMY` の削除で set が変わったことに伴って表示されたもの。適用後、本番の並びは Terraform の定義と異なるが plan は `No changes` になる | `DUMMY` の削除で解消（並びを揃える必要はない） |
 | env `DUMMY` | 本番だけにある。アプリケーションは参照していない | 適用で削除する |
 
 #### 解消手順
 
-1. plan で差分が env（並びと `DUMMY`）だけであることを確認する。イメージ・アノテーションが差分に出ないこと（`ignore_changes` が効いていること）を確認する。
+1. plan で差分が env（`DUMMY` の削除と、それに伴って表示される Secret 参照の env）だけであることを確認する。イメージ・アノテーションが差分に出ないこと（`ignore_changes` が効いていること）を確認する。
 
    ```bash
    cd terraform
