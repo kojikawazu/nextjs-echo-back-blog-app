@@ -540,7 +540,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 
 ```dockerfile
 # ビルドステージ
-FROM golang:1.25 AS builder
+FROM golang:1.26 AS builder
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -555,7 +555,7 @@ CMD ["/app/main"]
 
 | ステージ | ベースイメージ | 用途 |
 |---------|--------------|------|
-| builder | `golang:1.25` | Goアプリケーションのコンパイル |
+| builder | `golang:1.26` | Goアプリケーションのコンパイル |
 | runtime | `gcr.io/distroless/base` | 最小限のランタイム環境 |
 
 #### Distrolessイメージの特徴
@@ -904,11 +904,11 @@ var IsProduction = os.Getenv("ENV") == "production"
 
 | ツール | バージョン | 用途 |
 |--------|-----------|------|
-| Go | 1.25 以上（`go.mod` は `go 1.25.0`） | アプリケーションのビルド・実行 |
+| Go | 1.26 以上（`go.mod` は `go 1.26.0`） | アプリケーションのビルド・実行 |
 | Supabase / PostgreSQL | - | 稼働中の接続先（無料枠で可）。起動時に接続テスト `SELECT 1` を実行する |
 | Docker | アプリのコンテナ起動時、および IT（testcontainers）実行時に必須 | Repository 層 IT はコンテナで PostgreSQL を起動する |
 
-> `go.mod`（`go 1.25.0`）と `Dockerfile` のビルドステージ（`golang:1.25`）はバージョンを一致させている。依存更新で `go.mod` の `go` 指令が引き上げられた場合は、`Dockerfile` も同一 PR で揃える（公式 golang イメージは `GOTOOLCHAIN=local` のため新しいツールチェーンを自動取得しない）。
+> `go.mod`（`go 1.26.0`）と `Dockerfile` のビルドステージ（`golang:1.26`）はバージョンを一致させている。依存更新で `go.mod` の `go` 指令が引き上げられた場合は、`Dockerfile` も同一 PR で揃える（公式 golang イメージは `GOTOOLCHAIN=local` のため新しいツールチェーンを自動取得しない）。
 
 ### 10.2 セットアップ手順
 

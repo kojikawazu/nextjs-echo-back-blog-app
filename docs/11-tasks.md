@@ -262,6 +262,12 @@
   - 背景: Dependabot の依存更新（x/crypto / echo / containerd）が Go 1.25 以上を要求するため
   - 併せて非推奨の `middleware.Logger()` を `middleware.RequestLoggerWithConfig` へ移行し、CI の `JWT_SECRET_KEY` をテスト用ダミー値に変更
 
+- [ ] **Go 1.26 への引き上げと Dependabot alerts の解消（#176）**
+  - 対応済み: `go.mod` を `go 1.26.0`、`Dockerfile` のビルドステージを `golang:1.26` に統一。間接依存 `go.opentelemetry.io/otel/*` を 1.47.0 に更新（alert #50。testcontainers 経由のテスト専用依存で本番バイナリには含まれない）
+  - 残: 本対応のマージ後、Dependabot のセキュリティ更新 PR #175（echo/v4 4.16.1）を rebase してマージする（echo の alert 9 件が自動クローズ）
+  - 修正版のない echo の alert は dismiss: #42（`middleware.Proxy` 未使用）、#44（`middlewares.NewIPExtractor` で既定の `RealIP()` を差し替え済み）
+  - 背景: echo 4.16.1 が Go 1.26 以上を要求し、#175 が `go` 指令を引き上げる。`Dockerfile` が `golang:1.25`（`GOTOOLCHAIN=local`）のままだと #175 単独のマージでデプロイのビルドが失敗する。CI は `go-version-file` で Go を入れるため検知できない
+
 - [ ] **Dependabot の設定と Node 20 向けアクションの更新（#127）**
   - 対応済み: `.github/dependabot.yml` を追加。`github-actions` は週次バージョン更新（1 PR に集約）、`gomod` はセキュリティ更新のみ（1 PR に集約）
   - 残: Dependabot が作るアクション更新 PR をレビュー・マージし、CI の Node 20 非推奨注記が消えたことを確認する

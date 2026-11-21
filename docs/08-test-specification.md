@@ -63,9 +63,9 @@
 
 | ツール | バージョン | 用途 |
 |--------|----------|------|
-| testing（標準パッケージ） | Go 1.25 | テストフレームワーク |
+| testing（標準パッケージ） | Go 1.26 | テストフレームワーク |
 | github.com/stretchr/testify | v1.11.1 | アサーション（assert）・モック（mock） |
-| net/http/httptest（標準パッケージ） | Go 1.25 | HTTPリクエスト/レスポンスのテスト |
+| net/http/httptest（標準パッケージ） | Go 1.26 | HTTPリクエスト/レスポンスのテスト |
 | github.com/testcontainers/testcontainers-go | v0.44.0 | IT用の使い捨て PostgreSQL コンテナ（postgres モジュール）。Docker クライアントは `moby/moby/client`（Docker Engine API 1.40 以上が必要）。#154 で v0.35.0 から更新 |
 | github.com/jackc/pgconn | v1.14.3 | IT のエラー検証（`PgError.Code` で SQLSTATE を判定） |
 | github.com/labstack/echo/v4 | v4.15.3 | Echoコンテキストの生成 |
