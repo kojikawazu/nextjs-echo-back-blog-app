@@ -1,6 +1,6 @@
 name: CI
 
-# lint / 静的解析。PR と main への push で実行し、マージ前に品質を担保する。
+# 品質ゲート（lint / 静的解析・UT・IT・E2E・Docker ビルド検証）。PR と main への push で実行し、マージ前に品質を担保する。
 on:
   push:
     branches:
@@ -109,3 +109,17 @@ jobs:
           JWT_SECRET_KEY: ci-test-dummy-jwt-secret
         # SUPABASE_URL は設定しない → testsupport がコンテナを起動する。
         run: go test -tags=e2e ./e2e/...
+
+  # Docker イメージのビルド検証（push はしない）。deploy.yml と同じ `docker build ./backend` を実行する。
+  # 他のジョブの Go は setup-go の go-version-file で go.mod に追従するが、Dockerfile の
+  # golang イメージは固定で GOTOOLCHAIN=local のため新しいツールチェーンを取得しない。
+  # go.mod の go 指令だけが上がると（Dependabot の更新など）、マージ後のデプロイで初めて
+  # ビルドが失敗するため、PR の段階で検知する（#175 / #178）。
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: docker build (no push)
+        run: docker build -t echo-blog-back:ci ./backend
