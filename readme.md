@@ -26,7 +26,7 @@ Go + Echo 製の REST API で、記事本文は GitHub 上の Markdown を参照
 
 | 分類 | 技術 | バージョン |
 |---|---|---|
-| 言語 | Go | 1.25 |
+| 言語 | Go | 1.26 |
 | Web フレームワーク | Echo | v4.15.3 |
 | DB ドライバ | pgx/v5（pgxpool） | v5.11.0 |
 | 認証 | golang-jwt/jwt/v5（HS256） | v5.3.1 |

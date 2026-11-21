@@ -179,7 +179,7 @@ signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 ### 5.5 Dockerコンテナ構成
 
-- マルチステージビルドを採用し、ビルドステージ（`golang:1.25`）と実行ステージ（`gcr.io/distroless/base`）を分離。
+- マルチステージビルドを採用し、ビルドステージ（`golang:1.26`）と実行ステージ（`gcr.io/distroless/base`）を分離。
 - distrolessベースイメージにより、最小限のランタイム環境でセキュアかつ軽量なコンテナを実現。
 
 ### 5.6 Infrastructure as Code
