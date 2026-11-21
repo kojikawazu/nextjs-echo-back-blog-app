@@ -423,7 +423,7 @@ GitHub Actions は 3 つのワークフローに責務を分離している。
 
 | ファイル | トリガー | 役割 |
 |---------|---------|------|
-| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + UT + IT + E2E）。マージ前に PR で実行される |
+| `.github/workflows/ci.yml` | PR・`main` への push | 品質ゲート（lint / 静的解析 + UT + IT + E2E + Docker ビルド検証）。マージ前に PR で実行される |
 | `.github/workflows/deploy.yml` | `main` への push | Docker ビルド → Artifact Registry へ push → Cloud Run へデプロイ |
 | `.github/workflows/secret-scan.yml` | PR・`main` への push（パスフィルタなし） | 秘匿ファイル（鍵・`.env`・Terraform の state / 変数）が Git の追跡対象に入っていないかを検査する（6.0.2 参照） |
 
@@ -433,7 +433,7 @@ GitHub Actions は 3 つのワークフローに責務を分離している。
 
 ファイル: `.github/workflows/ci.yml`
 
-PR・`main` への push で実行し、独立した 4 ジョブを並列に走らせる。
+PR・`main` への push で実行し、独立した 5 ジョブを並列に走らせる。
 
 | ジョブ | ステップ | 説明 |
 |-------|---------|------|
@@ -441,6 +441,7 @@ PR・`main` への push で実行し、独立した 4 ジョブを並列に走�
 | `test` | `go test ./...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | 全パッケージの UT を実行（全 mock。DB を必要としない）。対象を列挙しないため、追加したパッケージも自動で対象になる（#158）。IT / E2E は build tag で分離しているため含まれない |
 | `integration-test` | `go test -tags=integration ./repositories/... ./testsupport/...`（`working-directory: backend`） | Repository 層の IT を testcontainers（使い捨て PostgreSQL）で実行。実 Supabase には接続しない。`testsupport` の接続先検査とスキーマの検査（監査列・`updated_at` のトリガ。#117）のテストも実行 |
 | `e2e-test` | `go test -tags=e2e ./e2e/...`（`working-directory: backend`、`JWT_SECRET_KEY` にテスト用ダミー値を env で注入） | httptest で起動した実サーバーへ HTTP を投げ、Handler→Service→Repository→DB を貫く API-E2E を testcontainers 上で実行 |
+| `docker-build` | `docker build -t echo-blog-back:ci ./backend`（push しない） | `deploy.yml` と同じ条件でイメージをビルドできることを検証する。他のジョブの Go は `go-version-file` で `go.mod` に追従するが、`Dockerfile` の golang イメージは固定（`GOTOOLCHAIN=local`）のため、`go` 指令だけが上がるとデプロイで初めて失敗する。これを PR の段階で検知する（#178） |
 
 > IT・E2E とも `testsupport` パッケージが testcontainers で PostgreSQL コンテナを起動し、`testsupport/testdata/schema.sql` / `seed.sql` を適用して実行する。GitHub Actions の ubuntu ランナーは Docker 同梱のため追加設定は不要。`SUPABASE_URL` を環境変数で指定した場合のみ、コンテナを起動せずその DB に接続する（接続先はローカルに限り、本番等のリモートは `testsupport` が拒否する。#140）。UT・E2E は `config` パッケージが起動時に `JWT_SECRET_KEY` を要求するため env で注入する。値は本番の secret ではなく CI 専用のダミー値（`ci-test-dummy-jwt-secret`）とする（Dependabot が起動したワークフローは Actions secrets を参照できず空になるため、また本番鍵をテストに露出させないため）。
 
@@ -908,7 +909,7 @@ var IsProduction = os.Getenv("ENV") == "production"
 | Supabase / PostgreSQL | - | 稼働中の接続先（無料枠で可）。起動時に接続テスト `SELECT 1` を実行する |
 | Docker | アプリのコンテナ起動時、および IT（testcontainers）実行時に必須 | Repository 層 IT はコンテナで PostgreSQL を起動する |
 
-> `go.mod`（`go 1.26.0`）と `Dockerfile` のビルドステージ（`golang:1.26`）はバージョンを一致させている。依存更新で `go.mod` の `go` 指令が引き上げられた場合は、`Dockerfile` も同一 PR で揃える（公式 golang イメージは `GOTOOLCHAIN=local` のため新しいツールチェーンを自動取得しない）。
+> `go.mod`（`go 1.26.0`）と `Dockerfile` のビルドステージ（`golang:1.26`）はバージョンを一致させている。依存更新で `go.mod` の `go` 指令が引き上げられた場合は、`Dockerfile` も同一 PR で揃える（公式 golang イメージは `GOTOOLCHAIN=local` のため新しいツールチェーンを自動取得しない）。揃え忘れは CI の `docker-build` ジョブが `go: go.mod requires go >= x.y.z (running go a.b.c; GOTOOLCHAIN=local)` で失敗して検知する（#178）。
 
 ### 10.2 セットアップ手順
 
@@ -965,7 +966,7 @@ JWT_SECRET_KEY=... go test -tags=e2e ./e2e/...
 - IT は `//go:build integration`、E2E は `//go:build e2e` タグで分離されており、通常の `go test ./...` には含まれない。IT は各パッケージの `TestMain` が `backend/testsupport` の `Start` を、E2E は `main_test.go` が `Setup` を呼び、コンテナ起動・スキーマ/シード適用・接続を一括で行う。
 - IT は `SUPABASE_URL` を環境変数として指定した場合のみ、コンテナを起動せずその DB に接続する（`TEST_*` も併せて指定すること）。`testsupport` は `.env` ファイルを自動読み込みしない（古い `.env.test` によるコンテナ経路の意図しない乗っ取りを防ぐため）。
 - Service / Handler 層テストはモックを使うため DB 不要だが、`config` パッケージの `init` が `JWT_SECRET_KEY` を要求する。
-- CI（`.github/workflows/ci.yml`）は PR・`main` への push で `test` ジョブ（UT）と `integration-test` ジョブ（IT / testcontainers）を `working-directory: backend` で実行する。詳細は [`08-test-specification.md`](08-test-specification.md)。
+- CI（`.github/workflows/ci.yml`）は PR・`main` への push で `test` ジョブ（UT）・`integration-test` ジョブ（IT / testcontainers）・`e2e-test` ジョブ（E2E）を `working-directory: backend` で実行し、`docker-build` ジョブでイメージのビルドを検証する。詳細は [`08-test-specification.md`](08-test-specification.md)。
 
 ### 10.5 Docker での起動
 

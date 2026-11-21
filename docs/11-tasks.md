@@ -268,6 +268,10 @@
   - 修正版のない echo の alert は dismiss: #42（`middleware.Proxy` 未使用）、#44（`middlewares.NewIPExtractor` で既定の `RealIP()` を差し替え済み）
   - 背景: echo 4.16.1 が Go 1.26 以上を要求し、#175 が `go` 指令を引き上げる。`Dockerfile` が `golang:1.25`（`GOTOOLCHAIN=local`）のままだと #175 単独のマージでデプロイのビルドが失敗する。CI は `go-version-file` で Go を入れるため検知できない
 
+- [x] **CI で Docker イメージのビルドを検証する（#178）**
+  - 対応: `ci.yml` に `docker-build` ジョブ（`docker build ./backend`。push しない）を追加。`go.mod` の `go` 指令と `Dockerfile` の golang イメージの不一致を PR の段階で検知する
+  - `go.mod` と `Dockerfile` のバージョンを比較する専用のステップは設けない（`docker build` が `go.mod requires go >= ...（GOTOOLCHAIN=local）` と原因を出力するため）
+
 - [ ] **Dependabot の設定と Node 20 向けアクションの更新（#127）**
   - 対応済み: `.github/dependabot.yml` を追加。`github-actions` は週次バージョン更新（1 PR に集約）、`gomod` はセキュリティ更新のみ（1 PR に集約）
   - 残: Dependabot が作るアクション更新 PR をレビュー・マージし、CI の Node 20 非推奨注記が消えたことを確認する
